@@ -15,7 +15,7 @@ from pymongo.database import Database
 from pymongo.collection import Collection
 
 STARTING_CASH = 1000.0
-DB_NAME = "the_reef"
+DB_NAME = os.environ.get("MONGODB_DB", "the_reef")
 
 
 # ── connection ────────────────────────────────────────────────────────────────
