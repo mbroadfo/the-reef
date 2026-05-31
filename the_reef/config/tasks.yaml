@@ -1,0 +1,123 @@
+# The Reef — Task Definitions
+# Tasks run sequentially; each feeds into the next via context.
+
+hunter_research:
+  description: >
+    You have been activated by the scanner. Signal detected on {ticker}:
+    {signal_type} with trigger value {signal_value} at price ${current_price}.
+    Timestamp: {scan_timestamp}.
+
+    Conduct a deep-dive investigation:
+    1. Use market data tools to get current price, volume, RSI, and 52-week range
+    2. Use price history tool to understand recent trend
+    3. Search for latest news, analyst coverage, and any catalysts
+    4. Build a clear trade thesis: what is happening and why does it matter?
+    5. Specify a suggested entry range, stop-loss level, and target price
+    6. Rate your own confidence: HIGH / MEDIUM / LOW
+
+    Be specific. Numbers, not narratives.
+  expected_output: >
+    A structured hunter report containing:
+    - Signal summary (what triggered this, key metrics)
+    - Current technicals (price, RSI, volume ratio, trend)
+    - Trade thesis (1-3 sentences on WHY this is interesting)
+    - Suggested entry range, stop-loss, and price target
+    - Hunter confidence: HIGH / MEDIUM / LOW
+    - Any red flags or caveats you spotted
+  agent: momentum_shark
+
+value_analysis:
+  description: >
+    Review the hunter's report on {ticker} and provide fundamental analysis.
+    Focus on: valuation (P/E, P/S, EV/EBITDA vs peers), revenue and earnings
+    trajectory, balance sheet health, and management quality.
+    Answer the critical question: at the current price of ${current_price},
+    does the fundamental picture support the hunter's thesis?
+  expected_output: >
+    Fundamental assessment covering:
+    - Valuation verdict: CHEAP / FAIR / EXPENSIVE relative to peers and history
+    - Key financial metrics (2-3 most important ones)
+    - Business quality score: STRONG / ADEQUATE / WEAK
+    - Fundamental alignment with hunter thesis: SUPPORTS / NEUTRAL / CONTRADICTS
+    - One-sentence bottom line
+  agent: value_shark
+  context:
+    - hunter_research
+
+macro_analysis:
+  description: >
+    Assess the macro and sector context for a trade in {ticker} at this moment.
+    Consider: sector momentum, interest rate sensitivity, recent market regime
+    (risk-on/risk-off), and any macro headwinds or tailwinds specific to this
+    stock's industry. Does the current macro environment support this trade?
+  expected_output: >
+    Macro assessment covering:
+    - Sector momentum: STRONG TAILWIND / NEUTRAL / HEADWIND
+    - Rate sensitivity: how does this stock behave with rate changes?
+    - Macro alignment with trade: GO / CAUTION / AVOID
+    - Key macro risk to monitor
+  agent: macro_shark
+  context:
+    - hunter_research
+
+contrarian_challenge:
+  description: >
+    Stress-test the bull case for {ticker}. Your job is to argue against the trade.
+    Review what the hunter found and what the analysts said, then answer:
+    1. What is the strongest bear case?
+    2. What are the hidden risks (regulatory, competitive, financial)?
+    3. Is this trade crowded? Is everyone already long?
+    4. What does the market know that the bulls are ignoring?
+    5. On a scale of 1-10, how worried are you? (10 = do NOT touch this)
+
+    Be the voice the portfolio manager needs to hear before committing capital.
+  expected_output: >
+    Contrarian challenge covering:
+    - Primary bear thesis (the #1 risk)
+    - 2-3 specific risks with supporting evidence
+    - Crowding assessment: CROWDED / BALANCED / CONTRARIAN SETUP
+    - Worry score: 1-10 (higher = more bearish)
+    - Final verdict: PROCEED WITH CAUTION / CONCERNS MANAGEABLE / AVOID
+  agent: contrarian_shark
+  context:
+    - hunter_research
+    - value_analysis
+    - macro_analysis
+
+apex_decision:
+  description: >
+    You are Apex Shark. You have received the full panel's analysis on {ticker}.
+    The scanner detected: {signal_type} at ${current_price}.
+
+    STEP 1: Use the "Get Portfolio State" tool to review current positions and
+    available cash before making any decision.
+
+    STEP 2: Weigh all four reports — hunter thesis, value assessment, macro
+    context, and contrarian challenge.
+
+    STEP 3: Make your decision:
+      - BUY: Use "Execute Paper Buy" tool. Set conviction (1-10), specify
+        surfaced_by, vetted_by. Position sizing is conviction-scaled automatically.
+      - HOLD/MONITOR: Add to watchlist for next scan cycle.
+      - PASS: Not enough conviction or risk too high.
+
+    STEP 4: After executing (or passing), use "Check Stop Losses" tool to
+    review all existing positions and exit any that have breached their stop.
+
+    STEP 5: Provide your full decision rationale including which shark inputs
+    you weighted most heavily and why.
+  expected_output: >
+    Apex Shark's final decision containing:
+    - DECISION: BUY [X shares @ ~$Y] | MONITOR | PASS
+    - Conviction score: X/10
+    - Primary reason for decision
+    - Key factors from each shark that influenced the call
+    - Stop-loss and target set (if buying)
+    - Any existing positions reviewed or exited
+    - One eTrade action item for the human: what to do in their real account
+  agent: apex_shark
+  context:
+    - hunter_research
+    - value_analysis
+    - macro_analysis
+    - contrarian_challenge

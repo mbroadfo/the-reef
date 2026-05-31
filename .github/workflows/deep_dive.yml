@@ -1,0 +1,58 @@
+name: 🦈🦈 Deep Dive — Shark Panel Analysis
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: "Override ticker (leave blank to use top signal from Atlas)"
+        required: false
+
+jobs:
+  deep_dive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        working-directory: the_reef
+        run: uv sync
+
+      - name: Run shark panel deep-dive
+        working-directory: the_reef
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          TICKER_OVERRIDE: ${{ github.event.inputs.ticker }}
+        run: |
+          if [ -n "$TICKER_OVERRIDE" ]; then
+            echo "Manual dive on: $TICKER_OVERRIDE"
+            uv run python main.py dive "$TICKER_OVERRIDE"
+          else
+            # Read top signal from MongoDB via scanner module
+            TOP_TICKER=$(uv run python -c "
+          from the_reef.scanner.monitor import load_signals
+          signals = load_signals(limit=1)
+          print(signals[0].ticker if signals else '')
+          ")
+            if [ -n "$TOP_TICKER" ]; then
+              echo "Diving on top signal: $TOP_TICKER"
+              uv run python main.py dive "$TOP_TICKER"
+            else
+              echo "No signals in Atlas — skipping deep-dive"
+            fi
+          fi
+
+      - name: Upload decision artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: apex-decision-${{ github.run_number }}
+          path: the_reef/data/last_decision.md
+          retention-days: 90

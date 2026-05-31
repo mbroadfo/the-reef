@@ -1,0 +1,29 @@
+name: 🛑 Stop-Loss Monitor — Apex Shark Autonomous Exits
+
+on:
+  schedule:
+    # Every 30 minutes during market hours, Mon–Fri
+    - cron: "*/30 13-20 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  check_stops:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        working-directory: the_reef
+        run: uv sync
+
+      - name: Check and execute stop-losses
+        working-directory: the_reef
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uv run python main.py stops

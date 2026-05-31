@@ -1,0 +1,60 @@
+name: 🦈 Scanner — Detect Signals
+
+on:
+  schedule:
+    # Every 5 minutes, Mon–Fri, 9:30am–4:00pm ET (13:30–21:00 UTC)
+    - cron: "*/5 13-20 * * 1-5"
+    - cron: "30 13 * * 1-5"   # catch 9:30am ET open exactly
+  workflow_dispatch:           # Manual trigger from GitHub UI
+    inputs:
+      watchlist:
+        description: "Comma-separated tickers (leave blank for default)"
+        required: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    outputs:
+      signals_found: ${{ steps.run_scan.outputs.signals_found }}
+      signal_count: ${{ steps.run_scan.outputs.signal_count }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        working-directory: the_reef
+        run: uv sync
+
+      - name: Run scanner
+        id: run_scan
+        working-directory: the_reef
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          WATCHLIST: ${{ github.event.inputs.watchlist }}
+        run: |
+          OUTPUT=$(uv run python -m the_reef.scanner.monitor ${WATCHLIST:-})
+          echo "$OUTPUT"
+          if echo "$OUTPUT" | grep -q "SIGNALS_FOUND=true"; then
+            echo "signals_found=true" >> $GITHUB_OUTPUT
+            COUNT=$(echo "$OUTPUT" | grep "SIGNAL_COUNT=" | cut -d= -f2)
+            echo "signal_count=$COUNT" >> $GITHUB_OUTPUT
+          else
+            echo "signals_found=false" >> $GITHUB_OUTPUT
+            echo "signal_count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger deep-dive
+        if: steps.run_scan.outputs.signals_found == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deep_dive.yml',
+              ref: 'main'
+            })
