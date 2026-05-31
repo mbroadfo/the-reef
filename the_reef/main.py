@@ -2,13 +2,13 @@
 """The Reef — entry point.
 
 Usage:
-  python main.py scan           # Run one scanner cycle and print signals
-  python main.py monitor        # Run scanner continuously (local mode)
-  python main.py dive NVDA      # Run full shark panel on a specific ticker
-  python main.py stops          # Check all open positions for stop-loss breaches
-  python main.py dashboard      # Launch live Rich terminal dashboard
-  python main.py report         # Print performance report
-  python main.py status         # Print current Tank state
+  python -m the_reef.main scan           # Run one scanner cycle and print signals
+  python -m the_reef.main monitor        # Run scanner continuously (local mode)
+  python -m the_reef.main dive NVDA      # Run full shark panel on a specific ticker
+  python -m the_reef.main stops          # Check all open positions for stop-loss breaches
+  python -m the_reef.main dashboard      # Launch live Rich terminal dashboard
+  python -m the_reef.main report         # Print performance report
+  python -m the_reef.main status         # Print current Tank state
 """
 import sys
 import os
@@ -37,7 +37,7 @@ def cmd_scan():
     signals = run_scan(DEFAULT_WATCHLIST)
     save_signals(signals)
     if signals:
-        print(f"\n🦈 {len(signals)} signal(s) detected:\n")
+        print(f"\n{len(signals)} signal(s) detected:\n")
         for s in signals:
             print(f"  {s.signal_type:<20} {s.ticker:<6} @ ${s.price:.2f}  (value: {s.value:.2f})")
     else:
@@ -131,7 +131,7 @@ def main():
 
     if cmd == "dive":
         if len(args) < 2:
-            print("Usage: python main.py dive TICKER")
+            print("Usage: python -m the_reef.main dive TICKER")
             sys.exit(1)
         _check_keys()
         cmd_dive(args[1].upper())
