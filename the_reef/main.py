@@ -112,13 +112,13 @@ def cmd_status():
 
 
 def cmd_reset():
-    from the_reef.brokerage.the_tank import get_db
+    from the_reef.brokerage.the_tank import get_db, STARTING_CASH
     db = get_db()
     positions_deleted = db.positions.delete_many({}).deleted_count
     trades_deleted = db.trades.delete_many({}).deleted_count
     signals_deleted = db.signals.delete_many({}).deleted_count
-    db.portfolio.update_one({"_id": "main"}, {"$set": {"cash": 1000.0, "trades_count": 0}})
-    print(f"[reset] Portfolio reset to $1,000 cash")
+    db.portfolio.update_one({"_id": "main"}, {"$set": {"cash": STARTING_CASH, "starting_cash": STARTING_CASH, "next_trade_id": 1}})
+    print(f"[reset] Portfolio reset to ${STARTING_CASH:,.0f} cash")
     print(f"[reset] Cleared {positions_deleted} position(s), {trades_deleted} trade(s), {signals_deleted} signal(s)")
 
 
