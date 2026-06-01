@@ -31,7 +31,6 @@ jobs:
         working-directory: the_reef
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
-        run: uv run python -m the_reef.main ${COMMAND:-report}
-        env:
-          COMMAND: ${{ github.event.inputs.command }}
+          COMMAND: ${{ github.event.inputs.command || 'report' }}
+        run: uv run python -m the_reef.main $COMMAND
 
