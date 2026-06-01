@@ -104,12 +104,43 @@ def run_scan(watchlist: list[str] = DEFAULT_WATCHLIST) -> list[ScanSignal]:
 
 
 def save_signals(signals: list[ScanSignal]):
-    """Persist signals to MongoDB signals collection."""
+    """Persist signals to MongoDB signals collection.
+
+    Deduplicates: skips any ticker+signal_type seen in the last hour.
+    TTL index auto-expires documents after 24 hours.
+    """
+    from datetime import timedelta
     try:
         from ..brokerage.the_tank import get_db
         db = get_db()
-        if signals:
-            db.signals.insert_many([s.to_dict() for s in signals])
+
+        # Ensure TTL index exists (idempotent)
+        db.signals.create_index("created_at", expireAfterSeconds=86400)
+
+        if not signals:
+            return
+
+        # Fetch all (ticker, signal_type) pairs written in the last hour
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
+        recent = {
+            (d["ticker"], d["signal_type"])
+            for d in db.signals.find(
+                {"created_at": {"$gte": cutoff}},
+                {"ticker": 1, "signal_type": 1},
+            )
+        }
+
+        now = datetime.now(timezone.utc)
+        new_docs = [
+            {"created_at": now, **s.to_dict()}
+            for s in signals
+            if (s.ticker, s.signal_type) not in recent
+        ]
+        if new_docs:
+            db.signals.insert_many(new_docs)
+            print(f"[scanner] Saved {len(new_docs)} new signal(s) — {len(signals) - len(new_docs)} duplicate(s) skipped")
+        else:
+            print(f"[scanner] All {len(signals)} signal(s) already recorded in the last hour — skipping")
     except Exception as e:
         # Fallback to local file if MongoDB not available
         SIGNALS_FILE.parent.mkdir(exist_ok=True)
@@ -122,8 +153,8 @@ def load_signals(limit: int = 20) -> list[ScanSignal]:
     try:
         from ..brokerage.the_tank import get_db
         db = get_db()
-        docs = list(db.signals.find().sort("timestamp", -1).limit(limit))
-        return [ScanSignal.from_dict({k: v for k, v in d.items() if k != "_id"}) for d in docs]
+        docs = list(db.signals.find().sort("created_at", -1).limit(limit))
+        return [ScanSignal.from_dict({k: v for k, v in d.items() if k not in ("_id", "created_at")}) for d in docs]
     except Exception:
         # Fallback to local file
         if SIGNALS_FILE.exists():
