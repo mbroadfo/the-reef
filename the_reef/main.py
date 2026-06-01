@@ -84,8 +84,25 @@ def cmd_dive(ticker: str):
 
     print(f"\n[The Reef] Manual deep-dive on {ticker} @ ${price:.2f}\n")
     tank = TheTank()
+    positions_before = set(tank.positions.keys())
     decision = run_deep_dive(signal, tank)
     print(f"\n{'='*60}\nAPEX SHARK DECISION\n{'='*60}\n{decision}")
+
+    # Send SMS if Apex opened a new position
+    new_tickers = set(tank.positions.keys()) - positions_before
+    if new_tickers:
+        from .notifications.sms import trade_alert
+        for t in new_tickers:
+            pos = tank.positions[t]
+            trade_alert(
+                ticker=t,
+                shares=int(pos.shares),
+                price=pos.entry_price,
+                stop=pos.stop_loss or 0.0,
+                target=pos.target_price or 0.0,
+                conviction=pos.conviction,
+                cash_remaining=tank.cash,
+            )
 
 
 def cmd_stops():
@@ -103,7 +120,16 @@ def cmd_dashboard():
 def cmd_report():
     from the_reef.brokerage.the_tank import TheTank
     from the_reef.brokerage.performance import format_report
-    print(format_report(TheTank()))
+    from the_reef.notifications.sms import daily_digest
+    tank = TheTank()
+    print(format_report(tank))
+    daily_digest(
+        portfolio_value=tank.portfolio_value(),
+        pnl=tank.total_pnl(),
+        pnl_pct=tank.total_pnl_pct(),
+        positions=tank.positions,
+        cash=tank.cash,
+    )
 
 
 def cmd_status():

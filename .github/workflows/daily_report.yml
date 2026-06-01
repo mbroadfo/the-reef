@@ -31,6 +31,9 @@ jobs:
         working-directory: the_reef
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMS_RECIPIENT: ${{ secrets.SMS_RECIPIENT }}
           COMMAND: ${{ github.event.inputs.command || 'report' }}
         run: uv run python -m the_reef.main $COMMAND
 
