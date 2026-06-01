@@ -17,6 +17,7 @@ jobs:
     environment: dev
     permissions:
       actions: write
+      contents: read
     outputs:
       signals_found: ${{ steps.run_scan.outputs.signals_found }}
       signal_count: ${{ steps.run_scan.outputs.signal_count }}
