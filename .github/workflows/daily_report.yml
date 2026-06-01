@@ -28,9 +28,3 @@ jobs:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
         run: uv run python -m the_reef.main report
 
-      - name: Upload report artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: daily-report-${{ github.run_number }}
-          path: the_reef/data/reports/
-          retention-days: 365
