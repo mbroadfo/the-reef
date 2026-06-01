@@ -32,7 +32,6 @@ class NoInput(BaseModel):
 
 class BuyInput(BaseModel):
     ticker: str = Field(..., description="Stock ticker symbol")
-    shares: float = Field(..., description="Number of shares to buy (can be fractional)")
     surfaced_by: str = Field(..., description="Which shark surfaced this opportunity")
     vetted_by: str = Field(..., description="Comma-separated list of analyst sharks who reviewed")
     conviction: int = Field(..., ge=1, le=10, description="Conviction score 1-10")
@@ -64,7 +63,8 @@ class ExecuteBuyTool(BaseTool):
     name: str = "Execute Paper Buy"
     description: str = (
         "Execute a paper buy trade in The Tank. "
-        "Position will be sized by conviction (1-10 scale) and available cash. "
+        "Do NOT specify shares — position size is calculated automatically from conviction (1-10) and available cash. "
+        "Only whole shares are purchased (no fractional shares). "
         "Sets stop-loss and target automatically from percentages."
     )
     args_schema: type[BaseModel] = BuyInput
@@ -72,7 +72,6 @@ class ExecuteBuyTool(BaseTool):
     def _run(
         self,
         ticker: str,
-        shares: float,
         surfaced_by: str,
         vetted_by: str,
         conviction: int,
@@ -84,6 +83,16 @@ class ExecuteBuyTool(BaseTool):
         price = get_price(ticker)
         if price is None:
             return f"Could not get current price for {ticker} — trade aborted"
+
+        position_dollars = tank.max_position_size(conviction)
+        shares = int(position_dollars / price)
+        if shares < 1:
+            return (
+                f"TRADE SKIPPED: {ticker} @ ${price:.2f} — "
+                f"conviction {conviction} allows ${position_dollars:.0f} but 1 share costs ${price:.2f}. "
+                f"Raise conviction to at least {int((price / tank.portfolio_value() - 0.05) / 0.015) + 1} "
+                f"or wait for a lower price."
+            )
 
         stop_loss = round(price * (1 - stop_loss_pct / 100), 2)
         target = round(price * (1 + target_pct / 100), 2)

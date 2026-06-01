@@ -111,6 +111,17 @@ def cmd_status():
     print(TheTank().summary())
 
 
+def cmd_reset():
+    from the_reef.brokerage.the_tank import get_db
+    db = get_db()
+    positions_deleted = db.positions.delete_many({}).deleted_count
+    trades_deleted = db.trades.delete_many({}).deleted_count
+    signals_deleted = db.signals.delete_many({}).deleted_count
+    db.portfolio.update_one({"_id": "main"}, {"$set": {"cash": 1000.0, "trades_count": 0}})
+    print(f"[reset] Portfolio reset to $1,000 cash")
+    print(f"[reset] Cleared {positions_deleted} position(s), {trades_deleted} trade(s), {signals_deleted} signal(s)")
+
+
 COMMANDS = {
     "scan": cmd_scan,
     "monitor": cmd_monitor,
@@ -118,6 +129,7 @@ COMMANDS = {
     "dashboard": cmd_dashboard,
     "report": cmd_report,
     "status": cmd_status,
+    "reset": cmd_reset,
 }
 
 
@@ -136,7 +148,7 @@ def main():
         _check_keys()
         cmd_dive(args[1].upper())
     elif cmd in COMMANDS:
-        if cmd not in ("status", "report", "dashboard"):
+        if cmd not in ("status", "report", "dashboard", "reset"):
             _check_keys()
         COMMANDS[cmd]()
     else:
