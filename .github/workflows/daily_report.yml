@@ -5,6 +5,11 @@ on:
     # 4:30pm ET Mon–Fri (21:30 UTC during EDT / 22:30 during EST)
     - cron: "30 21 * * 1-5"
   workflow_dispatch:
+    inputs:
+      command:
+        description: "Command to run (default: report)"
+        required: false
+        default: "report"
 
 jobs:
   report:
@@ -26,5 +31,7 @@ jobs:
         working-directory: the_reef
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
-        run: uv run python -m the_reef.main report
+        run: uv run python -m the_reef.main ${COMMAND:-report}
+        env:
+          COMMAND: ${{ github.event.inputs.command }}
 
