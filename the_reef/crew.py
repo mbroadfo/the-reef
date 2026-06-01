@@ -29,11 +29,6 @@ class TheReefCrew:
     agents_config = "config/agents.yaml"
     tasks_config = "config/tasks.yaml"
 
-    def __init__(self, tank: TheTank | None = None):
-        super().__init__()
-        self._tank = tank or TheTank()
-        set_tank(self._tank)
-
     # ── Tier 1: Hunter Sharks ─────────────────────────────────────────────────
 
     @agent
@@ -118,8 +113,7 @@ class TheReefCrew:
     def apex_decision(self) -> Task:
         return Task(
             config=self.tasks_config["apex_decision"],
-            output_file="data/last_decision.md",
-        )
+            )
 
     # ── Crew ──────────────────────────────────────────────────────────────────
 
@@ -148,7 +142,8 @@ class TheReefCrew:
 
 def run_deep_dive(signal: ScanSignal, tank: TheTank | None = None) -> str:
     """Run the full shark panel on a scanner signal. Returns Apex Shark's decision."""
-    reef = TheReefCrew(tank=tank)
+    set_tank(tank or TheTank())
+    reef = TheReefCrew()
 
     # Override the hunter task's agent based on signal type
     hunter_task = reef.hunter_research()
