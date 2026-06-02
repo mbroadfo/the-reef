@@ -41,12 +41,12 @@ jobs:
           else
             # Pick top affordable signal — skip stocks where even 1 share exceeds max position
             TOP_TICKER=$(uv run python -c "
-from the_reef.scanner.monitor import load_signals
-from the_reef.brokerage.the_tank import TheTank
-tank = TheTank()
-max_position = tank.max_position_size(10)
-signals = load_signals(limit=20)
-affordable = [s for s in signals if s.price <= max_position]
+from the_reef.scanner.monitor import load_signals; \
+from the_reef.brokerage.the_tank import TheTank; \
+tank = TheTank(); \
+max_pos = tank.max_position_size(10); \
+sigs = load_signals(limit=20); \
+affordable = [s for s in sigs if s.price <= max_pos]; \
 print(affordable[0].ticker if affordable else '')
 ")
             if [ -n "$TOP_TICKER" ]; then
