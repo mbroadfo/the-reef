@@ -28,8 +28,20 @@ SIGNAL_TYPES = {
 }
 
 DEFAULT_WATCHLIST = [
-    "AAPL", "MSFT", "NVDA", "META", "AMZN", "GOOGL", "TSLA",
-    "AMD", "PLTR", "RKLB", "SMCI", "ARM", "SPY", "QQQ",
+    # AI / semiconductors
+    "NVDA", "AMD", "ARM", "SMCI",
+    # Big tech (trigger on major news days)
+    "MSFT", "META", "TSLA", "GOOGL",
+    # Space / defense / speculative growth
+    "RKLB", "PLTR", "IONQ", "BBAI",
+    # Fintech / crypto-adjacent
+    "COIN", "HOOD", "SQ", "SOFI",
+    # Biotech / health
+    "MRNA", "HIMS", "RXRX",
+    # Energy transition
+    "FSLR", "ENPH",
+    # Consumer / entertainment
+    "DKNG", "UBER",
 ]
 
 SIGNALS_FILE = Path(__file__).parent.parent.parent / "data" / "scan_signals.json"

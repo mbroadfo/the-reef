@@ -9,6 +9,8 @@ Usage:
   python -m the_reef.main dashboard      # Launch live Rich terminal dashboard
   python -m the_reef.main report         # Print performance report
   python -m the_reef.main status         # Print current Tank state
+  python -m the_reef.main sell TICKER    # Sell all shares of TICKER at market
+  python -m the_reef.main sell TICKER N  # Sell N shares of TICKER at market
 """
 import sys
 import os
@@ -105,6 +107,39 @@ def cmd_dive(ticker: str):
             )
 
 
+def cmd_sell(ticker: str, shares_str: str | None = None):
+    from the_reef.tools.market_data import get_price
+    from the_reef.brokerage.the_tank import TheTank
+
+    tank = TheTank()
+    positions = tank.positions
+    if ticker not in positions:
+        print(f"[error] No open position in {ticker}")
+        sys.exit(1)
+
+    pos = positions[ticker]
+    price = get_price(ticker)
+    if price is None:
+        print(f"[error] Could not fetch price for {ticker}")
+        sys.exit(1)
+
+    shares = float(shares_str) if shares_str else pos.shares
+    pnl = (price - pos.entry_price) * shares
+
+    ok, msg = tank.sell(ticker=ticker, shares=shares, price=price, reason="Manual exit via CLI")
+    print(f"[The Reef] {msg}")
+
+    if ok:
+        from the_reef.notifications.sms import send_sms
+        pnl_str = f"+${pnl:.0f}" if pnl >= 0 else f"-${abs(pnl):.0f}"
+        send_sms(
+            "REEF SELL",
+            f"SOLD {int(shares)} {ticker} @ ${price:.2f}\n"
+            f"Entry ${pos.entry_price:.2f} | P&L {pnl_str}\n"
+            f"Cash: ${tank.cash:,.0f}",
+        )
+
+
 def cmd_stops():
     from the_reef.crew import run_stop_loss_check
     from the_reef.brokerage.the_tank import TheTank
@@ -173,6 +208,14 @@ def main():
             sys.exit(1)
         _check_keys()
         cmd_dive(args[1].upper())
+    elif cmd == "sell":
+        if len(args) < 2:
+            print("Usage: python -m the_reef.main sell TICKER [SHARES]")
+            sys.exit(1)
+        if not os.getenv("MONGODB_URI"):
+            print("[error] MONGODB_URI environment variable not set")
+            sys.exit(1)
+        cmd_sell(args[1].upper(), args[2] if len(args) >= 3 else None)
     elif cmd in COMMANDS:
         if cmd not in ("status", "report", "dashboard", "reset"):
             _check_keys()
