@@ -37,7 +37,7 @@ jobs:
 
       - name: Terraform Init
         working-directory: dashboard/infra
-        run: terraform init
+        run: terraform init -reconfigure -input=false
 
       - name: Debug state
         working-directory: dashboard/infra
