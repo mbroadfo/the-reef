@@ -3,30 +3,119 @@ resource "aws_s3_bucket" "spa" {
   tags   = local.tags
 }
 
+# Block all public access — CloudFront OAC handles delivery
 resource "aws_s3_bucket_public_access_block" "spa" {
   bucket                  = aws_s3_bucket.spa.id
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
-resource "aws_s3_bucket_website_configuration" "spa" {
+resource "aws_s3_bucket_versioning" "spa" {
   bucket = aws_s3_bucket.spa.id
-  index_document { suffix = "index.html" }
-  error_document { key    = "index.html" }
+  versioning_configuration { status = "Enabled" }
 }
 
-resource "aws_s3_bucket_policy" "spa_public_read" {
+# CloudFront Origin Access Control
+resource "aws_cloudfront_origin_access_control" "spa" {
+  name                              = "${local.app}-oac"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+# Bucket policy — allow only CloudFront
+resource "aws_s3_bucket_policy" "spa" {
   bucket = aws_s3_bucket.spa.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect    = "Allow"
-      Principal = "*"
-      Action    = "s3:GetObject"
-      Resource  = "${aws_s3_bucket.spa.arn}/*"
+      Sid    = "AllowCloudFront"
+      Effect = "Allow"
+      Principal = { Service = "cloudfront.amazonaws.com" }
+      Action   = "s3:GetObject"
+      Resource = "${aws_s3_bucket.spa.arn}/*"
+      Condition = {
+        StringEquals = {
+          "AWS:SourceArn" = aws_cloudfront_distribution.spa.arn
+        }
+      }
     }]
   })
   depends_on = [aws_s3_bucket_public_access_block.spa]
+}
+
+resource "aws_cloudfront_distribution" "spa" {
+  enabled             = true
+  is_ipv6_enabled     = true
+  default_root_object = "index.html"
+  price_class         = "PriceClass_100"
+  comment             = "The Reef Dashboard"
+
+  origin {
+    domain_name              = aws_s3_bucket.spa.bucket_regional_domain_name
+    origin_id                = "S3-${aws_s3_bucket.spa.bucket}"
+    origin_access_control_id = aws_cloudfront_origin_access_control.spa.id
+  }
+
+  default_cache_behavior {
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-${aws_s3_bucket.spa.bucket}"
+    compress               = true
+    viewer_protocol_policy = "redirect-to-https"
+    cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
+  }
+
+  # Long-lived cache for Vite-hashed assets
+  ordered_cache_behavior {
+    path_pattern     = "/assets/*"
+    allowed_methods  = ["GET", "HEAD"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "S3-${aws_s3_bucket.spa.bucket}"
+    compress         = true
+    viewer_protocol_policy = "redirect-to-https"
+    cache_policy_id  = aws_cloudfront_cache_policy.assets.id
+  }
+
+  # SPA routing — 403/404 → index.html
+  custom_error_response {
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 0
+  }
+  custom_error_response {
+    error_code            = 404
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 0
+  }
+
+  restrictions {
+    geo_restriction { restriction_type = "none" }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+    minimum_protocol_version       = "TLSv1.2_2021"
+  }
+
+  tags = local.tags
+}
+
+resource "aws_cloudfront_cache_policy" "assets" {
+  name        = "${local.app}-assets-cache"
+  default_ttl = 31536000
+  max_ttl     = 31536000
+  min_ttl     = 31536000
+
+  parameters_in_cache_key_and_forwarded_to_origin {
+    enable_accept_encoding_brotli = true
+    enable_accept_encoding_gzip   = true
+    cookies_config  { cookie_behavior        = "none" }
+    headers_config  { header_behavior        = "none" }
+    query_strings_config { query_string_behavior = "none" }
+  }
 }

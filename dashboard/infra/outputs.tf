@@ -3,14 +3,18 @@ output "api_url" {
   value       = aws_apigatewayv2_stage.default.invoke_url
 }
 
-output "s3_website_endpoint" {
-  description = "S3 website origin — point Cloudflare CNAME here"
-  value       = aws_s3_bucket_website_configuration.spa.website_endpoint
+output "cloudfront_url" {
+  description = "Dashboard URL"
+  value       = "https://${aws_cloudfront_distribution.spa.domain_name}"
+}
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID — set as REEF_CF_DIST_ID in GitHub Secrets"
+  value       = aws_cloudfront_distribution.spa.id
 }
 
 output "s3_bucket" {
-  description = "S3 bucket name"
-  value       = aws_s3_bucket.spa.id
+  value = aws_s3_bucket.spa.id
 }
 
 output "lambda_function_name" {
