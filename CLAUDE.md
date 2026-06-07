@@ -1,7 +1,7 @@
 # The Reef — Claude Code Instructions
 
 ## Who You're Working With
-Mike is a senior engineer/architect (BSEE + BSCE) working at the cutting edge of enterprise cloud and AI. He sets architecture, you execute it. Don't explain basics. Don't second-guess his decisions unless something is genuinely broken at runtime.
+The architect behind The Reef — working at the cutting edge of enterprise cloud and AI. Sets architecture, you execute it. Don't explain basics. Don't second-guess decisions unless something is genuinely broken at runtime.
 
 ## Project
 Autonomous agentic paper trading system. 3-tier shark hierarchy (CrewAI) → MongoDB Atlas → GitHub Actions. Paper trades mirrored manually in eTrade once the system proves itself.
