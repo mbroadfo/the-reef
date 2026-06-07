@@ -16,13 +16,13 @@ terraform {
   #   bucket  = "reef-tf-state"
   #   key     = "reef-dashboard/terraform.tfstate"
   #   region  = "us-west-2"
-  #   profile = "terraform"
+  #   profile = "terraform-reef"
   # }
 }
 
 provider "aws" {
-  region  = var.aws_region
-  profile = "terraform"
+  region = var.aws_region
+  # Local: $env:AWS_PROFILE = "terraform-reef"
 }
 
 locals {

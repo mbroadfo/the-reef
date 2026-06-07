@@ -6,9 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+  AWS_DEFAULT_REGION: us-west-2
 
 jobs:
   # ── 1. Terraform: provision all AWS infrastructure ────────────────────────
@@ -18,6 +16,9 @@ jobs:
       api_url:     ${{ steps.out.outputs.api_url }}
       cf_dist_id:  ${{ steps.out.outputs.cf_dist_id }}
       s3_bucket:   ${{ steps.out.outputs.s3_bucket }}
+    env:
+      AWS_ACCESS_KEY_ID:     ${{ secrets.TERRAFORM_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -56,6 +57,9 @@ jobs:
   secrets:
     runs-on: ubuntu-latest
     needs: infra
+    env:
+      AWS_ACCESS_KEY_ID:     ${{ secrets.DEPLOY_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.DEPLOY_AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Write secrets to Parameter Store
         run: |
@@ -69,6 +73,9 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
     needs: [infra, secrets]
+    env:
+      AWS_ACCESS_KEY_ID:     ${{ secrets.DEPLOY_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.DEPLOY_AWS_SECRET_ACCESS_KEY }}
     steps:
       - uses: actions/checkout@v4
 
