@@ -43,6 +43,10 @@ jobs:
         working-directory: dashboard/infra
         run: |
           aws sts get-caller-identity
+          echo "--- S3 bucket access ---"
+          aws s3 ls s3://reef-tf-state/ --region us-west-2
+          echo "--- .terraform backend config ---"
+          cat .terraform/terraform.tfstate 2>/dev/null || echo "no .terraform/terraform.tfstate"
           echo "--- terraform state list ---"
           terraform state list || echo "(empty)"
 
