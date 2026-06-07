@@ -1,0 +1,256 @@
+"""The Reef Dashboard API — Lambda handler.
+
+Routes:
+  GET /api/portfolio    portfolio metrics + 90-day snapshots
+  GET /api/positions    open positions
+  GET /api/trades       trade history (limit, skip)
+  GET /api/sharks       agent attribution leaderboard
+  GET /api/decisions    recent Apex Shark rationale
+  GET /api/trades/{id}  single trade + matching decision
+"""
+from __future__ import annotations
+
+import json
+import os
+from collections import defaultdict
+from typing import Any
+
+from pymongo import MongoClient, DESCENDING
+
+
+def _db():
+    client = MongoClient(os.environ["MONGODB_URI"])
+    return client[os.environ.get("MONGODB_DB", "the_reef")]
+
+
+def _ok(body: Any) -> dict:
+    return {
+        "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type,Authorization",
+            "Access-Control-Allow-Methods": "GET,OPTIONS",
+        },
+        "body": json.dumps(body, default=str),
+    }
+
+
+def _err(status: int, msg: str) -> dict:
+    return {
+        "statusCode": status,
+        "headers": {"Access-Control-Allow-Origin": "*"},
+        "body": json.dumps({"error": msg}),
+    }
+
+
+# ── route handlers ────────────────────────────────────────────────────────────
+
+def route_portfolio(db) -> dict:
+    state = db.portfolio.find_one({"_id": "main"}) or {}
+    cash = state.get("cash", 10000.0)
+    starting = state.get("starting_cash", 10000.0)
+
+    # Compute equity from live positions
+    positions = list(db.positions.find())
+    equity = sum(p["shares"] * p["current_price"] for p in positions)
+    portfolio_value = cash + equity
+
+    # Closed trade stats
+    closed = [t for t in db.trades.find({"action": "SELL", "pnl": {"$ne": None}})]
+    wins = [t for t in closed if (t.get("pnl") or 0.0) > 0]
+    losses = [t for t in closed if (t.get("pnl") or 0.0) <= 0]
+    total_realized = sum(t.get("pnl") or 0.0 for t in closed)
+    win_sum = sum(t.get("pnl") or 0.0 for t in wins)
+    loss_sum = sum(t.get("pnl") or 0.0 for t in losses)
+    unrealized = sum((p["current_price"] - p["entry_price"]) * p["shares"] for p in positions)
+
+    profit_factor = abs(win_sum / loss_sum) if loss_sum != 0 else None
+
+    # Snapshots for chart (last 200)
+    snaps = list(
+        db.portfolio_snapshots.find({}, {"_id": 0})
+        .sort("timestamp", 1)
+        .limit(200)
+    )
+
+    return _ok({
+        "value": round(portfolio_value, 2),
+        "cash": round(cash, 2),
+        "equity": round(equity, 2),
+        "starting_cash": round(starting, 2),
+        "total_pnl": round(portfolio_value - starting, 2),
+        "total_pnl_pct": round((portfolio_value - starting) / starting * 100, 2),
+        "realized_pnl": round(total_realized, 2),
+        "unrealized_pnl": round(unrealized, 2),
+        "win_rate_pct": round(len(wins) / len(closed) * 100, 1) if closed else 0.0,
+        "total_trades": len(closed),
+        "wins": len(wins),
+        "losses": len(losses),
+        "profit_factor": round(profit_factor, 2) if profit_factor is not None else None,
+        "snapshots": snaps,
+    })
+
+
+def route_positions(db) -> dict:
+    docs = list(db.positions.find())
+    result = []
+    for p in docs:
+        entry = p["entry_price"]
+        current = p["current_price"]
+        shares = p["shares"]
+        cost = entry * shares
+        mv = current * shares
+        pnl = mv - cost
+        result.append({
+            "ticker": p["_id"],
+            "shares": shares,
+            "entry_price": entry,
+            "current_price": current,
+            "stop_loss": p.get("stop_loss"),
+            "target_price": p.get("target_price"),
+            "unrealized_pnl": round(pnl, 2),
+            "unrealized_pnl_pct": round(pnl / cost * 100, 2) if cost else 0.0,
+            "cost_basis": round(cost, 2),
+            "market_value": round(mv, 2),
+            "surfaced_by": p.get("surfaced_by", ""),
+            "vetted_by": p.get("vetted_by", ""),
+            "conviction": p.get("conviction", 0),
+            "entry_time": p.get("entry_time", ""),
+        })
+    result.sort(key=lambda x: x["unrealized_pnl"], reverse=True)
+    return _ok(result)
+
+
+def route_trades(db, limit: int = 50, skip: int = 0) -> dict:
+    docs = list(db.trades.find().sort("id", DESCENDING).skip(skip).limit(limit))
+    result = []
+    for t in docs:
+        result.append({
+            "id": t["id"],
+            "ticker": t["ticker"],
+            "action": t["action"],
+            "shares": t["shares"],
+            "price": t["price"],
+            "timestamp": t["timestamp"],
+            "surfaced_by": t.get("surfaced_by", ""),
+            "vetted_by": t.get("vetted_by", ""),
+            "conviction": t.get("conviction", 0),
+            "stop_loss": t.get("stop_loss"),
+            "target_price": t.get("target_price"),
+            "reason": t.get("reason", ""),
+            "outcome": t.get("outcome", "open"),
+            "pnl": t.get("pnl"),
+            "exit_price": t.get("exit_price"),
+            "exit_time": t.get("exit_time"),
+        })
+    total = db.trades.count_documents({})
+    return _ok({"trades": result, "total": total, "skip": skip, "limit": limit})
+
+
+def route_trade_detail(db, trade_id: int) -> dict:
+    doc = db.trades.find_one({"id": trade_id})
+    if not doc:
+        return _err(404, f"Trade {trade_id} not found")
+
+    trade = {
+        "id": doc["id"],
+        "ticker": doc["ticker"],
+        "action": doc["action"],
+        "shares": doc["shares"],
+        "price": doc["price"],
+        "timestamp": doc["timestamp"],
+        "surfaced_by": doc.get("surfaced_by", ""),
+        "vetted_by": doc.get("vetted_by", ""),
+        "conviction": doc.get("conviction", 0),
+        "stop_loss": doc.get("stop_loss"),
+        "target_price": doc.get("target_price"),
+        "reason": doc.get("reason", ""),
+        "outcome": doc.get("outcome", "open"),
+        "pnl": doc.get("pnl"),
+        "exit_price": doc.get("exit_price"),
+        "exit_time": doc.get("exit_time"),
+    }
+
+    # Find matching Apex decision (same ticker, nearest timestamp)
+    decision = db.decisions.find_one(
+        {"ticker": doc["ticker"]},
+        sort=[("timestamp", DESCENDING)],
+    )
+    if decision:
+        trade["apex_rationale"] = decision.get("rationale", "")
+        trade["apex_decision"] = decision.get("decision", "")
+        trade["apex_conviction"] = decision.get("conviction", 0)
+
+    return _ok(trade)
+
+
+def route_sharks(db) -> dict:
+    scores: dict[str, list[float]] = defaultdict(list)
+
+    for trade in db.trades.find({"action": "SELL", "pnl": {"$ne": None}}):
+        pnl = trade.get("pnl") or 0.0
+        surfaced = trade.get("surfaced_by", "")
+        if surfaced:
+            scores[surfaced].append(pnl)
+        vetted = trade.get("vetted_by", "")
+        for analyst in vetted.split(","):
+            analyst = analyst.strip()
+            if analyst and analyst != surfaced:
+                scores[analyst].append(pnl)
+
+    result = []
+    for shark, pnls in scores.items():
+        wins = sum(1 for p in pnls if p > 0)
+        result.append({
+            "name": shark,
+            "trades": len(pnls),
+            "total_pnl": round(sum(pnls), 2),
+            "avg_pnl": round(sum(pnls) / len(pnls), 2),
+            "win_rate": round(wins / len(pnls) * 100, 1) if pnls else 0.0,
+        })
+
+    result.sort(key=lambda x: x["total_pnl"], reverse=True)
+    return _ok(result)
+
+
+def route_decisions(db, limit: int = 10) -> dict:
+    docs = list(db.decisions.find({}, {"_id": 0}).sort("timestamp", DESCENDING).limit(limit))
+    return _ok(docs)
+
+
+# ── router ────────────────────────────────────────────────────────────────────
+
+def handler(event: dict, context) -> dict:
+    method = (event.get("requestContext") or {}).get("http", {}).get("method", "GET")
+    path = event.get("rawPath", "/")
+    qs = event.get("queryStringParameters") or {}
+
+    if method == "OPTIONS":
+        return _ok({})
+
+    try:
+        db = _db()
+    except Exception as exc:
+        return _err(500, f"DB connection failed: {exc}")
+
+    try:
+        if path == "/api/portfolio":
+            return route_portfolio(db)
+        elif path == "/api/positions":
+            return route_positions(db)
+        elif path == "/api/trades":
+            limit = min(int(qs.get("limit", 50)), 200)
+            skip = int(qs.get("skip", 0))
+            return route_trades(db, limit, skip)
+        elif path.startswith("/api/trades/"):
+            trade_id = int(path.split("/")[-1])
+            return route_trade_detail(db, trade_id)
+        elif path == "/api/sharks":
+            return route_sharks(db)
+        elif path == "/api/decisions":
+            return route_decisions(db)
+        else:
+            return _err(404, f"No route: {path}")
+    except Exception as exc:
+        return _err(500, str(exc))

@@ -97,12 +97,20 @@ class TheTank:
     def _ensure_initialized(self):
         portfolio = self._db.portfolio
         if not portfolio.find_one({"_id": "main"}):
+            now = _now()
             portfolio.insert_one({
                 "_id": "main",
                 "cash": STARTING_CASH,
                 "starting_cash": STARTING_CASH,
                 "next_trade_id": 1,
-                "created_at": _now(),
+                "created_at": now,
+            })
+            self._db.portfolio_snapshots.insert_one({
+                "timestamp": now,
+                "portfolio_value": STARTING_CASH,
+                "cash": STARTING_CASH,
+                "equity": 0.0,
+                "event": "init",
             })
 
     # ── collections ──────────────────────────────────────────────────────────
@@ -264,6 +272,7 @@ class TheTank:
             "pnl": None,
         })
         self._portfolio.update_one({"_id": "main"}, {"$inc": {"cash": -cost}})
+        self._snapshot("BUY")
 
         return True, f"BUY {shares} {ticker} @ ${price:.2f} | cost ${cost:.2f} | stop ${stop_loss}"
 
@@ -332,6 +341,7 @@ class TheTank:
             {"$set": {"outcome": actual_outcome, "exit_price": price, "exit_time": now, "pnl": pnl}},
         )
 
+        self._snapshot("SELL")
         pnl_str = f"+${pnl:.2f}" if pnl >= 0 else f"-${abs(pnl):.2f}"
         return True, f"SELL {sell_shares} {ticker} @ ${price:.2f} | P&L {pnl_str} | {actual_outcome}"
 
@@ -374,6 +384,16 @@ class TheTank:
         return "\n".join(lines)
 
     # ── internal ──────────────────────────────────────────────────────────────
+
+    def _snapshot(self, event: str = "") -> None:
+        value = self.portfolio_value()
+        self._db.portfolio_snapshots.insert_one({
+            "timestamp": _now(),
+            "portfolio_value": round(value, 2),
+            "cash": round(self.cash, 2),
+            "equity": round(value - self.cash, 2),
+            "event": event,
+        })
 
     def _next_trade_id(self) -> int:
         result = self._portfolio.find_one_and_update(
