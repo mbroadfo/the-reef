@@ -39,6 +39,13 @@ jobs:
         working-directory: dashboard/infra
         run: terraform init
 
+      - name: Debug state
+        working-directory: dashboard/infra
+        run: |
+          aws sts get-caller-identity
+          echo "--- terraform state list ---"
+          terraform state list || echo "(empty)"
+
       - name: Terraform Apply
         working-directory: dashboard/infra
         run: terraform apply -auto-approve
