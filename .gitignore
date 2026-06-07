@@ -8,3 +8,19 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Terraform
+dashboard/infra/.terraform/
+dashboard/infra/.terraform.lock.hcl
+dashboard/infra/terraform.tfstate
+dashboard/infra/terraform.tfstate.backup
+dashboard/infra/terraform.tfvars
+dashboard/infra/*.tfplan
+
+# Lambda build artifact
+dashboard/backend/lambda.zip
+dashboard/backend/package/
+
+# Node
+dashboard/frontend/node_modules/
+dashboard/frontend/dist/
