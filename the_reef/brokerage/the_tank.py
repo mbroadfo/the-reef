@@ -187,7 +187,7 @@ class TheTank:
         return (self.total_pnl() / self.starting_cash) * 100
 
     def max_position_size(self, conviction: int) -> float:
-        pct = min(0.05 + (conviction / 10) * 0.15, 0.20)
+        pct = min(0.10 + (conviction / 10) * 0.25, 0.35)
         return self.portfolio_value() * pct
 
     # ── trade execution ───────────────────────────────────────────────────────
