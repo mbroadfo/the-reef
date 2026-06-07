@@ -15,12 +15,27 @@ import os
 from collections import defaultdict
 from typing import Any
 
+import boto3
 from pymongo import MongoClient, DESCENDING
+
+_secrets: dict | None = None
+
+
+def _load_secrets() -> dict:
+    global _secrets
+    if _secrets is None:
+        ssm = boto3.client("ssm", region_name=os.environ.get("AWS_REGION", "us-west-2"))
+        path = os.environ.get("SSM_SECRET_PATH", "/reef/prod/secrets")
+        resp = ssm.get_parameter(Name=path, WithDecryption=True)
+        _secrets = json.loads(resp["Parameter"]["Value"])
+    assert _secrets is not None
+    return _secrets
 
 
 def _db():
-    client = MongoClient(os.environ["MONGODB_URI"])
-    return client[os.environ.get("MONGODB_DB", "the_reef")]
+    s = _load_secrets()
+    client = MongoClient(s["MONGODB_URI"])
+    return client[s.get("MONGODB_DB", "the_reef")]
 
 
 def _ok(body: Any) -> dict:

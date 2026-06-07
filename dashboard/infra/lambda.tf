@@ -19,6 +19,31 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+resource "aws_iam_role_policy" "lambda_ssm" {
+  name = "${local.app}-ssm"
+  role = aws_iam_role.lambda.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ssm:GetParameter"]
+      Resource = "arn:aws:ssm:${var.aws_region}:*:parameter/reef/prod/secrets"
+    }]
+  })
+}
+
+# Created by Terraform, populated by the GitHub Actions secrets job
+resource "aws_ssm_parameter" "secrets" {
+  name  = "/reef/prod/secrets"
+  type  = "SecureString"
+  value = "{}"
+  tags  = local.tags
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${local.app}"
   retention_in_days = 7
@@ -37,8 +62,7 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      MONGODB_URI = var.mongodb_uri
-      MONGODB_DB  = var.mongodb_db
+      SSM_SECRET_PATH = aws_ssm_parameter.secrets.name
     }
   }
 

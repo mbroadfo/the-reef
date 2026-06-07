@@ -13,13 +13,3 @@ variable "bucket_name" {
   type        = string
 }
 
-variable "mongodb_uri" {
-  description = "MongoDB Atlas connection string"
-  type        = string
-  sensitive   = true
-}
-
-variable "mongodb_db" {
-  description = "Atlas database name"
-  default     = "the_reef"
-}
