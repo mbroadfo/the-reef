@@ -37,7 +37,11 @@ jobs:
 
       - name: Terraform Init
         working-directory: dashboard/infra
-        run: terraform init -reconfigure -input=false
+        run: |
+          terraform init -reconfigure -input=false \
+            -backend-config="bucket=reef-tf-state" \
+            -backend-config="key=reef-dashboard/terraform.tfstate" \
+            -backend-config="region=us-west-2"
 
       - name: Debug state
         working-directory: dashboard/infra

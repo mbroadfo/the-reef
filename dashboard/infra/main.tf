@@ -12,12 +12,7 @@ terraform {
   #   aws s3api put-bucket-versioning --bucket reef-tf-state \
   #     --versioning-configuration Status=Enabled --profile terraform
   #
-  # backend "s3" {
-  #   bucket  = "reef-tf-state"
-  #   key     = "reef-dashboard/terraform.tfstate"
-  #   region  = "us-west-2"
-  #   profile = "terraform-reef"
-  # }
+  backend "s3" {}
 }
 
 provider "aws" {
