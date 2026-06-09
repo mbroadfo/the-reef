@@ -109,7 +109,7 @@ jobs:
       - name: Sync to S3
         run: |
           aws s3 sync dashboard/frontend/dist/ \
-            s3://${{ needs.infra.outputs.s3_bucket }}/ \
+            s3://${{ secrets.REEF_S3_BUCKET }}/ \
             --delete --cache-control "public,max-age=300"
 
       - name: Invalidate CloudFront
