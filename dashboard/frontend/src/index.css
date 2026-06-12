@@ -3,19 +3,62 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Background layers */
+    --reef-bg:       #0a0e17;
+    --reef-card:     #111827;
+    --reef-elevated: #1a2235;
+    --reef-border:   #1e2d45;
+
+    /* Accents */
+    --reef-gain:     #00ff88;
+    --reef-loss:     #ff4444;
+
+    /* Shark identity colors */
+    --shark-momentum:  #a855f7;
+    --shark-news:      #3b82f6;
+    --shark-macro:     #06b6d4;
+    --shark-options:   #f97316;
+    --shark-value:     #22c55e;
+    --shark-sentiment: #eab308;
+    --shark-crypto:    #6b7280;
+  }
+
   body {
-    @apply bg-zinc-950 text-zinc-100 font-mono;
+    background-color: var(--reef-bg);
+    @apply text-zinc-100 font-sans;
     -webkit-font-smoothing: antialiased;
   }
 
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  ::-webkit-scrollbar        { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track  { background: var(--reef-card); }
+  ::-webkit-scrollbar-thumb  { background: var(--reef-border); border-radius: 3px; }
+}
+
+@layer components {
+  /* Standard card — use on every panel/card surface */
+  .card {
+    background: var(--reef-card);
+    border: 1px solid var(--reef-border);
+    border-radius: 0.75rem;
+    transition: box-shadow 150ms ease;
   }
-  ::-webkit-scrollbar-track {
-    @apply bg-zinc-900;
+  .card:hover {
+    box-shadow: 0 0 0 1px var(--reef-border), 0 0 16px 0 rgba(0, 255, 136, 0.06);
   }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-zinc-700 rounded;
+
+  /* Elevated variant — nested cards, tooltips */
+  .card-elevated {
+    background: var(--reef-elevated);
+    border: 1px solid var(--reef-border);
+    border-radius: 0.75rem;
   }
+
+  /* Gain / loss text helpers */
+  .text-gain { color: var(--reef-gain); }
+  .text-loss { color: var(--reef-loss); }
+
+  /* Gain / loss dot indicators */
+  .dot-gain { background: var(--reef-gain); }
+  .dot-loss { background: var(--reef-loss); }
 }
