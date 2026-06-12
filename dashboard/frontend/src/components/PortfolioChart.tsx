@@ -5,6 +5,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  ReferenceLine,
   ResponsiveContainer,
 } from 'recharts'
 import type { Snapshot } from '../types'
@@ -58,12 +59,6 @@ export default function PortfolioChart({ snapshots, startingCash }: Props) {
     event: s.event,
   }))
 
-  const min = Math.min(...data.map((d) => d.portfolio_value))
-  const max = Math.max(...data.map((d) => d.portfolio_value))
-  const padding = (max - min) * 0.1 || 200
-  const yMin = Math.floor((Math.min(min, startingCash) - padding) / 100) * 100
-  const yMax = Math.ceil((max + padding) / 100) * 100
-
   return (
     <div className="card p-4">
       <div className="text-slate-500 text-xs font-sans uppercase tracking-widest mb-4">Portfolio Value</div>
@@ -89,10 +84,19 @@ export default function PortfolioChart({ snapshots, startingCash }: Props) {
             tick={{ fill: '#64748b', fontSize: 11, fontFamily: 'JetBrains Mono' }}
             axisLine={false}
             tickLine={false}
-            domain={[yMin, yMax]}
+            domain={[
+              (dataMin: number) => Math.floor(dataMin * 0.995 / 100) * 100,
+              (dataMax: number) => Math.ceil(dataMax * 1.005 / 100) * 100,
+            ]}
             width={52}
           />
           <Tooltip content={<CustomTooltip />} />
+          <ReferenceLine
+            y={startingCash}
+            stroke="var(--reef-border)"
+            strokeDasharray="4 4"
+            label={{ value: 'Start', fill: 'var(--reef-border)', fontSize: 10, position: 'insideTopLeft' }}
+          />
           <Area
             type="monotone"
             dataKey="portfolio_value"

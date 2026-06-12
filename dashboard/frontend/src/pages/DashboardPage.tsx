@@ -55,6 +55,8 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
           label="Portfolio Value"
           value={`$${portfolio.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
           sub={`Started $${portfolio.starting_cash.toLocaleString()}`}
+          sparkline={portfolio.snapshots.map((s) => s.portfolio_value)}
+          trend={portfolio.total_pnl >= 0 ? 'up' : 'down'}
         />
         <MetricCard
           label="Total P&L"

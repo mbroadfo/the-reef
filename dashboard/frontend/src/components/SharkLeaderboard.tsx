@@ -38,11 +38,11 @@ export default function SharkLeaderboard({ sharks, compact = false }: { sharks: 
 
             <div className="text-right shrink-0">
               <div className={`text-sm font-mono font-semibold ${isPos ? 'text-gain' : 'text-loss'}`}>
-                {sign}${Math.abs(s.total_pnl).toFixed(2)}
+                {sign}${s.total_pnl.toFixed(2)}
               </div>
               {!compact && (
                 <div className="text-xs font-mono text-slate-500">
-                  avg {s.avg_pnl >= 0 ? '+' : ''}${Math.abs(s.avg_pnl).toFixed(2)}
+                  avg {s.avg_pnl >= 0 ? '+' : '-'}${Math.abs(s.avg_pnl).toFixed(2)}
                 </div>
               )}
             </div>
