@@ -20,41 +20,48 @@ export default function SharksPage() {
       .catch(() => setLoaded(true))
   }, [])
 
-  if (!loaded) return <div className="max-w-7xl mx-auto px-4 py-12 text-zinc-600 text-sm animate-pulse">Loading...</div>
+  if (!loaded) return (
+    <div className="max-w-7xl mx-auto px-4 py-12 text-slate-500 text-sm font-sans animate-pulse">
+      Loading...
+    </div>
+  )
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
 
       <div>
-        <h1 className="text-zinc-300 text-sm font-medium uppercase tracking-wider mb-4">
+        <h1 className="text-slate-200 text-sm font-sans font-medium uppercase tracking-widest mb-4">
           Shark Leaderboard
         </h1>
         {sharks.length ? (
           <SharkLeaderboard sharks={sharks} />
         ) : (
-          <div className="text-zinc-600 text-sm">No closed trades yet — sharks haven't earned their stripes.</div>
+          <div className="text-slate-500 text-sm font-sans">
+            No closed trades yet — sharks haven't earned their stripes.
+          </div>
         )}
       </div>
 
       {decisions.length > 0 && (
         <div>
-          <h2 className="text-zinc-300 text-sm font-medium uppercase tracking-wider mb-4">
+          <h2 className="text-slate-200 text-sm font-sans font-medium uppercase tracking-widest mb-4">
             Recent Apex Decisions
           </h2>
           <div className="space-y-3">
             {decisions.map((d, i) => {
-              const isPos = d.decision === 'BUY'
+              const isBuy  = d.decision === 'BUY'
+              const isPass = d.decision === 'PASS'
               return (
-                <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-2">
+                <div key={i} className="card p-4 space-y-2">
                   <div className="flex items-center gap-3">
-                    <span className="font-bold text-zinc-100">{d.ticker}</span>
-                    <span className={`text-xs font-bold ${isPos ? 'text-blue-400' : d.decision === 'PASS' ? 'text-zinc-500' : 'text-amber-400'}`}>
+                    <span className="font-bold font-mono text-white">{d.ticker}</span>
+                    <span className={`text-xs font-mono font-bold ${isBuy ? 'text-blue-400' : isPass ? 'text-slate-500' : 'text-amber-400'}`}>
                       {d.decision}
                     </span>
-                    <span className="text-zinc-600 text-xs">conv {d.conviction}/10</span>
-                    <span className="text-zinc-600 text-xs ml-auto">{fmtDate(d.timestamp)}</span>
+                    <span className="text-slate-500 text-xs font-sans">conv <span className="font-mono">{d.conviction}/10</span></span>
+                    <span className="text-slate-500 text-xs font-sans ml-auto">{fmtDate(d.timestamp)}</span>
                   </div>
-                  <div className="text-zinc-400 text-xs leading-relaxed line-clamp-3">{d.rationale}</div>
+                  <div className="text-slate-400 text-xs font-sans leading-relaxed line-clamp-3">{d.rationale}</div>
                 </div>
               )
             })}

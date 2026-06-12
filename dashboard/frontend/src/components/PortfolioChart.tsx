@@ -33,11 +33,11 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   if (!active || !payload?.length) return null
   const { value, payload: p } = payload[0]
   return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-xs">
-      <div className="text-zinc-400">{fmt(p.timestamp)}</div>
-      <div className="text-zinc-100 font-bold">${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+    <div className="bg-reef-card border border-reef-border rounded-lg px-3 py-2 text-xs">
+      <div className="text-slate-400 font-sans">{fmt(p.timestamp)}</div>
+      <div className="text-white font-bold font-mono">${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
       {p.event && p.event !== 'daily' && (
-        <div className="text-blue-400 uppercase">{p.event}</div>
+        <div className="text-blue-400 font-sans uppercase">{p.event}</div>
       )}
     </div>
   )
@@ -46,7 +46,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
 export default function PortfolioChart({ snapshots, startingCash }: Props) {
   if (snapshots.length < 2) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg flex items-center justify-center h-48 text-zinc-600 text-sm">
+      <div className="card flex items-center justify-center h-48 text-slate-500 text-sm font-sans">
         Chart populates after first trade
       </div>
     )
@@ -65,28 +65,28 @@ export default function PortfolioChart({ snapshots, startingCash }: Props) {
   const yMax = Math.ceil((max + padding) / 100) * 100
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-      <div className="text-zinc-500 text-xs uppercase tracking-wider mb-4">Portfolio Value</div>
+    <div className="card p-4">
+      <div className="text-slate-500 text-xs font-sans uppercase tracking-widest mb-4">Portfolio Value</div>
       <ResponsiveContainer width="100%" height={220}>
         <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <defs>
-            <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
-              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+            <linearGradient id="gainGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%"  stopColor="#00ff88" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#00ff88" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" vertical={false} />
           <XAxis
             dataKey="timestamp"
             tickFormatter={(v) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            tick={{ fill: '#52525b', fontSize: 11 }}
+            tick={{ fill: '#64748b', fontSize: 11, fontFamily: 'Space Grotesk' }}
             axisLine={false}
             tickLine={false}
             interval="preserveStartEnd"
           />
           <YAxis
             tickFormatter={fmtY}
-            tick={{ fill: '#52525b', fontSize: 11 }}
+            tick={{ fill: '#64748b', fontSize: 11, fontFamily: 'JetBrains Mono' }}
             axisLine={false}
             tickLine={false}
             domain={[yMin, yMax]}
@@ -96,11 +96,11 @@ export default function PortfolioChart({ snapshots, startingCash }: Props) {
           <Area
             type="monotone"
             dataKey="portfolio_value"
-            stroke="#3b82f6"
+            stroke="#00ff88"
             strokeWidth={2}
-            fill="url(#blueGrad)"
+            fill="url(#gainGrad)"
             dot={false}
-            activeDot={{ r: 4, fill: '#3b82f6' }}
+            activeDot={{ r: 4, fill: '#00ff88' }}
           />
         </AreaChart>
       </ResponsiveContainer>

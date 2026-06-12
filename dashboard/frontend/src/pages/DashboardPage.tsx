@@ -9,9 +9,9 @@ import TradesTable from '../components/TradesTable'
 
 export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void }) {
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
-  const [sharks, setSharks] = useState<Shark[]>([])
-  const [trades, setTrades] = useState<Trade[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const [sharks, setSharks]       = useState<Shark[]>([])
+  const [trades, setTrades]       = useState<Trade[]>([])
+  const [error, setError]         = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([fetchPortfolio(), fetchSharks(), fetchTrades(8)])
@@ -29,7 +29,7 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
 
   if (error) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-12 text-red-400 text-sm">
+      <div className="max-w-7xl mx-auto px-4 py-12 text-loss text-sm font-sans">
         API error: {error}
       </div>
     )
@@ -37,13 +37,13 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
 
   if (!portfolio) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-12 text-zinc-600 text-sm animate-pulse">
+      <div className="max-w-7xl mx-auto px-4 py-12 text-slate-500 text-sm font-sans animate-pulse">
         Loading...
       </div>
     )
   }
 
-  const pnlPos = portfolio.total_pnl >= 0
+  const pnlPos  = portfolio.total_pnl >= 0
   const pnlSign = pnlPos ? '+' : ''
 
   return (
@@ -84,8 +84,10 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-zinc-400 text-xs uppercase tracking-wider">Shark Performance</h2>
-            <Link to="/sharks" className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">
+            <h2 className="text-slate-500 text-xs font-sans uppercase tracking-widest">
+              Shark Performance
+            </h2>
+            <Link to="/sharks" className="text-slate-600 hover:text-reef-gain text-xs font-sans transition-colors">
               View all →
             </Link>
           </div>
@@ -94,8 +96,10 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
 
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-zinc-400 text-xs uppercase tracking-wider">Recent Trades</h2>
-            <Link to="/trades" className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">
+            <h2 className="text-slate-500 text-xs font-sans uppercase tracking-widest">
+              Recent Trades
+            </h2>
+            <Link to="/trades" className="text-slate-600 hover:text-reef-gain text-xs font-sans transition-colors">
               View all →
             </Link>
           </div>
