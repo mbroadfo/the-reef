@@ -5,6 +5,10 @@ on:
     paths: ['dashboard/**']
   workflow_dispatch:
 
+concurrency:
+  group: deploy-dashboard
+  cancel-in-progress: true
+
 env:
   AWS_DEFAULT_REGION: us-west-2
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
