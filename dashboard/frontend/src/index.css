@@ -14,14 +14,19 @@
     --reef-gain:     #00ff88;
     --reef-loss:     #ff4444;
 
-    /* Shark identity colors */
-    --shark-momentum:  #a855f7;
-    --shark-news:      #3b82f6;
-    --shark-macro:     #06b6d4;
-    --shark-options:   #f97316;
-    --shark-value:     #22c55e;
-    --shark-sentiment: #eab308;
-    --shark-crypto:    #6b7280;
+    /* Shark identity colors — live agents */
+    --shark-momentum:   #a855f7;
+    --shark-earnings:   #f97316;
+    --shark-news:       #3b82f6;
+    --shark-value:      #22c55e;
+    --shark-macro:      #06b6d4;
+    --shark-contrarian: #eab308;
+    --shark-apex:       #00ff88;
+
+    /* Reserved for future shark roster expansion */
+    --shark-options:    #fb923c;
+    --shark-sentiment:  #ec4899;
+    --shark-crypto:     #6b7280;
   }
 
   body {

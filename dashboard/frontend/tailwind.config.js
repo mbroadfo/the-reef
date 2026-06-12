@@ -17,13 +17,18 @@ export default {
           loss:     'var(--reef-loss)',
         },
         shark: {
-          momentum:  'var(--shark-momentum)',
-          news:      'var(--shark-news)',
-          macro:     'var(--shark-macro)',
-          options:   'var(--shark-options)',
-          value:     'var(--shark-value)',
-          sentiment: 'var(--shark-sentiment)',
-          crypto:    'var(--shark-crypto)',
+          // Live agents
+          momentum:   'var(--shark-momentum)',
+          earnings:   'var(--shark-earnings)',
+          news:       'var(--shark-news)',
+          value:      'var(--shark-value)',
+          macro:      'var(--shark-macro)',
+          contrarian: 'var(--shark-contrarian)',
+          apex:       'var(--shark-apex)',
+          // Future expansion
+          options:    'var(--shark-options)',
+          sentiment:  'var(--shark-sentiment)',
+          crypto:     'var(--shark-crypto)',
         },
       },
       boxShadow: {
