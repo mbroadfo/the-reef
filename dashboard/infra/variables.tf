@@ -13,3 +13,8 @@ variable "bucket_name" {
   type        = string
 }
 
+variable "custom_domain" {
+  description = "Custom domain for the dashboard"
+  default     = "reef.broadfoot.consulting"
+}
+

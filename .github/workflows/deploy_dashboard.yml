@@ -1,4 +1,10 @@
 name: Deploy Dashboard
+# Required GitHub Secrets:
+#   TERRAFORM_AWS_ACCESS_KEY_ID / TERRAFORM_AWS_SECRET_ACCESS_KEY — Terraform (infra job)
+#   DEPLOY_AWS_ACCESS_KEY_ID / DEPLOY_AWS_SECRET_ACCESS_KEY       — S3 sync + CF invalidation
+#   REEF_S3_BUCKET     — S3 bucket name (passed as TF_VAR_bucket_name and sync target)
+#   MONGODB_PASSWORD   — used to construct the SSM MongoDB URI
+#   CLOUDFRONT_DIST_ID — NOT a secret; sourced from terraform output cloudfront_distribution_id
 on:
   push:
     branches: [master]
@@ -70,6 +76,15 @@ jobs:
         run: |
           echo "api_url=$(terraform output -raw api_url)"        >> "$GITHUB_OUTPUT"
           echo "cf_dist_id=$(terraform output -raw cloudfront_distribution_id)" >> "$GITHUB_OUTPUT"
+
+      - name: Print ACM DNS validation CNAME
+        working-directory: dashboard/infra
+        run: |
+          echo "=== ACM Certificate DNS Validation ==="
+          echo "Add this CNAME to your DNS provider:"
+          echo "  Name:  $(terraform output -raw acm_validation_cname_name)"
+          echo "  Value: $(terraform output -raw acm_validation_cname_value)"
+          echo "======================================="
 
   # ── 2. Secrets: GitHub Secrets → Parameter Store ──────────────────────────
   secrets:

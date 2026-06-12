@@ -105,6 +105,21 @@ resource "aws_cloudfront_distribution" "spa" {
   tags = local.tags
 }
 
+# ── ACM Certificate (us-east-1 required for CloudFront) ───────────────────────
+# Stage 1: creates cert + outputs DNS validation CNAME.
+# Stage 2 (after DNS validates): attach to CloudFront via aliases + viewer_certificate.
+resource "aws_acm_certificate" "reef" {
+  provider          = aws.us_east_1
+  domain_name       = var.custom_domain
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = local.tags
+}
+
 resource "aws_cloudfront_cache_policy" "assets" {
   name        = "${local.app}-assets-cache"
   default_ttl = 31536000

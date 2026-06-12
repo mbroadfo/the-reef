@@ -20,3 +20,14 @@ output "s3_bucket" {
 output "lambda_function_name" {
   value = aws_lambda_function.api.function_name
 }
+
+# ── ACM DNS validation — add these to your DNS provider ──────────────────────
+output "acm_validation_cname_name" {
+  description = "CNAME record name to add to your DNS provider"
+  value       = tolist(aws_acm_certificate.reef.domain_validation_options)[0].resource_record_name
+}
+
+output "acm_validation_cname_value" {
+  description = "CNAME record value to add to your DNS provider"
+  value       = tolist(aws_acm_certificate.reef.domain_validation_options)[0].resource_record_value
+}

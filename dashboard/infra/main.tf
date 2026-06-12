@@ -20,6 +20,12 @@ provider "aws" {
   # Local: $env:AWS_PROFILE = "terraform-reef"
 }
 
+# ACM certificates for CloudFront must live in us-east-1
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+}
+
 locals {
   app  = var.app_name
   tags = { Project = "TheReef", ManagedBy = "terraform" }
