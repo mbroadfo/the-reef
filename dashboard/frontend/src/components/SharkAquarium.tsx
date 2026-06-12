@@ -46,10 +46,17 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
               </div>
 
               {/* Illustration */}
-              <div className="w-full aspect-square max-w-[88px] mx-auto relative overflow-hidden">
+              <div className="relative mx-auto" style={{ width: '96px', height: '96px' }}>
                 <div
-                  className="absolute inset-0 rounded-full opacity-20"
-                  style={{ background: color, filter: 'blur(12px)' }}
+                  style={{
+                    position: 'absolute',
+                    inset: '-8px',
+                    borderRadius: '50%',
+                    background: color,
+                    opacity: 0.25,
+                    filter: 'blur(16px)',
+                    zIndex: 0,
+                  }}
                 />
                 <img
                   src={sharkImg}
