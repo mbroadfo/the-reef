@@ -4,6 +4,7 @@ import { fetchPortfolio, fetchSharks, fetchTrades } from '../api'
 import type { Portfolio, Shark, Trade } from '../types'
 import MetricCard from '../components/MetricCard'
 import PortfolioChart from '../components/PortfolioChart'
+import SharkAquarium from '../components/SharkAquarium'
 import SharkLeaderboard from '../components/SharkLeaderboard'
 import TradesTable from '../components/TradesTable'
 
@@ -81,6 +82,9 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
 
       {/* Chart */}
       <PortfolioChart snapshots={portfolio.snapshots} startingCash={portfolio.starting_cash} />
+
+      {/* Aquarium */}
+      <SharkAquarium sharks={sharks} />
 
       {/* Bottom row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
