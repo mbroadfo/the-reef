@@ -37,7 +37,7 @@ jobs:
         id: run_scan
         working-directory: the_reef
         env:
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_URI: "mongodb+srv://mbroadfo_db_user:${{ secrets.MONGODB_PASSWORD }}@reef-m0.1sxeyjd.mongodb.net/?authSource=admin&appName=reef-m0"
           WATCHLIST: ${{ github.event.inputs.watchlist }}
         run: |
           OUTPUT=$(uv run python -m the_reef.scanner.monitor ${WATCHLIST:-})
