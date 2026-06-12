@@ -1,8 +1,10 @@
 import { useNavigate, Link } from 'react-router-dom'
 import type { Shark } from '../types'
-import ConvictionBar from './ConvictionBar'
-import { getSharkColor, getSharkFilter, AQUARIUM_ROSTER } from '../utils/sharks'
+import { getSharkColor, getSharkFilter, normalizeSharkName, AQUARIUM_ROSTER } from '../utils/sharks'
 import sharkImg from '../assets/shark-base.png'
+
+const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
+const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
 
 export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
   const navigate = useNavigate()
@@ -23,87 +25,128 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
 
       <div className="grid grid-cols-4 xl:grid-cols-7 gap-3">
         {AQUARIUM_ROSTER.map((rosterName) => {
-          const shark    = sharks.find((s) => s.name === rosterName)
-          const color    = getSharkColor(rosterName)
-          const filter   = getSharkFilter(rosterName)
-          const isActive = Boolean(shark)
-          const pnl      = shark?.total_pnl ?? null
-          const pnlPct   = pnl != null ? (pnl / 10000) * 100 : null
-          const winRate  = shark?.win_rate ?? 0
+          const shark      = sharks.find((s) => s.name === rosterName)
+          const isActive   = Boolean(shark) && (shark!.trades > 0)
+          const color      = getSharkColor(rosterName)
+          const filter     = getSharkFilter(rosterName)
+          const confidence = shark?.win_rate ?? 0
+          const returnVal  = isActive
+            ? parseFloat(((shark!.total_pnl / 10000) * 100).toFixed(1))
+            : null
+
+          const parts     = normalizeSharkName(rosterName).split(' ')
+          const firstName = parts[0]
+          const lastName  = parts.slice(1).join(' ')
 
           return (
             <div
               key={rosterName}
               onClick={() => navigate('/sharks')}
-              className={`card p-3 flex flex-col items-center gap-2 cursor-pointer hover:shadow-card-glow transition-all duration-200 relative${!isActive ? ' opacity-50' : ''}`}
+              className={`card cursor-pointer hover:shadow-card-glow transition-all duration-200 flex flex-col items-center${!isActive ? ' opacity-50' : ''}`}
+              style={{
+                padding: '10px 8px 12px',
+                minHeight: '220px',
+                position: 'relative',
+                borderColor: isActive ? color : undefined,
+                borderWidth: isActive ? '1.5px' : undefined,
+              }}
             >
               {/* Name */}
-              <div
-                className="text-xs font-sans font-semibold text-center leading-tight"
-                style={{ color }}
-              >
-                {rosterName}
+              <div style={{ textAlign: 'center', marginBottom: '6px', lineHeight: 1.2 }}>
+                <div style={{ fontSize: '12px', fontWeight: '700', fontFamily: FONT_SANS, color, letterSpacing: '0.02em' }}>
+                  {firstName}
+                </div>
+                <div style={{ fontSize: '11px', fontWeight: '600', fontFamily: FONT_SANS, color, opacity: 0.85 }}>
+                  {lastName}
+                </div>
               </div>
 
               {/* Illustration */}
-              <div className="relative mx-auto" style={{ width: '96px', height: '96px' }}>
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: '-8px',
-                    borderRadius: '50%',
-                    background: color,
-                    opacity: 0.25,
-                    filter: 'blur(16px)',
-                    zIndex: 0,
-                  }}
-                />
+              <div style={{
+                position: 'relative',
+                width: '100%',
+                height: '100px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '4px 0',
+                flex: 1,
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  inset: '-4px',
+                  borderRadius: '50%',
+                  background: color,
+                  opacity: 0.2,
+                  filter: 'blur(18px)',
+                  zIndex: 0,
+                }} />
                 <img
                   src={sharkImg}
                   alt={rosterName}
                   style={{
-                    filter,
                     width: '100%',
                     height: '100%',
                     objectFit: 'contain',
+                    objectPosition: 'center',
+                    filter,
                     position: 'relative',
                     zIndex: 1,
-                  }}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none'
-                    const next = e.currentTarget.nextElementSibling as HTMLElement | null
-                    if (next) next.style.display = 'flex'
+                    mixBlendMode: 'screen',
                   }}
                 />
-                {/* Fallback letter avatar */}
-                <div
-                  style={{ display: 'none', color }}
-                  className="w-full h-full rounded-full bg-reef-elevated items-center justify-center text-2xl font-bold"
-                >
-                  {rosterName.charAt(0)}
-                </div>
               </div>
 
               {/* Return % */}
-              <div className="text-center">
-                <div className={`text-sm font-mono font-bold ${
-                  pnlPct == null
-                    ? 'text-slate-500'
-                    : pnlPct >= 0 ? 'text-gain' : 'text-loss'
-                }`}>
-                  {pnlPct == null
-                    ? '—'
-                    : `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}%`
-                  }
+              <div style={{ textAlign: 'center', marginTop: '6px' }}>
+                <div style={{
+                  fontSize: '15px',
+                  fontWeight: '700',
+                  fontFamily: FONT_MONO,
+                  color: returnVal == null ? '#64748b' : returnVal > 0 ? 'var(--reef-gain)' : returnVal < 0 ? 'var(--reef-loss)' : '#64748b',
+                  lineHeight: 1,
+                }}>
+                  {returnVal != null ? `${returnVal > 0 ? '+' : ''}${returnVal.toFixed(1)}%` : '—'}
                 </div>
-                <div className="text-xs font-sans text-slate-500">30D Return</div>
+                <div style={{
+                  fontSize: '10px',
+                  fontFamily: FONT_SANS,
+                  color: '#64748b',
+                  marginTop: '2px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                }}>
+                  30D Return
+                </div>
               </div>
 
               {/* Confidence bar */}
-              <div className="w-full space-y-1">
-                <ConvictionBar value={winRate} max={100} color={color} />
-                <div className="text-xs font-sans text-slate-500 text-center">
-                  {winRate.toFixed(0)}% Confidence
+              <div style={{ width: '100%', marginTop: '8px' }}>
+                <div style={{
+                  width: '100%',
+                  height: '4px',
+                  background: 'var(--reef-border)',
+                  borderRadius: '2px',
+                  overflow: 'hidden',
+                }}>
+                  <div style={{
+                    width: `${confidence}%`,
+                    height: '100%',
+                    background: color,
+                    borderRadius: '2px',
+                    transition: 'width 300ms ease',
+                  }} />
+                </div>
+                <div style={{
+                  fontSize: '10px',
+                  fontFamily: FONT_SANS,
+                  color: '#64748b',
+                  textAlign: 'center',
+                  marginTop: '4px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                }}>
+                  {confidence.toFixed(0)}% Confidence
                 </div>
               </div>
             </div>
