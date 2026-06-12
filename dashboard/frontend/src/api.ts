@@ -1,6 +1,6 @@
 import type { Portfolio, Position, TradesResponse, Shark, Decision, Trade } from './types'
 
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+const BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').replace(/\/$/, '')
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`)
