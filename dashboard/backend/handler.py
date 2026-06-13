@@ -240,11 +240,6 @@ def route_sharks(db) -> dict:
         surfaced = trade.get("surfaced_by", "")
         if surfaced:
             scores[surfaced].append(pnl)
-        vetted = trade.get("vetted_by", "")
-        for analyst in vetted.split(","):
-            analyst = analyst.strip()
-            if analyst and analyst != surfaced:
-                scores[analyst].append(pnl)
 
     result = []
     for shark, pnls in scores.items():
