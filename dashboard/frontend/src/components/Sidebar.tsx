@@ -1,20 +1,25 @@
 import { NavLink } from 'react-router-dom'
+import {
+  LayoutDashboard, Fish, Briefcase, ArrowLeftRight,
+  MapPin, Globe, Lightbulb, FileText, Settings,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import SentimentGauge from './SentimentGauge'
 
-const NAV_ITEMS = [
-  { label: 'Command Center', path: '/' },
-  { label: 'Sharks',         path: '/sharks' },
-  { label: 'Portfolio',      path: '/portfolio' },
-  { label: 'Trades',         path: '/trades' },
-  { label: 'Positions',      path: '/positions' },
-  { label: 'Market Map',     path: '/market' },
-  { label: 'Insights',       path: '/insights' },
-  { label: 'Reports',        path: '/reports' },
-  { label: 'Settings',       path: '/settings' },
+const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
+  { label: 'Command Center', path: '/',          icon: LayoutDashboard },
+  { label: 'Sharks',         path: '/sharks',    icon: Fish },
+  { label: 'Portfolio',      path: '/portfolio', icon: Briefcase },
+  { label: 'Trades',         path: '/trades',    icon: ArrowLeftRight },
+  { label: 'Positions',      path: '/positions', icon: MapPin },
+  { label: 'Market Map',     path: '/market',    icon: Globe },
+  { label: 'Insights',       path: '/insights',  icon: Lightbulb },
+  { label: 'Reports',        path: '/reports',   icon: FileText },
+  { label: 'Settings',       path: '/settings',  icon: Settings },
 ]
 
-const active   = 'flex items-center gap-3 px-3 py-2.5 text-sm font-medium border-l-2 border-reef-gain text-reef-gain bg-reef-elevated'
-const inactive = 'flex items-center gap-3 px-3 py-2.5 text-sm font-medium border-l-2 border-transparent text-slate-400 hover:text-white hover:bg-reef-elevated transition-colors'
+const active   = 'flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium border-l-2 border-reef-gain text-reef-gain bg-reef-elevated'
+const inactive = 'flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium border-l-2 border-transparent text-slate-400 hover:text-white hover:bg-reef-elevated transition-colors'
 
 export default function Sidebar() {
   return (
@@ -35,14 +40,15 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex flex-col py-2 flex-1 overflow-y-auto">
-        {NAV_ITEMS.map(({ label, path }) => (
+        {NAV_ITEMS.map(({ label, path, icon: Icon }) => (
           <NavLink
             key={path}
             to={path}
             end={path === '/'}
             className={({ isActive }) => isActive ? active : inactive}
           >
-            {label}
+            <Icon size={15} className="shrink-0" />
+            <span>{label}</span>
           </NavLink>
         ))}
       </nav>

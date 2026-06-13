@@ -73,8 +73,8 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
         />
         <MetricCard
           label="Win Rate"
-          value={`${portfolio.win_rate_pct.toFixed(0)}%`}
-          sub={`${portfolio.wins}W / ${portfolio.losses}L · PF ${portfolio.profit_factor ?? '—'}`}
+          value={`${portfolio.win_rate_pct.toFixed(1)}%`}
+          sub={`${portfolio.wins ?? 0}W / ${portfolio.losses ?? 0}L · PF ${portfolio.profit_factor?.toFixed(1) ?? '0'}`}
           positive={portfolio.win_rate_pct >= 50}
           negative={portfolio.win_rate_pct > 0 && portfolio.win_rate_pct < 50}
         />

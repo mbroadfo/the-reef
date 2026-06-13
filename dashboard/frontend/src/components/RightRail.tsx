@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { fetchTrades } from '../api'
 import type { Trade } from '../types'
-import { getSharkColor, getSharkInitials, normalizeSharkName } from '../utils/sharks'
+import { getSharkColor, getSharkFilter, normalizeSharkName } from '../utils/sharks'
+import sharkImg from '../assets/shark-base.png'
 
 const HEAT_MAP = [
   { sector: 'Technology',  pct: +1.24 },
@@ -61,7 +62,7 @@ export default function RightRail() {
             {trades.map(trade => {
               const name  = normalizeSharkName(trade.surfaced_by || 'Apex Shark')
               const color = getSharkColor(name)
-              const initials = getSharkInitials(name)
+              const filter = getSharkFilter(name)
               const pnl = trade.pnl
 
               return (
@@ -70,11 +71,29 @@ export default function RightRail() {
                   className="flex gap-3 items-start py-3 border-b border-reef-border last:border-0"
                 >
                   {/* Avatar */}
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-reef-elevated border-2 text-xs font-bold"
-                    style={{ borderColor: color, color }}
-                  >
-                    {initials}
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    border: `2px solid ${color}`,
+                    background: 'var(--reef-elevated)',
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <img
+                      src={sharkImg}
+                      alt={name}
+                      style={{
+                        width: '90%',
+                        height: '90%',
+                        objectFit: 'contain',
+                        filter,
+                        mixBlendMode: 'screen',
+                      }}
+                    />
                   </div>
 
                   {/* Details */}
