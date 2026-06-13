@@ -27,6 +27,10 @@
     --shark-options:    #fb923c;
     --shark-sentiment:  #ec4899;
     --shark-crypto:     #6b7280;
+
+    /* Layout */
+    --sidebar-width:  180px;
+    --center-width:   889px;
   }
 
   body {
