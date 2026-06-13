@@ -20,12 +20,12 @@ function relativeTime(ts: string): string {
   return `${Math.floor(mins / 60)}h ago`
 }
 
-function heatBg(pct: number): string {
-  if (pct > 1)    return 'bg-green-900/60'
-  if (pct > 0.5)  return 'bg-green-900/40'
-  if (pct > 0)    return 'bg-green-900/20'
-  if (pct > -0.2) return 'bg-red-900/20'
-  return 'bg-red-900/30'
+function heatStyle(pct: number) {
+  if (pct > 1)    return { background: 'rgba(0,255,136,0.22)', border: '0.5px solid rgba(0,255,136,0.3)' }
+  if (pct > 0.5)  return { background: 'rgba(0,255,136,0.14)' }
+  if (pct > 0)    return { background: 'rgba(0,255,136,0.07)' }
+  if (pct > -0.5) return { background: 'rgba(255,68,68,0.12)' }
+  return { background: 'rgba(255,68,68,0.20)', border: '0.5px solid rgba(255,68,68,0.25)' }
 }
 
 export default function RightRail() {
@@ -130,9 +130,34 @@ export default function RightRail() {
         {/* TODO Phase 4: wire to real sector data */}
         <div className="grid grid-cols-2 gap-2">
           {HEAT_MAP.map(({ sector, pct }) => (
-            <div key={sector} className={`p-3 rounded-lg ${heatBg(pct)}`}>
-              <div className="text-xs text-slate-400">{sector}</div>
-              <div className={`font-mono text-sm ${pct >= 0 ? 'text-gain' : 'text-loss'}`}>
+            <div
+              key={sector}
+              style={{
+                ...heatStyle(pct),
+                padding: '10px',
+                borderRadius: '8px',
+                minHeight: '56px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{
+                fontSize: '10px',
+                fontFamily: "'Space Grotesk', system-ui, sans-serif",
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: '#94a3b8',
+              }}>
+                {sector}
+              </div>
+              <div style={{
+                fontSize: '14px',
+                fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                fontWeight: '700',
+                color: pct >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)',
+              }}>
                 {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
               </div>
             </div>

@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 from collections import defaultdict
+from datetime import datetime, timezone
 from typing import Any
 
 import boto3
@@ -82,6 +83,30 @@ def route_portfolio(db) -> dict:
 
     profit_factor = abs(win_sum / loss_sum) if loss_sum != 0 else None
 
+    # Today / month gain
+    today = datetime.now(timezone.utc).date()
+    month_start = today.replace(day=1)
+
+    def _parse_date(ts):
+        try:
+            if isinstance(ts, datetime):
+                return ts.astimezone(timezone.utc).date()
+            return datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone(timezone.utc).date()
+        except Exception:
+            return None
+
+    today_gain = sum(
+        t.get("pnl") or 0.0 for t in closed
+        if _parse_date(t.get("timestamp")) == today
+    )
+    month_gain = sum(
+        t.get("pnl") or 0.0 for t in closed
+        if (_d := _parse_date(t.get("timestamp"))) is not None and _d >= month_start
+    )
+
+    # Active sharks — distinct surfaced_by values across all trades
+    active_sharks = len(db.trades.distinct("surfaced_by"))
+
     # Snapshots for chart (last 200)
     snaps = list(
         db.portfolio_snapshots.find({}, {"_id": 0})
@@ -103,6 +128,11 @@ def route_portfolio(db) -> dict:
         "wins": len(wins),
         "losses": len(losses),
         "profit_factor": round(profit_factor, 2) if profit_factor is not None else None,
+        "today_gain": round(today_gain, 2),
+        "today_gain_pct": round(today_gain / starting * 100, 2) if starting else 0.0,
+        "month_gain": round(month_gain, 2),
+        "month_gain_pct": round(month_gain / starting * 100, 2) if starting else 0.0,
+        "active_sharks": active_sharks,
         "snapshots": snaps,
     })
 

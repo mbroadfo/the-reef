@@ -1,4 +1,9 @@
 import { useState, useEffect } from 'react'
+import { usePortfolio } from '../context/PortfolioContext'
+import StatPill from './StatPill'
+
+const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
+const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
 
 function formatTime(d: Date): string {
   return d.toLocaleTimeString('en-US', {
@@ -16,22 +21,135 @@ function formatDate(d: Date): string {
 
 export default function TopBar() {
   const [now, setNow] = useState(() => new Date())
+  const portfolio = usePortfolio()
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
   }, [])
 
+  const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const sign = (n: number) => n >= 0 ? '+' : ''
+
   return (
     <div
-      className="flex items-center justify-end px-6 bg-reef-bg border-b border-reef-border"
-      style={{ gridColumn: '2 / 4', gridRow: '1', height: '64px' }}
+      style={{
+        gridColumn: '2 / 4',
+        gridRow: '1',
+        height: '64px',
+        display: 'flex',
+        alignItems: 'center',
+        borderBottom: '1px solid var(--reef-border)',
+        background: 'var(--reef-card)',
+        overflow: 'hidden',
+      }}
     >
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-reef-elevated border border-reef-border">
-        <div className="w-2 h-2 rounded-full bg-reef-gain animate-pulse" />
-        <span className="text-sm font-sans text-white">Market Open</span>
-        <span className="font-mono text-sm text-slate-400">{formatTime(now)}</span>
-        <span className="font-sans text-xs text-slate-500">{formatDate(now)}</span>
+      {/* Stat pills */}
+      <div style={{ display: 'flex', alignItems: 'stretch', height: '100%', flex: 1 }}>
+        <StatPill
+          label="Portfolio Value"
+          value={portfolio ? `$${fmt(portfolio.value)}` : '$—'}
+          sparkline={portfolio?.snapshots?.map(s => s.portfolio_value)}
+          positive={(portfolio?.total_pnl ?? 0) >= 0}
+        />
+        <StatPill
+          label="Today's Gain"
+          value={portfolio?.today_gain !== undefined
+            ? `${sign(portfolio.today_gain)}$${fmt(Math.abs(portfolio.today_gain))}`
+            : '$—'}
+          change={portfolio?.today_gain_pct !== undefined
+            ? `${sign(portfolio.today_gain_pct)}${portfolio.today_gain_pct.toFixed(2)}%`
+            : undefined}
+          positive={(portfolio?.today_gain ?? 0) >= 0}
+        />
+        <StatPill
+          label="This Month"
+          value={portfolio?.month_gain !== undefined
+            ? `${sign(portfolio.month_gain)}$${fmt(Math.abs(portfolio.month_gain))}`
+            : '$—'}
+          change={portfolio?.month_gain_pct !== undefined
+            ? `${sign(portfolio.month_gain_pct)}${portfolio.month_gain_pct.toFixed(2)}%`
+            : undefined}
+          positive={(portfolio?.month_gain ?? 0) >= 0}
+        />
+        <StatPill
+          label="Win Rate"
+          value={`${(portfolio?.win_rate_pct ?? 0).toFixed(1)}%`}
+        />
+        <StatPill
+          label="Active Sharks"
+          value={String(portfolio?.active_sharks ?? 0)}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginLeft: '4px' }}>
+            <span style={{ fontSize: '10px', color: 'var(--reef-gain)', fontFamily: FONT_SANS }}>
+              All Systems Go
+            </span>
+            <svg width="40" height="16" viewBox="0 0 40 16">
+              <polyline
+                points="0,8 8,8 11,2 14,14 17,8 25,8 28,4 31,12 34,8 40,8"
+                fill="none"
+                stroke="var(--reef-gain)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </StatPill>
+      </div>
+
+      {/* Right: clock + user avatar */}
+      <div style={{
+        padding: '0 16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        borderLeft: '1px solid var(--reef-border)',
+        height: '100%',
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '6px 12px',
+          borderRadius: '999px',
+          background: 'var(--reef-elevated)',
+          border: '1px solid var(--reef-border)',
+        }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: 'var(--reef-gain)',
+            animation: 'pulse 2s infinite',
+          }} />
+          <span style={{ fontSize: '14px', fontFamily: FONT_SANS, color: 'white' }}>
+            Market Open
+          </span>
+          <span style={{ fontFamily: FONT_MONO, fontSize: '13px', color: '#94a3b8' }}>
+            {formatTime(now)}
+          </span>
+          <span style={{ fontFamily: FONT_SANS, fontSize: '12px', color: '#64748b' }}>
+            {formatDate(now)}
+          </span>
+        </div>
+        <div style={{
+          width: '36px',
+          height: '36px',
+          borderRadius: '50%',
+          background: 'var(--reef-elevated)',
+          border: '1.5px solid var(--reef-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '13px',
+          fontWeight: '700',
+          fontFamily: FONT_SANS,
+          color: 'var(--reef-gain)',
+          flexShrink: 0,
+        }}>
+          M
+        </div>
       </div>
     </div>
   )

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
+import { PortfolioProvider } from './context/PortfolioContext'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
 import RightRail from './components/RightRail'
@@ -41,6 +42,7 @@ function AppShell() {
 export default function App() {
   return (
     <BrowserRouter>
+      <PortfolioProvider>
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/"          element={<DashboardPage onLive={() => {}} />} />
@@ -55,6 +57,7 @@ export default function App() {
           <Route path="/settings"  element={<ComingSoon />} />
         </Route>
       </Routes>
+      </PortfolioProvider>
     </BrowserRouter>
   )
 }

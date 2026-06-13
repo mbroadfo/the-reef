@@ -21,6 +21,11 @@ export interface Portfolio {
   losses: number
   profit_factor: number | null
   snapshots: Snapshot[]
+  today_gain?: number
+  today_gain_pct?: number
+  month_gain?: number
+  month_gain_pct?: number
+  active_sharks?: number
 }
 
 export interface Position {
