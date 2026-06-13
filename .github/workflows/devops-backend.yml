@@ -1,0 +1,51 @@
+name: "DevOps: Backend"
+# Required GitHub Secrets:
+#   DEPLOY_AWS_ACCESS_KEY_ID / DEPLOY_AWS_SECRET_ACCESS_KEY — Lambda deploy
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'dashboard/backend/**'
+  workflow_dispatch:
+
+concurrency:
+  group: devops-backend
+  cancel-in-progress: true
+
+env:
+  AWS_DEFAULT_REGION: us-west-2
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID:     ${{ secrets.DEPLOY_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.DEPLOY_AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Lambda package
+        working-directory: dashboard/backend
+        run: |
+          pip install -r requirements.txt -t package/ -q
+          cp handler.py package/
+          cd package && zip -r ../lambda.zip . -x "*.pyc" -x "*__pycache__*"
+          rm -rf ../package/
+
+      - name: Deploy to Lambda
+        working-directory: dashboard/backend
+        run: |
+          aws lambda update-function-code \
+            --function-name reef-dashboard \
+            --zip-file fileb://lambda.zip
+          aws lambda wait function-updated \
+            --function-name reef-dashboard
+          echo "Lambda reef-dashboard deployed"
+
+      - name: Publish new version
+        working-directory: dashboard/backend
+        run: |
+          aws lambda publish-version \
+            --function-name reef-dashboard \
+            --description "Deployed from commit ${{ github.sha }}"
