@@ -7,6 +7,8 @@ Routes:
   GET /api/sharks       agent attribution leaderboard
   GET /api/decisions    recent Apex Shark rationale
   GET /api/trades/{id}  single trade + matching decision
+  GET /api/sentiment    AI sentiment score 0-100 (Bullish/Neutral/Bearish)
+  GET /api/sectors      sector ETF % changes (XLK, XLF, XLV, XLY, XLI, XLE)
 """
 from __future__ import annotations
 
@@ -264,6 +266,86 @@ def route_decisions(db, limit: int = 10) -> dict:
     return _ok(docs)
 
 
+def route_sentiment(db) -> dict:
+    closed = list(
+        db.trades.find({"action": "SELL", "pnl": {"$ne": None}})
+        .sort("id", DESCENDING)
+        .limit(10)
+    )
+
+    if closed:
+        recent_wins = sum(1 for t in closed if (t.get("pnl") or 0) > 0)
+        win_score = (recent_wins / len(closed)) * 40
+    else:
+        win_score = 20
+
+    state = db.portfolio.find_one({"_id": "main"}) or {}
+    starting = state.get("starting_cash", 10000)
+    positions = list(db.positions.find())
+    cash = state.get("cash", starting)
+    equity = sum(p["shares"] * p["current_price"] for p in positions)
+    portfolio_value = cash + equity
+    pnl_pct = (portfolio_value - starting) / starting * 100
+    if pnl_pct > 5:
+        trend_score = 30
+    elif pnl_pct > 0:
+        trend_score = 20
+    elif pnl_pct > -5:
+        trend_score = 10
+    else:
+        trend_score = 0
+
+    pos_score = min(len(positions) * 6, 30)
+
+    score = max(0, min(100, round(win_score + trend_score + pos_score)))
+
+    if score >= 65:
+        label = "Bullish"
+    elif score >= 40:
+        label = "Neutral"
+    else:
+        label = "Bearish"
+
+    return _ok({
+        "score": score,
+        "label": label,
+        "components": {
+            "win_rate":  round(win_score),
+            "trend":     round(trend_score),
+            "positions": round(pos_score),
+        },
+    })
+
+
+def route_sectors(db) -> dict:
+    SECTOR_ETFS = {
+        "Technology":        "XLK",
+        "Financials":        "XLF",
+        "Healthcare":        "XLV",
+        "Consumer Cyclical": "XLY",
+        "Industrials":       "XLI",
+        "Energy":            "XLE",
+    }
+    try:
+        import yfinance as yf
+        result = []
+        for sector, ticker in SECTOR_ETFS.items():
+            hist = yf.Ticker(ticker).history(period="2d")
+            if len(hist) >= 2:
+                prev = hist["Close"].iloc[-2]
+                curr = hist["Close"].iloc[-1]
+                pct = round((curr - prev) / prev * 100, 2)
+            else:
+                pct = 0.0
+            result.append({"sector": sector, "ticker": ticker, "pct_change": pct})
+        return _ok(result)
+    except Exception:
+        return _ok([
+            {"sector": s, "ticker": t, "pct_change": 0.0}
+            for s, t in SECTOR_ETFS.items()
+        ])
+
+
 # ── router ────────────────────────────────────────────────────────────────────
 
 def handler(event: dict, context) -> dict:
@@ -295,6 +377,10 @@ def handler(event: dict, context) -> dict:
             return route_sharks(db)
         elif path == "/api/decisions":
             return route_decisions(db)
+        elif path == "/api/sentiment":
+            return route_sentiment(db)
+        elif path == "/api/sectors":
+            return route_sectors(db)
         else:
             return _err(404, f"No route: {path}")
     except Exception as exc:
