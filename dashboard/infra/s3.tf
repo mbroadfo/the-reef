@@ -97,17 +97,18 @@ resource "aws_cloudfront_distribution" "spa" {
     geo_restriction { restriction_type = "none" }
   }
 
+  aliases = [var.custom_domain]
+
   viewer_certificate {
-    cloudfront_default_certificate = true
-    minimum_protocol_version       = "TLSv1.2_2021"
+    acm_certificate_arn      = aws_acm_certificate_validation.reef.certificate_arn
+    ssl_support_method       = "sni-only"
+    minimum_protocol_version = "TLSv1.2_2021"
   }
 
   tags = local.tags
 }
 
 # ── ACM Certificate (us-east-1 required for CloudFront) ───────────────────────
-# Stage 1: creates cert + outputs DNS validation CNAME.
-# Stage 2 (after DNS validates): attach to CloudFront via aliases + viewer_certificate.
 resource "aws_acm_certificate" "reef" {
   provider          = aws.us_east_1
   domain_name       = var.custom_domain
@@ -118,6 +119,12 @@ resource "aws_acm_certificate" "reef" {
   }
 
   tags = local.tags
+}
+
+resource "aws_acm_certificate_validation" "reef" {
+  provider                = aws.us_east_1
+  certificate_arn         = aws_acm_certificate.reef.arn
+  validation_record_fqdns = [for record in aws_acm_certificate.reef.domain_validation_options : record.resource_record_name]
 }
 
 resource "aws_cloudfront_cache_policy" "assets" {

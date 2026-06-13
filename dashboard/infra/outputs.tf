@@ -21,6 +21,11 @@ output "lambda_function_name" {
   value = aws_lambda_function.api.function_name
 }
 
+output "custom_domain_url" {
+  description = "Dashboard custom domain — live once Cloudflare CNAME is added"
+  value       = "https://${var.custom_domain}"
+}
+
 # ── ACM DNS validation — add these to your DNS provider ──────────────────────
 output "acm_validation_cname_name" {
   description = "CNAME record name to add to your DNS provider"
