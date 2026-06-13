@@ -24,3 +24,5 @@ dashboard/backend/package/
 # Node
 dashboard/frontend/node_modules/
 dashboard/frontend/dist/
+dashboard/frontend/tsconfig.tsbuildinfo
+dashboard/infra/state-check.json
