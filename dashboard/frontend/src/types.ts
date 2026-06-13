@@ -90,3 +90,19 @@ export interface Decision {
   rationale: string
   timestamp: string
 }
+
+export interface Sentiment {
+  score: number
+  label: 'Bullish' | 'Neutral' | 'Bearish'
+  components: {
+    win_rate: number
+    trend: number
+    positions: number
+  }
+}
+
+export interface Sector {
+  sector: string
+  ticker: string
+  pct_change: number
+}

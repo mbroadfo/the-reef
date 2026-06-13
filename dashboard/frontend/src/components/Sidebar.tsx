@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Fish, Briefcase, ArrowLeftRight,
@@ -6,6 +7,8 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import SentimentGauge from './SentimentGauge'
 import reefLogo from '../assets/the_reef_logo.png'
+import { fetchSentiment } from '../api'
+import type { Sentiment } from '../types'
 
 const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
   { label: 'Command Center', path: '/',          icon: LayoutDashboard },
@@ -23,6 +26,15 @@ const active   = 'flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium bord
 const inactive = 'flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium border-l-2 border-transparent text-slate-400 hover:text-white hover:bg-reef-elevated transition-colors'
 
 export default function Sidebar() {
+  const [sentiment, setSentiment] = useState<Sentiment | null>(null)
+
+  useEffect(() => {
+    const load = () => fetchSentiment().then(setSentiment).catch(() => {})
+    load()
+    const id = setInterval(load, 30_000)
+    return () => clearInterval(id)
+  }, [])
+
   return (
     <div
       className="flex flex-col bg-reef-card border-r border-reef-border overflow-hidden"
@@ -55,7 +67,7 @@ export default function Sidebar() {
 
       {/* Sentiment gauge pinned to bottom */}
       <div className="px-4 py-4 border-t border-reef-border shrink-0">
-        <SentimentGauge score={72} label="Bullish" />
+        <SentimentGauge score={sentiment?.score ?? 0} label={sentiment?.label} />
       </div>
     </div>
   )

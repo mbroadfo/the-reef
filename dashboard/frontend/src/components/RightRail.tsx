@@ -1,17 +1,11 @@
 import { useEffect, useState } from 'react'
-import { fetchTrades } from '../api'
-import type { Trade } from '../types'
+import { fetchTrades, fetchSectors } from '../api'
+import type { Trade, Sector } from '../types'
 import { getSharkColor, getSharkFilter, normalizeSharkName } from '../utils/sharks'
 import sharkImg from '../assets/shark-base.png'
 
-const HEAT_MAP = [
-  { sector: 'Technology',  pct: +1.24 },
-  { sector: 'Financials',  pct: +0.82 },
-  { sector: 'Healthcare',  pct: -0.15 },
-  { sector: 'Consumer',    pct: +1.05 },
-  { sector: 'Industrials', pct: +0.45 },
-  { sector: 'Energy',      pct: -0.21 },
-]
+const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
+const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
 
 function relativeTime(ts: string): string {
   const mins = Math.floor((Date.now() - new Date(ts).getTime()) / 60000)
@@ -29,12 +23,20 @@ function heatStyle(pct: number) {
 }
 
 export default function RightRail() {
-  const [trades, setTrades] = useState<Trade[]>([])
+  const [trades, setTrades]   = useState<Trade[]>([])
+  const [sectors, setSectors] = useState<Sector[]>([])
 
   useEffect(() => {
-    const load = () => fetchTrades(8).then(r => setTrades(r.trades)).catch(() => {})
-    load()
-    const id = setInterval(load, 30_000)
+    const loadTrades = () => fetchTrades(8).then(r => setTrades(r.trades)).catch(() => {})
+    loadTrades()
+    const id = setInterval(loadTrades, 30_000)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    const loadSectors = () => fetchSectors().then(setSectors).catch(() => {})
+    loadSectors()
+    const id = setInterval(loadSectors, 300_000)
     return () => clearInterval(id)
   }, [])
 
@@ -60,43 +62,32 @@ export default function RightRail() {
         ) : (
           <div>
             {trades.map(trade => {
-              const name  = normalizeSharkName(trade.surfaced_by || 'Apex Shark')
-              const color = getSharkColor(name)
+              const name   = normalizeSharkName(trade.surfaced_by || 'Apex Shark')
+              const color  = getSharkColor(name)
               const filter = getSharkFilter(name)
-              const pnl = trade.pnl
+              const pnl    = trade.pnl
 
               return (
                 <div
                   key={trade.id}
                   className="flex gap-3 items-start py-3 border-b border-reef-border last:border-0"
                 >
-                  {/* Avatar */}
                   <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    border: `2px solid ${color}`,
-                    background: 'var(--reef-elevated)',
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    width: '40px', height: '40px', borderRadius: '50%',
+                    border: `2px solid ${color}`, background: 'var(--reef-elevated)',
+                    overflow: 'hidden', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     <img
                       src={sharkImg}
                       alt={name}
                       style={{
-                        width: '90%',
-                        height: '90%',
-                        objectFit: 'contain',
-                        filter,
-                        mixBlendMode: 'screen',
+                        width: '90%', height: '90%', objectFit: 'contain',
+                        filter, mixBlendMode: 'screen',
                       }}
                     />
                   </div>
 
-                  {/* Details */}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-sans font-semibold truncate" style={{ color }}>
                       {name}
@@ -109,7 +100,6 @@ export default function RightRail() {
                     </div>
                   </div>
 
-                  {/* P&L badge (sells only) */}
                   {pnl !== null && pnl !== undefined && (
                     <div className={`text-xs font-mono font-semibold shrink-0 ${pnl >= 0 ? 'text-gain' : 'text-loss'}`}>
                       {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
@@ -127,13 +117,12 @@ export default function RightRail() {
         <div className="text-xs font-sans uppercase tracking-widest text-slate-500 mb-3">
           Market Heat Map
         </div>
-        {/* TODO Phase 4: wire to real sector data */}
         <div className="grid grid-cols-2 gap-2">
-          {HEAT_MAP.map(({ sector, pct }) => (
+          {sectors.map(s => (
             <div
-              key={sector}
+              key={s.ticker}
               style={{
-                ...heatStyle(pct),
+                ...heatStyle(s.pct_change),
                 padding: '10px',
                 borderRadius: '8px',
                 minHeight: '56px',
@@ -144,21 +133,21 @@ export default function RightRail() {
             >
               <div style={{
                 fontSize: '10px',
-                fontFamily: "'Space Grotesk', system-ui, sans-serif",
+                fontFamily: FONT_SANS,
                 fontWeight: '600',
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
                 color: '#94a3b8',
               }}>
-                {sector}
+                {s.sector.split(' ')[0]}
               </div>
               <div style={{
                 fontSize: '14px',
-                fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                fontFamily: FONT_MONO,
                 fontWeight: '700',
-                color: pct >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)',
+                color: s.pct_change >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)',
               }}>
-                {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
+                {s.pct_change >= 0 ? '+' : ''}{s.pct_change.toFixed(2)}%
               </div>
             </div>
           ))}
