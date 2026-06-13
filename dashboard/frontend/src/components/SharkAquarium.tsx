@@ -46,6 +46,9 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
               style={{
                 padding: '8px 6px 10px',
                 minHeight: '220px',
+                maxWidth: '120px',
+                width: '100%',
+                margin: '0 auto',
                 position: 'relative',
                 borderColor: isActive ? color : undefined,
                 borderWidth: isActive ? '1.5px' : undefined,
