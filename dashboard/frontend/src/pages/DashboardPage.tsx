@@ -44,41 +44,43 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
   }
 
   return (
-    <div className="px-4 py-6 space-y-6">
+    <div className="px-4 py-6">
+      <div style={{ width: '841px', maxWidth: '100%' }} className="space-y-6">
 
-      {/* Chart */}
-      <PortfolioChart snapshots={portfolio.snapshots} startingCash={portfolio.starting_cash} />
+        {/* Chart */}
+        <PortfolioChart snapshots={portfolio.snapshots} startingCash={portfolio.starting_cash} />
 
-      {/* Aquarium */}
-      <SharkAquarium sharks={sharks} />
+        {/* Aquarium */}
+        <SharkAquarium sharks={sharks} />
 
-      {/* Bottom row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-slate-500 text-xs font-sans uppercase tracking-widest">
-              Shark Performance
-            </h2>
-            <Link to="/sharks" className="text-slate-600 hover:text-reef-gain text-xs font-sans transition-colors">
-              View all →
-            </Link>
+        {/* Bottom row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-slate-500 text-xs font-sans uppercase tracking-widest">
+                Shark Performance
+              </h2>
+              <Link to="/sharks" className="text-slate-600 hover:text-reef-gain text-xs font-sans transition-colors">
+                View all →
+              </Link>
+            </div>
+            <SharkLeaderboard sharks={sharks} compact />
           </div>
-          <SharkLeaderboard sharks={sharks} compact />
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-slate-500 text-xs font-sans uppercase tracking-widest">
+                Recent Trades
+              </h2>
+              <Link to="/trades" className="text-slate-600 hover:text-reef-gain text-xs font-sans transition-colors">
+                View all →
+              </Link>
+            </div>
+            <TradesTable trades={trades} compact />
+          </div>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-slate-500 text-xs font-sans uppercase tracking-widest">
-              Recent Trades
-            </h2>
-            <Link to="/trades" className="text-slate-600 hover:text-reef-gain text-xs font-sans transition-colors">
-              View all →
-            </Link>
-          </div>
-          <TradesTable trades={trades} compact />
-        </div>
       </div>
-
     </div>
   )
 }
