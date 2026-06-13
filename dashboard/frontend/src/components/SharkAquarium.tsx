@@ -23,7 +23,7 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
         </Link>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '8px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 115px)', gap: '6px', width: 'fit-content' }}>
         {AQUARIUM_ROSTER.map((rosterName) => {
           const shark      = sharks.find((s) => s.name === rosterName)
           const isActive   = Boolean(shark) && (shark!.trades > 0)
@@ -46,9 +46,6 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
               style={{
                 padding: '8px 6px 10px',
                 minHeight: '220px',
-                maxWidth: '120px',
-                width: '100%',
-                margin: '0 auto',
                 position: 'relative',
                 borderColor: isActive ? color : undefined,
                 borderWidth: isActive ? '1.5px' : undefined,
