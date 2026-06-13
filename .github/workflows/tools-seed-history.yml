@@ -1,0 +1,28 @@
+name: "Tools: Seed 2025 History"
+# One-time manual trigger — populates MongoDB with 2025 historical trading backstory.
+# Grows a $5,000 paper portfolio to ~$10,200 using real yfinance price data.
+# Safe to re-run: deletes all id<0 trades and all snapshots before inserting.
+on:
+  workflow_dispatch:
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pymongo[srv] yfinance python-dotenv -q
+
+      - name: Run seed script
+        env:
+          MONGODB_URI: "mongodb+srv://mbroadfo_db_user:${{ secrets.MONGODB_PASSWORD }}@reef-m0.1sxeyjd.mongodb.net/?authSource=admin&appName=reef-m0"
+          MONGODB_DB: the_reef
+        run: python tools/seed_history.py
