@@ -31,6 +31,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Build Lambda package
+        working-directory: dashboard/backend
+        run: |
+          pip install -r requirements.txt -t package/ -q
+          cp handler.py package/
+          cd package && zip -r ../lambda.zip . -x "*.pyc" -x "*__pycache__*"
+          rm -rf ../package/
+
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "~1.9"
