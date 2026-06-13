@@ -1,0 +1,54 @@
+name: "DevOps: Frontend"
+# Required GitHub Secrets:
+#   DEPLOY_AWS_ACCESS_KEY_ID / DEPLOY_AWS_SECRET_ACCESS_KEY — S3 sync + CF invalidation
+#   REEF_S3_BUCKET — S3 bucket name
+# Required GitHub Variables (set by DevOps: Infrastructure workflow):
+#   VITE_API_URL       — API Gateway base URL
+#   CLOUDFRONT_DIST_ID — CloudFront distribution ID
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'dashboard/frontend/**'
+  workflow_dispatch:
+
+concurrency:
+  group: devops-frontend
+  cancel-in-progress: true
+
+env:
+  AWS_DEFAULT_REGION: us-west-2
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID:     ${{ secrets.DEPLOY_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.DEPLOY_AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: dashboard/frontend/package-lock.json
+
+      - name: Install and build
+        working-directory: dashboard/frontend
+        run: npm ci && npm run build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync dashboard/frontend/dist/ \
+            s3://${{ secrets.REEF_S3_BUCKET }}/ \
+            --delete --cache-control "public,max-age=300"
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ vars.CLOUDFRONT_DIST_ID }} \
+            --paths "/*"
