@@ -40,17 +40,17 @@ export function getSharkInitials(name: string): string {
 }
 
 export const SHARK_FILTERS: Record<string, string> = {
-  'Momentum Shark':    'hue-rotate(270deg) saturate(2.0) brightness(1.1)',
-  'News Shark':        'hue-rotate(210deg) saturate(1.8) brightness(1.0)',
-  'Macro Shark':       'hue-rotate(185deg) saturate(1.8) brightness(1.0)',
-  'Options Shark':     'hue-rotate(20deg)  saturate(2.2) brightness(1.1)',
-  'Value Shark':       'hue-rotate(110deg) saturate(1.8) brightness(1.0)',
-  'Sentiment Shark':   'hue-rotate(45deg)  saturate(2.0) brightness(1.1)',
-  'Crypto Shark':      'hue-rotate(0deg)   saturate(0.2) brightness(0.85)',
-  'Hunter Shark':      'hue-rotate(270deg) saturate(1.6) brightness(1.0)',
-  'Fundamental Shark': 'hue-rotate(110deg) saturate(1.4) brightness(0.95)',
-  'Contrarian Shark':  'hue-rotate(185deg) saturate(1.4) brightness(1.0)',
-  'Earnings Shark':    'hue-rotate(210deg) saturate(1.6) brightness(1.0)',
+  'Momentum Shark':    'hue-rotate(70deg)  saturate(2.5) brightness(1.15)',
+  'News Shark':        'hue-rotate(0deg)   saturate(1.8) brightness(1.05)',
+  'Macro Shark':       'hue-rotate(335deg) saturate(2.0) brightness(1.05)',
+  'Options Shark':     'hue-rotate(180deg) saturate(2.5) brightness(1.15)',
+  'Value Shark':       'hue-rotate(270deg) saturate(2.0) brightness(1.10)',
+  'Sentiment Shark':   'hue-rotate(205deg) saturate(2.5) brightness(1.20)',
+  'Crypto Shark':      'hue-rotate(0deg)   saturate(0.15) brightness(0.90)',
+  'Hunter Shark':      'hue-rotate(70deg)  saturate(2.0) brightness(1.10)',
+  'Fundamental Shark': 'hue-rotate(270deg) saturate(1.6) brightness(1.05)',
+  'Contrarian Shark':  'hue-rotate(335deg) saturate(1.6) brightness(1.05)',
+  'Earnings Shark':    'hue-rotate(0deg)   saturate(1.8) brightness(1.05)',
 }
 
 export function getSharkFilter(name: string): string {

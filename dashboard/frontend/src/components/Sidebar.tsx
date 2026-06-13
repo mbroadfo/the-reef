@@ -13,8 +13,8 @@ const NAV_ITEMS = [
   { label: 'Settings',       path: '/settings' },
 ]
 
-const active   = 'flex items-center gap-3 px-4 py-2.5 text-sm font-medium border-l-2 border-reef-gain text-reef-gain bg-reef-elevated'
-const inactive = 'flex items-center gap-3 px-4 py-2.5 text-sm font-medium border-l-2 border-transparent text-slate-400 hover:text-white hover:bg-reef-elevated transition-colors'
+const active   = 'flex items-center gap-3 px-3 py-2.5 text-sm font-medium border-l-2 border-reef-gain text-reef-gain bg-reef-elevated'
+const inactive = 'flex items-center gap-3 px-3 py-2.5 text-sm font-medium border-l-2 border-transparent text-slate-400 hover:text-white hover:bg-reef-elevated transition-colors'
 
 export default function Sidebar() {
   return (
@@ -28,7 +28,7 @@ export default function Sidebar() {
           <span className="text-xl" aria-hidden>🦈</span>
           <span className="font-sans font-bold text-white text-lg">THE REEF</span>
         </div>
-        <div className="text-xs font-mono tracking-widest text-slate-500 uppercase">
+        <div className="text-[9px] font-mono tracking-widest text-slate-500 uppercase">
           AI Trading Command Center
         </div>
       </div>

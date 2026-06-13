@@ -23,7 +23,7 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
         </Link>
       </div>
 
-      <div className="grid grid-cols-4 xl:grid-cols-7 gap-3">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '8px' }}>
         {AQUARIUM_ROSTER.map((rosterName) => {
           const shark      = sharks.find((s) => s.name === rosterName)
           const isActive   = Boolean(shark) && (shark!.trades > 0)
@@ -44,7 +44,7 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
               onClick={() => navigate('/sharks')}
               className={`card cursor-pointer hover:shadow-card-glow transition-all duration-200 flex flex-col items-center${!isActive ? ' opacity-50' : ''}`}
               style={{
-                padding: '10px 8px 12px',
+                padding: '8px 6px 10px',
                 minHeight: '220px',
                 position: 'relative',
                 borderColor: isActive ? color : undefined,
@@ -53,10 +53,10 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
             >
               {/* Name */}
               <div style={{ textAlign: 'center', marginBottom: '6px', lineHeight: 1.2 }}>
-                <div style={{ fontSize: '12px', fontWeight: '700', fontFamily: FONT_SANS, color, letterSpacing: '0.02em' }}>
+                <div style={{ fontSize: '13px', fontWeight: '800', fontFamily: FONT_SANS, color, letterSpacing: '0.02em' }}>
                   {firstName}
                 </div>
-                <div style={{ fontSize: '11px', fontWeight: '600', fontFamily: FONT_SANS, color, opacity: 0.85 }}>
+                <div style={{ fontSize: '11px', fontWeight: '700', fontFamily: FONT_SANS, color }}>
                   {lastName}
                 </div>
               </div>
@@ -100,8 +100,8 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
               {/* Return % */}
               <div style={{ textAlign: 'center', marginTop: '6px' }}>
                 <div style={{
-                  fontSize: '15px',
-                  fontWeight: '700',
+                  fontSize: '16px',
+                  fontWeight: '800',
                   fontFamily: FONT_MONO,
                   color: returnVal == null ? '#64748b' : returnVal > 0 ? 'var(--reef-gain)' : returnVal < 0 ? 'var(--reef-loss)' : '#64748b',
                   lineHeight: 1,
@@ -109,9 +109,9 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
                   {returnVal != null ? `${returnVal > 0 ? '+' : ''}${returnVal.toFixed(1)}%` : '—'}
                 </div>
                 <div style={{
-                  fontSize: '10px',
+                  fontSize: '9px',
                   fontFamily: FONT_SANS,
-                  color: '#64748b',
+                  color: '#94a3b8',
                   marginTop: '2px',
                   textTransform: 'uppercase',
                   letterSpacing: '0.06em',
@@ -139,8 +139,9 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
                 </div>
                 <div style={{
                   fontSize: '10px',
+                  fontWeight: '600',
                   fontFamily: FONT_SANS,
-                  color: '#64748b',
+                  color: '#94a3b8',
                   textAlign: 'center',
                   marginTop: '4px',
                   textTransform: 'uppercase',
