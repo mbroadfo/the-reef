@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import SentimentGauge from './SentimentGauge'
+import reefLogo from '../assets/the_reef_logo.png'
 
 const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
   { label: 'Command Center', path: '/',          icon: LayoutDashboard },
@@ -30,8 +31,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="flex flex-col gap-1 px-4 py-5 border-b border-reef-border shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-xl" aria-hidden>🦈</span>
-          <span className="font-sans font-bold text-white text-lg">THE REEF</span>
+          <img src={reefLogo} alt="The Reef" style={{ height: '32px', width: 'auto' }} />
         </div>
         <div className="text-[9px] font-mono tracking-widest text-slate-500 uppercase">
           AI Trading Command Center

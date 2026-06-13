@@ -43,20 +43,20 @@ export default function App() {
   return (
     <BrowserRouter>
       <PortfolioProvider>
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route path="/"          element={<DashboardPage onLive={() => {}} />} />
-          <Route path="/sharks"    element={<SharksPage />} />
-          <Route path="/positions" element={<PositionsPage />} />
-          <Route path="/trades"    element={<TradesPage />} />
-          <Route path="/trades/:id" element={<TradesPage />} />
-          <Route path="/portfolio" element={<ComingSoon />} />
-          <Route path="/market"    element={<ComingSoon />} />
-          <Route path="/insights"  element={<ComingSoon />} />
-          <Route path="/reports"   element={<ComingSoon />} />
-          <Route path="/settings"  element={<ComingSoon />} />
-        </Route>
-      </Routes>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route path="/"          element={<DashboardPage onLive={() => {}} />} />
+            <Route path="/sharks"    element={<SharksPage />} />
+            <Route path="/positions" element={<PositionsPage />} />
+            <Route path="/trades"    element={<TradesPage />} />
+            <Route path="/trades/:id" element={<TradesPage />} />
+            <Route path="/portfolio" element={<ComingSoon />} />
+            <Route path="/market"    element={<ComingSoon />} />
+            <Route path="/insights"  element={<ComingSoon />} />
+            <Route path="/reports"   element={<ComingSoon />} />
+            <Route path="/settings"  element={<ComingSoon />} />
+          </Route>
+        </Routes>
       </PortfolioProvider>
     </BrowserRouter>
   )

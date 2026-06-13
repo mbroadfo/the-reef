@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchPortfolio, fetchSharks, fetchTrades } from '../api'
 import type { Portfolio, Shark, Trade } from '../types'
-import MetricCard from '../components/MetricCard'
 import PortfolioChart from '../components/PortfolioChart'
 import SharkAquarium from '../components/SharkAquarium'
 import SharkLeaderboard from '../components/SharkLeaderboard'
@@ -44,41 +43,8 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
     )
   }
 
-  const pnlPos  = portfolio.total_pnl >= 0
-  const pnlSign = pnlPos ? '+' : ''
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-
-      {/* Metrics row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          label="Portfolio Value"
-          value={`$${portfolio.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-          sub={`Started $${portfolio.starting_cash.toLocaleString()}`}
-          sparkline={portfolio.snapshots.map((s) => s.portfolio_value)}
-          trend={portfolio.total_pnl >= 0 ? 'up' : 'down'}
-        />
-        <MetricCard
-          label="Total P&L"
-          value={`${pnlSign}$${Math.abs(portfolio.total_pnl).toFixed(2)}`}
-          sub={`${pnlSign}${portfolio.total_pnl_pct.toFixed(2)}%`}
-          positive={pnlPos}
-          negative={!pnlPos}
-        />
-        <MetricCard
-          label="Cash Available"
-          value={`$${portfolio.cash.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-          sub={`${((portfolio.cash / portfolio.value) * 100).toFixed(0)}% of portfolio`}
-        />
-        <MetricCard
-          label="Win Rate"
-          value={`${portfolio.win_rate_pct.toFixed(1)}%`}
-          sub={`${portfolio.wins ?? 0}W / ${portfolio.losses ?? 0}L · PF ${portfolio.profit_factor?.toFixed(1) ?? '0'}`}
-          positive={portfolio.win_rate_pct >= 50}
-          negative={portfolio.win_rate_pct > 0 && portfolio.win_rate_pct < 50}
-        />
-      </div>
 
       {/* Chart */}
       <PortfolioChart snapshots={portfolio.snapshots} startingCash={portfolio.starting_cash} />
