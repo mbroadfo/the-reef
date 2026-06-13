@@ -45,7 +45,7 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
 
   return (
     <div className="px-4 py-6">
-      <div style={{ width: '841px', maxWidth: '100%' }} className="space-y-6">
+      <div style={{ width: '841px', maxWidth: '100%', marginLeft: 'auto', marginRight: 'auto' }} className="space-y-6">
 
         {/* Chart */}
         <PortfolioChart snapshots={portfolio.snapshots} startingCash={portfolio.starting_cash} />
