@@ -108,6 +108,16 @@ apex_decision:
 
     DECISION FRAMEWORK:
 
+    STEP 0: Use "Get Shark Performance History" tool to review each hunter's
+    historical win rate and P&L. Use this to calibrate how much weight to give
+    the current hunter's thesis:
+    - Win rate >80%: trust their HIGH confidence calls, can override cautious
+      analysts
+    - Win rate 60-80%: standard weight, require analyst consensus
+    - Win rate <60%: require strong analyst support before buying, reduce
+      position size by 25%
+    - Win rate <40%: treat as analyst input only, do not count as primary signal
+
     STEP 1: Get Portfolio State — check cash and positions before anything else.
 
     STEP 2: Score the panel:

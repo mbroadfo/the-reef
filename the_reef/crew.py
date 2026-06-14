@@ -14,12 +14,13 @@ from .tools.tank_tools import (
     GetPortfolioTool, ExecuteBuyTool, ExecuteSellTool, CheckStopLossesTool,
     set_tank,
 )
+from .tools.shark_history_tool import GetSharkHistoryTool
 from .brokerage.the_tank import TheTank
 from .scanner.monitor import ScanSignal
 
 
 _market_tools = [GetPriceTool(), GetHistoryTool(), SerperDevTool()]
-_apex_tools = [GetPortfolioTool(), ExecuteBuyTool(), ExecuteSellTool(), CheckStopLossesTool()]
+_apex_tools = [GetPortfolioTool(), ExecuteBuyTool(), ExecuteSellTool(), CheckStopLossesTool(), GetSharkHistoryTool()]
 
 
 @CrewBase

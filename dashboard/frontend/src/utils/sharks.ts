@@ -61,9 +61,9 @@ export function getSharkFilter(name: string): string {
 export const AQUARIUM_ROSTER = [
   'Momentum Shark',
   'News Shark',
-  'Macro Shark',
-  'Options Shark',
+  'Earnings Shark',
+  'Contrarian Shark',
   'Value Shark',
-  'Sentiment Shark',
+  'Macro Shark',
   'Crypto Shark',
 ]
