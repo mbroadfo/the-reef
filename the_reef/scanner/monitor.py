@@ -22,6 +22,7 @@ SIGNAL_TYPES = {
     "EARNINGS_UPCOMING": 10,    # Earnings within 7 days
     "VOLUME_SPIKE":       9,    # Volume > 2.5x 20-day avg
     "PRICE_BREAKOUT":     8,    # Price change > 4% in one day
+    "NEWS_SENTIMENT":     8,    # 5-day trend diverges from 1-day (news-driven move)
     "RSI_OVERSOLD":       6,    # RSI < 28 — potential reversal
     "RSI_OVERBOUGHT":     5,    # RSI > 75 — potential short opportunity
     "PRICE_DROP":         7,    # Price drop > 4% — possible entry or stop review
@@ -98,6 +99,19 @@ def scan_ticker(ticker: str) -> list[ScanSignal]:
     dte = days_to_earnings(ticker)
     if dte is not None and 0 < dte <= 7:
         signals.append(ScanSignal(ticker, "EARNINGS_UPCOMING", SIGNAL_TYPES["EARNINGS_UPCOMING"], dte, price, now))
+
+    # News sentiment via simple price momentum proxy
+    # Fire when 5-day return diverges strongly from 1-day
+    # (stock moving on news not yet reflected in RSI/volume)
+    hist_5d = get_price_change_pct(ticker, days=5)
+    if hist_5d is not None and change is not None:
+        if abs(hist_5d) > 8.0 and abs(change) < 1.0:
+            # Big 5-day move but quiet today = news-driven trend
+            signals.append(ScanSignal(
+                ticker, "NEWS_SENTIMENT",
+                SIGNAL_TYPES["NEWS_SENTIMENT"],
+                hist_5d, price, now
+            ))
 
     return signals
 
