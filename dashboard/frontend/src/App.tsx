@@ -19,7 +19,7 @@ function AppShell() {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'var(--sidebar-width) var(--center-width) 1fr',
+      gridTemplateColumns: '180px 1fr 340px',
       gridTemplateRows: '88px 1fr',
       height: '100vh',
       width: '100vw',
