@@ -109,20 +109,24 @@ def route_portfolio(db) -> dict:
     # Active sharks — distinct surfaced_by values across all trades
     active_sharks = len(db.trades.distinct("surfaced_by"))
 
-    # Snapshots for chart (last 200)
+    # Display value — use latest snapshot to reflect full 2025→2026 journey
+    latest_snap = db.portfolio_snapshots.find_one({}, sort=[("timestamp", DESCENDING)])
+    display_value = latest_snap["portfolio_value"] if latest_snap else portfolio_value
+
+    # Snapshots for chart (last 400)
     snaps = list(
         db.portfolio_snapshots.find({}, {"_id": 0})
         .sort("timestamp", 1)
-        .limit(200)
+        .limit(400)
     )
 
     return _ok({
-        "value": round(portfolio_value, 2),
+        "value": round(display_value, 2),
         "cash": round(cash, 2),
         "equity": round(equity, 2),
         "starting_cash": round(starting, 2),
-        "total_pnl": round(portfolio_value - starting, 2),
-        "total_pnl_pct": round((portfolio_value - starting) / starting * 100, 2),
+        "total_pnl": round(display_value - starting, 2),
+        "total_pnl_pct": round((display_value - starting) / starting * 100, 2),
         "realized_pnl": round(total_realized, 2),
         "unrealized_pnl": round(unrealized, 2),
         "win_rate_pct": round(len(wins) / len(closed) * 100, 1) if closed else 0.0,
