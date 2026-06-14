@@ -19,7 +19,7 @@ from ..tools.market_data import (
 
 # Signals ordered by excitement level — higher = more interesting
 SIGNAL_TYPES = {
-    "EARNINGS_UPCOMING": 10,    # Earnings within 7 days
+    "EARNINGS_UPCOMING": 10,    # Earnings within 14 days
     "VOLUME_SPIKE":       9,    # Volume > 2.5x 20-day avg
     "PRICE_BREAKOUT":     8,    # Price change > 4% in one day
     "NEWS_SENTIMENT":     8,    # 5-day trend diverges from 1-day (news-driven move)
@@ -97,21 +97,26 @@ def scan_ticker(ticker: str) -> list[ScanSignal]:
 
     # Earnings coming up
     dte = days_to_earnings(ticker)
-    if dte is not None and 0 < dte <= 7:
+    if dte is not None and 0 < dte <= 14:
         signals.append(ScanSignal(ticker, "EARNINGS_UPCOMING", SIGNAL_TYPES["EARNINGS_UPCOMING"], dte, price, now))
 
-    # News sentiment via simple price momentum proxy
-    # Fire when 5-day return diverges strongly from 1-day
-    # (stock moving on news not yet reflected in RSI/volume)
-    hist_5d = get_price_change_pct(ticker, days=5)
-    if hist_5d is not None and change is not None:
-        if abs(hist_5d) > 8.0 and abs(change) < 1.0:
-            # Big 5-day move but quiet today = news-driven trend
-            signals.append(ScanSignal(
-                ticker, "NEWS_SENTIMENT",
-                SIGNAL_TYPES["NEWS_SENTIMENT"],
-                hist_5d, price, now
-            ))
+    # News sentiment — 5-day momentum diverging from today = news-driven move
+    try:
+        import yfinance as yf
+        hist = yf.Ticker(ticker).history(period="6d")
+        if len(hist) >= 5:
+            five_day_chg = (
+                (hist["Close"].iloc[-1] - hist["Close"].iloc[-5])
+                / hist["Close"].iloc[-5] * 100
+            )
+            if abs(five_day_chg) > 7.0 and change is not None and abs(change) < 1.5:
+                signals.append(ScanSignal(
+                    ticker, "NEWS_SENTIMENT",
+                    SIGNAL_TYPES["NEWS_SENTIMENT"],
+                    five_day_chg, price, now
+                ))
+    except Exception:
+        pass
 
     return signals
 
