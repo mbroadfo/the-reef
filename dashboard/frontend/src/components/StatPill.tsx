@@ -25,7 +25,7 @@ export default function StatPill({ label, value, change, positive, sparkline, ch
       height: '100%',
     }}>
       <div style={{
-        fontSize: '10px',
+        fontSize: '11px',
         fontFamily: FONT_SANS,
         textTransform: 'uppercase',
         letterSpacing: '0.08em',
@@ -36,7 +36,7 @@ export default function StatPill({ label, value, change, positive, sparkline, ch
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span style={{
-          fontSize: '17px',
+          fontSize: '20px',
           fontWeight: '700',
           fontFamily: FONT_MONO,
           color: '#f1f5f9',

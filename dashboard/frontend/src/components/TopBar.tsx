@@ -36,7 +36,7 @@ export default function TopBar() {
       style={{
         gridColumn: '2 / 4',
         gridRow: '1',
-        height: '64px',
+        height: '88px',
         display: 'flex',
         alignItems: 'center',
         borderBottom: '1px solid var(--reef-border)',
@@ -134,21 +134,27 @@ export default function TopBar() {
           </span>
         </div>
         <div style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '50%',
-          background: 'var(--reef-elevated)',
-          border: '1.5px solid var(--reef-border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '13px',
-          fontWeight: '700',
-          fontFamily: FONT_SANS,
-          color: 'var(--reef-gain)',
-          flexShrink: 0,
+          display: 'flex', alignItems: 'center', gap: '6px',
+          cursor: 'pointer',
         }}>
-          M
+          <div style={{
+            width: '40px', height: '40px', borderRadius: '50%',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            border: '2px solid var(--reef-gain)',
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '15px', fontWeight: '700',
+            fontFamily: FONT_SANS, color: 'white',
+            flexShrink: 0,
+          }}>
+            M
+          </div>
+          <svg width="12" height="12" viewBox="0 0 12 12"
+               fill="none" style={{ color: '#64748b' }}>
+            <path d="M2 4l4 4 4-4" stroke="currentColor"
+                  strokeWidth="1.5" strokeLinecap="round"
+                  strokeLinejoin="round"/>
+          </svg>
         </div>
       </div>
     </div>

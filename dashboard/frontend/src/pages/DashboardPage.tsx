@@ -75,7 +75,9 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
               View all →
             </Link>
           </div>
-          <TradesTable trades={trades} compact />
+          <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
+            <TradesTable trades={trades} compact />
+          </div>
         </div>
       </div>
 
