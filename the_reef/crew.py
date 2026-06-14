@@ -1,6 +1,7 @@
 """The Reef — CrewAI orchestration layer.
 
-Sequential process: Hunter → Value → Macro → Contrarian → Apex Shark.
+Sequential pipeline: Hunter → Research → Macro → Sentiment →
+Contrarian → Risk → Wildcard → Apex Shark.
 Apex Shark has The Tank tools to check portfolio state and execute paper trades.
 """
 from __future__ import annotations
@@ -20,56 +21,59 @@ from .scanner.monitor import ScanSignal
 
 
 _market_tools = [GetPriceTool(), GetHistoryTool(), SerperDevTool()]
-_apex_tools = [GetPortfolioTool(), ExecuteBuyTool(), ExecuteSellTool(), CheckStopLossesTool(), GetSharkHistoryTool()]
+_apex_tools = [
+    GetPortfolioTool(), ExecuteBuyTool(), ExecuteSellTool(),
+    CheckStopLossesTool(), GetSharkHistoryTool(),
+]
 
 
 @CrewBase
 class TheReefCrew:
-    """The Reef — three-tier shark hierarchy."""
+    """The Reef — 8-shark investment committee."""
 
     agents_config = "config/agents.yaml"
     tasks_config = "config/tasks.yaml"
 
-    # ── Tier 1: Hunter Sharks ─────────────────────────────────────────────────
+    # ── Hunters ───────────────────────────────────────────────────────────────
 
     @agent
-    def momentum_shark(self) -> Agent:
+    def hunter_shark(self) -> Agent:
         return Agent(
-            config=self.agents_config["momentum_shark"],
+            config=self.agents_config["hunter_shark"],
             tools=_market_tools,
             verbose=True,
         )
 
     @agent
-    def earnings_shark(self) -> Agent:
+    def research_shark(self) -> Agent:
         return Agent(
-            config=self.agents_config["earnings_shark"],
+            config=self.agents_config["research_shark"],
             tools=_market_tools,
             verbose=True,
         )
 
     @agent
-    def news_shark(self) -> Agent:
+    def wildcard_shark(self) -> Agent:
         return Agent(
-            config=self.agents_config["news_shark"],
-            tools=_market_tools,
+            config=self.agents_config["wildcard_shark"],
+            tools=_market_tools + [SerperDevTool()],
             verbose=True,
         )
 
-    # ── Tier 2: Analyst Sharks ────────────────────────────────────────────────
-
-    @agent
-    def value_shark(self) -> Agent:
-        return Agent(
-            config=self.agents_config["value_shark"],
-            tools=_market_tools,
-            verbose=True,
-        )
+    # ── Analysts ──────────────────────────────────────────────────────────────
 
     @agent
     def macro_shark(self) -> Agent:
         return Agent(
             config=self.agents_config["macro_shark"],
+            tools=[SerperDevTool()],
+            verbose=True,
+        )
+
+    @agent
+    def sentiment_shark(self) -> Agent:
+        return Agent(
+            config=self.agents_config["sentiment_shark"],
             tools=[SerperDevTool()],
             verbose=True,
         )
@@ -82,7 +86,15 @@ class TheReefCrew:
             verbose=True,
         )
 
-    # ── Tier 3: Apex Shark ────────────────────────────────────────────────────
+    @agent
+    def risk_shark(self) -> Agent:
+        return Agent(
+            config=self.agents_config["risk_shark"],
+            tools=[GetPortfolioTool()],
+            verbose=True,
+        )
+
+    # ── Apex ──────────────────────────────────────────────────────────────────
 
     @agent
     def apex_shark(self) -> Agent:
@@ -99,22 +111,32 @@ class TheReefCrew:
         return Task(config=self.tasks_config["hunter_research"])
 
     @task
-    def value_analysis(self) -> Task:
-        return Task(config=self.tasks_config["value_analysis"])
+    def research_analysis(self) -> Task:
+        return Task(config=self.tasks_config["research_analysis"])
 
     @task
     def macro_analysis(self) -> Task:
         return Task(config=self.tasks_config["macro_analysis"])
 
     @task
+    def sentiment_analysis(self) -> Task:
+        return Task(config=self.tasks_config["sentiment_analysis"])
+
+    @task
     def contrarian_challenge(self) -> Task:
         return Task(config=self.tasks_config["contrarian_challenge"])
 
     @task
+    def risk_assessment(self) -> Task:
+        return Task(config=self.tasks_config["risk_assessment"])
+
+    @task
+    def wildcard_nomination(self) -> Task:
+        return Task(config=self.tasks_config["wildcard_nomination"])
+
+    @task
     def apex_decision(self) -> Task:
-        return Task(
-            config=self.tasks_config["apex_decision"],
-            )
+        return Task(config=self.tasks_config["apex_decision"])
 
     # ── Crew ──────────────────────────────────────────────────────────────────
 
@@ -128,17 +150,17 @@ class TheReefCrew:
         )
 
     def select_hunter(self, signal_type: str) -> Agent:
-        """Map signal type to the most relevant hunter shark."""
+        """Map signal type to the most relevant shark for hunter_research."""
         mapping = {
-            "VOLUME_SPIKE": self.momentum_shark(),
-            "PRICE_BREAKOUT": self.momentum_shark(),
-            "PRICE_DROP": self.contrarian_shark(),
-            "RSI_OVERSOLD": self.contrarian_shark(),
-            "RSI_OVERBOUGHT": self.contrarian_shark(),
-            "EARNINGS_UPCOMING": self.earnings_shark(),
-            "NEWS_SENTIMENT": self.news_shark(),
+            "VOLUME_SPIKE":       self.hunter_shark(),
+            "PRICE_BREAKOUT":     self.hunter_shark(),
+            "PRICE_DROP":         self.contrarian_shark(),
+            "RSI_OVERSOLD":       self.contrarian_shark(),
+            "RSI_OVERBOUGHT":     self.contrarian_shark(),
+            "EARNINGS_UPCOMING":  self.research_shark(),
+            "NEWS_SENTIMENT":     self.sentiment_shark(),
         }
-        return mapping.get(signal_type, self.momentum_shark())
+        return mapping.get(signal_type, self.hunter_shark())
 
 
 def run_deep_dive(signal: ScanSignal, tank: TheTank | None = None) -> str:
