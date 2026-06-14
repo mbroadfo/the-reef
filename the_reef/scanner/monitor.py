@@ -29,20 +29,12 @@ SIGNAL_TYPES = {
 }
 
 DEFAULT_WATCHLIST = [
-    # AI / semiconductors
-    "NVDA", "AMD", "ARM", "SMCI",
-    # Big tech (trigger on major news days)
-    "MSFT", "META", "TSLA", "GOOGL",
-    # Space / defense / speculative growth
-    "RKLB", "PLTR", "IONQ", "BBAI",
-    # Fintech / crypto-adjacent
-    "COIN", "HOOD", "SQ", "SOFI",
-    # Biotech / health
-    "MRNA", "HIMS", "RXRX",
-    # Energy transition
-    "FSLR", "ENPH",
-    # Consumer / entertainment
-    "DKNG", "UBER",
+    # Tech / AI / semis  → hunter_shark + research_shark
+    "NVDA", "AMD", "AVGO", "ARM", "TSM", "META", "PLTR",
+    # Crypto-correlated  → wildcard_shark
+    "COIN", "MSTR", "MARA", "HOOD",
+    # Special situations → wildcard_shark
+    "RKLB", "ASTS", "TSLA", "SMCI",
 ]
 
 SIGNALS_FILE = Path(__file__).parent.parent.parent / "data" / "scan_signals.json"
@@ -109,7 +101,7 @@ def scan_ticker(ticker: str) -> list[ScanSignal]:
                 (hist["Close"].iloc[-1] - hist["Close"].iloc[-5])
                 / hist["Close"].iloc[-5] * 100
             )
-            if abs(five_day_chg) > 7.0 and change is not None and abs(change) < 1.5:
+            if abs(five_day_chg) > 5.0 and change is not None and abs(change) < 2.0:
                 signals.append(ScanSignal(
                     ticker, "NEWS_SENTIMENT",
                     SIGNAL_TYPES["NEWS_SENTIMENT"],
@@ -227,6 +219,15 @@ def start_monitor(
         else:
             print("[scanner] Market closed — sleeping.")
         time.sleep(interval_secs)
+
+
+class ReefMonitor:
+    """Thin wrapper exposing scanner config as instance attributes."""
+    SIGNAL_TYPES = SIGNAL_TYPES
+    watchlist = DEFAULT_WATCHLIST
+
+    def scan(self) -> list[ScanSignal]:
+        return run_scan(self.watchlist)
 
 
 if __name__ == "__main__":
