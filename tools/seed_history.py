@@ -30,64 +30,69 @@ if not MONGODB_URI:
 random.seed(42)
 
 # ── Trade schedule ─────────────────────────────────────────────────────────────
-# (ticker, buy_date, sell_date, surfaced_by, vetted_by)
+# (ticker, buy_date, sell_date, surfaced_by, vetted_by, signal_type)
 # Actual win/loss determined by real prices; this schedule is designed to hit ~68% win rate.
+# Signal type matches monitor.py routing:
+#   Momentum Shark  -> PRICE_BREAKOUT or VOLUME_SPIKE
+#   News Shark      -> NEWS_SENTIMENT
+#   Earnings Shark  -> EARNINGS_UPCOMING
+#   Contrarian Shark -> PRICE_DROP or RSI_OVERSOLD (buy-the-dip setups)
 
 TRADE_SCHEDULE = [
     # Q1 — Jan / Feb / Mar
     # Winners: PLTR breakout, RKLB confirmed, ASTS early run, COIN crypto rally
-    # Losers:  NVDA/AMD/RKLB/COIN post-DeepSeek & tariff drawdowns
-    ("PLTR", "2025-01-02", "2025-01-31", "Momentum Shark", "Value Shark, Macro Shark"),
-    ("RKLB", "2025-01-13", "2025-01-31", "News Shark",     "Macro Shark, Contrarian Shark"),
-    ("ASTS", "2025-01-15", "2025-02-14", "News Shark",     "Value Shark, Macro Shark"),
-    ("COIN", "2025-01-15", "2025-02-28", "News Shark",     "Macro Shark, Contrarian Shark"),
-    ("NVDA", "2025-02-10", "2025-02-28", "Momentum Shark", "Value Shark"),
-    ("AMD",  "2025-02-24", "2025-03-14", "Momentum Shark", "Value Shark, Contrarian Shark"),
-    ("RKLB", "2025-03-03", "2025-03-21", "News Shark",     "Macro Shark"),
-    ("COIN", "2025-03-10", "2025-03-28", "News Shark",     "Value Shark, Macro Shark"),
-    ("AMD",  "2025-03-24", "2025-04-07", "Momentum Shark", "Contrarian Shark"),
+    # Losers:  NVDA/AMD post-DeepSeek & tariff drawdowns; Contrarian dip buys mixed
+    ("PLTR", "2025-01-02", "2025-01-31", "Momentum Shark",    "Value Shark, Macro Shark",       "PRICE_BREAKOUT"),
+    ("RKLB", "2025-01-13", "2025-01-31", "News Shark",        "Macro Shark, Contrarian Shark",  "NEWS_SENTIMENT"),
+    ("ASTS", "2025-01-15", "2025-02-14", "News Shark",        "Value Shark, Macro Shark",       "NEWS_SENTIMENT"),
+    ("COIN", "2025-01-15", "2025-02-28", "News Shark",        "Macro Shark, Contrarian Shark",  "NEWS_SENTIMENT"),
+    ("NVDA", "2025-02-10", "2025-02-28", "Momentum Shark",    "Value Shark",                    "PRICE_BREAKOUT"),
+    ("AMD",  "2025-02-24", "2025-03-14", "Contrarian Shark",  "Value Shark, Macro Shark",       "PRICE_DROP"),
+    ("RKLB", "2025-03-03", "2025-03-21", "News Shark",        "Macro Shark",                    "NEWS_SENTIMENT"),
+    ("COIN", "2025-03-10", "2025-03-28", "Contrarian Shark",  "Value Shark, Macro Shark",       "RSI_OVERSOLD"),
+    ("AMD",  "2025-03-24", "2025-04-07", "Contrarian Shark",  "Macro Shark, News Shark",        "RSI_OVERSOLD"),
     # Q2 — Apr / May / Jun
     # Winners: post-DeepSeek recovery, ASTS moon shot Jun, PLTR AI momentum
     # Losers:  SMCI accounting overhang, AMD April weakness
-    ("META", "2025-04-07", "2025-05-02", "Earnings Shark", "Value Shark, Macro Shark"),
-    ("ASTS", "2025-04-07", "2025-04-25", "News Shark",     "Value Shark, Contrarian Shark"),
-    ("PLTR", "2025-04-14", "2025-05-16", "Momentum Shark", "Macro Shark, Contrarian Shark"),
-    ("TSM",  "2025-04-22", "2025-05-09", "Earnings Shark", "Value Shark, Macro Shark"),
-    ("NVDA", "2025-04-22", "2025-05-15", "Momentum Shark", "Macro Shark"),
-    ("MSTR", "2025-04-28", "2025-05-16", "News Shark",     "Contrarian Shark"),
-    ("AVGO", "2025-05-01", "2025-05-30", "Momentum Shark", "Value Shark, Contrarian Shark"),
-    ("SMCI", "2025-05-05", "2025-05-23", "News Shark",     "Value Shark, Macro Shark"),
-    ("AMD",  "2025-05-12", "2025-05-30", "Momentum Shark", "Macro Shark"),
-    ("ASTS", "2025-06-02", "2025-06-20", "News Shark",     "Value Shark, Macro Shark"),
-    ("PLTR", "2025-06-09", "2025-06-27", "Momentum Shark", "Macro Shark, Contrarian Shark"),
+    ("META", "2025-04-07", "2025-05-02", "Earnings Shark",    "Value Shark, Macro Shark",       "EARNINGS_UPCOMING"),
+    ("ASTS", "2025-04-07", "2025-04-25", "News Shark",        "Value Shark, Contrarian Shark",  "NEWS_SENTIMENT"),
+    ("PLTR", "2025-04-14", "2025-05-16", "Momentum Shark",    "Macro Shark, Contrarian Shark",  "PRICE_BREAKOUT"),
+    ("TSM",  "2025-04-22", "2025-05-09", "Earnings Shark",    "Value Shark, Macro Shark",       "EARNINGS_UPCOMING"),
+    ("NVDA", "2025-04-22", "2025-05-15", "Momentum Shark",    "Macro Shark",                    "PRICE_BREAKOUT"),
+    ("MSTR", "2025-04-28", "2025-05-16", "News Shark",        "Contrarian Shark",               "NEWS_SENTIMENT"),
+    ("AVGO", "2025-05-01", "2025-05-30", "Momentum Shark",    "Value Shark, Contrarian Shark",  "PRICE_BREAKOUT"),
+    ("SMCI", "2025-05-05", "2025-05-23", "News Shark",        "Value Shark, Macro Shark",       "NEWS_SENTIMENT"),
+    ("AMD",  "2025-05-12", "2025-05-30", "Momentum Shark",    "Macro Shark",                    "PRICE_BREAKOUT"),
+    ("ASTS", "2025-06-02", "2025-06-20", "News Shark",        "Value Shark, Macro Shark",       "NEWS_SENTIMENT"),
+    ("PLTR", "2025-06-09", "2025-06-27", "Momentum Shark",    "Macro Shark, Contrarian Shark",  "PRICE_BREAKOUT"),
     # Q3 — Jul / Aug / Sep
     # Winners: AI chip wave, semiconductor cycle, AVGO/TSM sustained
     # Losers:  SMCI weakness, ARM Jul dip, COIN Aug pullback
-    ("ARM",  "2025-07-01", "2025-07-31", "Momentum Shark", "Value Shark, Macro Shark"),
-    ("NVDA", "2025-07-07", "2025-08-01", "Momentum Shark", "Macro Shark"),
-    ("AVGO", "2025-07-14", "2025-08-01", "Momentum Shark", "Value Shark, Contrarian Shark"),
-    ("SMCI", "2025-07-21", "2025-08-08", "News Shark",     "Value Shark, Contrarian Shark"),
-    ("ARM",  "2025-07-28", "2025-08-15", "Momentum Shark", "Macro Shark, Contrarian Shark"),
-    ("TSM",  "2025-08-01", "2025-09-05", "Earnings Shark", "Value Shark, Macro Shark"),
-    ("META", "2025-08-04", "2025-08-22", "Earnings Shark", "Macro Shark"),
-    ("COIN", "2025-08-11", "2025-08-29", "News Shark",     "Value Shark, Contrarian Shark"),
-    ("AVGO", "2025-08-15", "2025-09-12", "Momentum Shark", "Value Shark, Macro Shark"),
-    ("SMCI", "2025-08-18", "2025-09-05", "News Shark",     "Macro Shark, Contrarian Shark"),
-    ("ARM",  "2025-08-25", "2025-09-12", "Momentum Shark", "Value Shark"),
-    ("META", "2025-09-02", "2025-09-19", "Earnings Shark", "Value Shark, Macro Shark"),
+    ("ARM",  "2025-07-01", "2025-07-31", "Momentum Shark",    "Value Shark, Macro Shark",       "PRICE_BREAKOUT"),
+    ("NVDA", "2025-07-07", "2025-08-01", "Momentum Shark",    "Macro Shark",                    "VOLUME_SPIKE"),
+    ("AVGO", "2025-07-14", "2025-08-01", "Momentum Shark",    "Value Shark, Contrarian Shark",  "PRICE_BREAKOUT"),
+    ("SMCI", "2025-07-21", "2025-08-08", "News Shark",        "Value Shark, Contrarian Shark",  "NEWS_SENTIMENT"),
+    ("ARM",  "2025-07-28", "2025-08-15", "Momentum Shark",    "Macro Shark, Contrarian Shark",  "PRICE_BREAKOUT"),
+    ("TSM",  "2025-08-01", "2025-09-05", "Earnings Shark",    "Value Shark, Macro Shark",       "EARNINGS_UPCOMING"),
+    ("META", "2025-08-04", "2025-08-22", "Earnings Shark",    "Macro Shark",                    "EARNINGS_UPCOMING"),
+    ("COIN", "2025-08-11", "2025-08-29", "News Shark",        "Value Shark, Contrarian Shark",  "NEWS_SENTIMENT"),
+    ("AVGO", "2025-08-15", "2025-09-12", "Momentum Shark",    "Value Shark, Macro Shark",       "PRICE_BREAKOUT"),
+    ("SMCI", "2025-08-18", "2025-09-05", "Contrarian Shark",  "Value Shark, Macro Shark",       "PRICE_DROP"),
+    ("ARM",  "2025-08-25", "2025-09-12", "Momentum Shark",    "Value Shark",                    "PRICE_BREAKOUT"),
+    ("META", "2025-09-02", "2025-09-19", "Earnings Shark",    "Value Shark, Macro Shark",       "EARNINGS_UPCOMING"),
     # Q4 — Oct / Nov / Dec
-    # Winners: post-election crypto/TSLA surge, PLTR defense/AI, HOOD retail boom
-    # Losers:  AMD pre-election weakness, MARA late Dec fade
-    ("AMD",  "2025-10-13", "2025-10-31", "Momentum Shark", "Value Shark, Contrarian Shark"),
-    ("MSTR", "2025-10-15", "2025-11-15", "News Shark",     "Macro Shark, Contrarian Shark"),
-    ("MARA", "2025-10-20", "2025-11-10", "News Shark",     "Value Shark, Contrarian Shark"),
-    ("TSLA", "2025-10-24", "2025-11-14", "Momentum Shark", "Value Shark, Macro Shark"),
-    ("AAPL", "2025-10-27", "2025-11-14", "Earnings Shark", "Value Shark, Macro Shark"),
-    ("HOOD", "2025-11-01", "2025-11-28", "News Shark",     "Macro Shark"),
-    ("PLTR", "2025-11-03", "2025-12-05", "Momentum Shark", "Value Shark, Contrarian Shark"),
-    ("MARA", "2025-11-17", "2025-12-05", "News Shark",     "Contrarian Shark"),
-    ("TSLA", "2025-12-01", "2025-12-19", "Momentum Shark", "Value Shark, Macro Shark"),
-    ("MARA", "2025-12-08", "2025-12-24", "News Shark",     "Macro Shark, Contrarian Shark"),
+    # Winners: PLTR defense/AI, AAPL, TSLA Dec recovery
+    # Losers:  AMD pre-election, MSTR/MARA real 2025 Q4 fade
+    ("AMD",  "2025-10-13", "2025-10-31", "Momentum Shark",    "Value Shark, Contrarian Shark",  "PRICE_BREAKOUT"),
+    ("MSTR", "2025-10-15", "2025-11-15", "News Shark",        "Macro Shark, Contrarian Shark",  "NEWS_SENTIMENT"),
+    ("MARA", "2025-10-20", "2025-11-10", "News Shark",        "Value Shark, Contrarian Shark",  "NEWS_SENTIMENT"),
+    ("TSLA", "2025-10-24", "2025-11-14", "Momentum Shark",    "Value Shark, Macro Shark",       "PRICE_BREAKOUT"),
+    ("AAPL", "2025-10-27", "2025-11-14", "Earnings Shark",    "Value Shark, Macro Shark",       "EARNINGS_UPCOMING"),
+    ("HOOD", "2025-11-01", "2025-11-28", "News Shark",        "Macro Shark",                    "NEWS_SENTIMENT"),
+    ("PLTR", "2025-11-03", "2025-12-05", "Momentum Shark",    "Value Shark, Contrarian Shark",  "VOLUME_SPIKE"),
+    ("MARA", "2025-11-17", "2025-12-05", "News Shark",        "Contrarian Shark",               "NEWS_SENTIMENT"),
+    ("TSLA", "2025-12-01", "2025-12-19", "Momentum Shark",    "Value Shark, Macro Shark",       "PRICE_BREAKOUT"),
+    ("MARA", "2025-12-08", "2025-12-24", "News Shark",        "Macro Shark, Contrarian Shark",  "NEWS_SENTIMENT"),
 ]
 
 REASONS = {
@@ -109,6 +114,23 @@ REASONS = {
         "Positive macro catalyst aligned with sector rotation",
         "Analyst upgrade cycle initiated following product launch",
     ],
+    "Contrarian Shark": [
+        "Oversold bounce setup — RSI below 30 after institutional selloff, mean reversion likely",
+        "PRICE_DROP creates asymmetric risk/reward — street overreacted to news, fundamentals intact",
+        "Short squeeze candidate with high short interest meeting improving fundamentals",
+        "Capitulation volume detected — sellers exhausted, risk/reward favors long entry here",
+    ],
+}
+
+# Signal value ranges per signal type — used to generate realistic trigger magnitudes
+SIGNAL_VALUE_RANGES = {
+    "VOLUME_SPIKE":      (1.5,  4.2),
+    "PRICE_BREAKOUT":    (1.5,  4.2),
+    "NEWS_SENTIMENT":    (7.0,  12.0),
+    "EARNINGS_UPCOMING": (2.0,  14.0),
+    "RSI_OVERSOLD":      (22.0, 38.0),
+    "RSI_OVERBOUGHT":    (75.0, 85.0),
+    "PRICE_DROP":        (5.0,  15.0),
 }
 
 # Portfolio curve waypoints — (date_str, target_value)
@@ -174,6 +196,11 @@ def to_ts(d: date, hour: int) -> str:
     return datetime(d.year, d.month, d.day, hour, 0, 0, tzinfo=timezone.utc).isoformat()
 
 
+def signal_value_for(signal_type: str) -> float:
+    lo, hi = SIGNAL_VALUE_RANGES.get(signal_type, (1.0, 5.0))
+    return round(random.uniform(lo, hi), 2)
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
@@ -204,12 +231,13 @@ def main():
 
     # ── Generate trades ────────────────────────────────────────────────────────
     print("\nGenerating trades…")
-    trade_docs = []
-    trade_id   = -1
+    trade_docs  = []
+    trade_id    = -1
     wins = losses = 0
-    total_pnl  = 0.0
+    total_pnl   = 0.0
+    shark_stats: dict[str, dict] = {}
 
-    for ticker, buy_date_str, sell_date_str, surfaced_by, vetted_by in TRADE_SCHEDULE:
+    for ticker, buy_date_str, sell_date_str, surfaced_by, vetted_by, signal_type in TRADE_SCHEDULE:
         buy_date  = date.fromisoformat(buy_date_str)
         sell_date = date.fromisoformat(sell_date_str)
         df = price_data.get(ticker)
@@ -225,10 +253,11 @@ def main():
             print(f"  SKIP {ticker} {buy_date_str} — price unavailable")
             continue
 
-        target_size = random.choice([900, 1000, 1100, 1200, 1300, 1400])
-        shares      = max(1, int(target_size / entry))
-        pnl         = round((exit_ - entry) * shares, 2)
-        outcome     = "closed_win" if pnl > 0 else "closed_loss"
+        target_size  = random.choice([900, 1000, 1100, 1200, 1300, 1400])
+        shares       = max(1, int(target_size / entry))
+        pnl          = round((exit_ - entry) * shares, 2)
+        outcome      = "closed_win" if pnl > 0 else "closed_loss"
+        sig_value    = signal_value_for(signal_type)
 
         if pnl > 0:
             wins      += 1
@@ -241,6 +270,13 @@ def main():
         reason     = random.choice(REASONS[surfaced_by])
         buy_ts     = to_ts(buy_date,  14)   # 9am ET open
         sell_ts    = to_ts(sell_date, 21)   # 4pm ET close (+5 UTC offset avg)
+
+        # per-shark tracking
+        stats = shark_stats.setdefault(surfaced_by, {"wins": 0, "losses": 0})
+        if pnl > 0:
+            stats["wins"] += 1
+        else:
+            stats["losses"] += 1
 
         trade_docs.append({
             "id":           trade_id,
@@ -256,6 +292,8 @@ def main():
             "target_price": round(entry * 1.15, 2),
             "reason":       reason,
             "outcome":      outcome,
+            "signal_type":  signal_type,
+            "signal_value": sig_value,
             "pnl":          None,
             "exit_price":   round(exit_, 2),
             "exit_time":    sell_ts,
@@ -276,6 +314,8 @@ def main():
             "target_price": None,
             "reason":       f"Exit: {reason}",
             "outcome":      outcome,
+            "signal_type":  signal_type,
+            "signal_value": sig_value,
             "pnl":          pnl,
             "exit_price":   round(exit_, 2),
             "exit_time":    sell_ts,
@@ -331,6 +371,14 @@ def main():
     print(f"Seeded {len(snap_docs)} daily snapshots")
     print(f"Portfolio value: $10,200.00")
     print(f"Total 2025 realized PnL: {sign}${total_pnl:.2f}")
+
+    print("\nPer-shark win rates:")
+    for shark, stats in sorted(shark_stats.items()):
+        w   = stats["wins"]
+        l   = stats["losses"]
+        t   = w + l
+        pct = w / t * 100 if t else 0
+        print(f"  {shark:20s}: {w}W/{l}L ({pct:.0f}% win rate)")
 
 
 if __name__ == "__main__":
