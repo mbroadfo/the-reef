@@ -132,8 +132,8 @@ class TheReefCrew:
         mapping = {
             "VOLUME_SPIKE": self.momentum_shark(),
             "PRICE_BREAKOUT": self.momentum_shark(),
-            "PRICE_DROP": self.momentum_shark(),
-            "RSI_OVERSOLD": self.momentum_shark(),
+            "PRICE_DROP": self.contrarian_shark(),
+            "RSI_OVERSOLD": self.contrarian_shark(),
             "RSI_OVERBOUGHT": self.contrarian_shark(),
             "EARNINGS_UPCOMING": self.earnings_shark(),
             "NEWS_SENTIMENT": self.news_shark(),
