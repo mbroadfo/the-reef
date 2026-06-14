@@ -122,63 +122,46 @@ export default function RightRail() {
             Today ▾
           </span>
         </div>
-        {(() => {
-          const sorted = [...sectors].sort(
-            (a, b) => Math.abs(b.pct_change) - Math.abs(a.pct_change)
-          )
-          const rows = [sorted.slice(0, 4), sorted.slice(4)].filter(r => r.length > 0)
-
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-              {rows.map((row, ri) => {
-                const totalWeight = row.reduce(
-                  (s, x) => s + Math.max(Math.abs(x.pct_change), 0.1), 0
-                )
-                const cols = row
-                  .map(x => `${(Math.max(Math.abs(x.pct_change), 0.1) / totalWeight * 100).toFixed(1)}fr`)
-                  .join(' ')
-                return (
-                  <div key={ri} style={{ display: 'grid', gridTemplateColumns: cols, gap: '3px' }}>
-                    {row.map(s => (
-                      <div
-                        key={s.ticker}
-                        style={{
-                          border: '1px solid rgba(255,255,255,0.04)',
-                          ...heatStyle(s.pct_change),
-                          padding: '8px',
-                          borderRadius: '6px',
-                          minHeight: '52px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                        }}
-                      >
-                        <div style={{
-                          fontSize: '10px',
-                          fontFamily: FONT_SANS,
-                          fontWeight: '600',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.06em',
-                          color: '#94a3b8',
-                        }}>
-                          {s.sector.split(' ')[0]}
-                        </div>
-                        <div style={{
-                          fontSize: '13px',
-                          fontFamily: FONT_MONO,
-                          fontWeight: '700',
-                          color: s.pct_change >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)',
-                        }}>
-                          {s.pct_change >= 0 ? '+' : ''}{s.pct_change.toFixed(2)}%
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              })}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gridTemplateRows: 'auto auto',
+          gap: '3px',
+        }}>
+          {sectors.map(s => (
+            <div
+              key={s.ticker}
+              style={{
+                ...heatStyle(s.pct_change),
+                padding: '8px',
+                borderRadius: '6px',
+                minHeight: '48px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{
+                fontSize: '10px',
+                fontFamily: FONT_SANS,
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: '#94a3b8',
+              }}>
+                {s.sector.split(' ')[0]}
+              </div>
+              <div style={{
+                fontSize: '13px',
+                fontFamily: FONT_MONO,
+                fontWeight: '700',
+                color: s.pct_change >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)',
+              }}>
+                {s.pct_change >= 0 ? '+' : ''}{s.pct_change.toFixed(2)}%
+              </div>
             </div>
-          )
-        })()}
+          ))}
+        </div>
       </div>
     </div>
   )
