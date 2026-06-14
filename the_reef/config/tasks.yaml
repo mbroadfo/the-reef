@@ -1,154 +1,278 @@
 # The Reef — Task Definitions
-# Tasks run sequentially; each feeds into the next via context.
+# Sequential pipeline: hunt -> research -> macro ->
+# sentiment -> contrarian -> risk -> wildcard -> apex
+# hunter_research.agent is overridden dynamically
+# in crew.py based on signal_type routing.
 
 hunter_research:
   description: >
-    You have been activated by the scanner. Signal detected on {ticker}:
-    {signal_type} with trigger value {signal_value} at price ${current_price}.
+    You have been activated by the scanner.
+    Signal: {signal_type} (value: {signal_value})
+    on {ticker} at ${current_price}.
     Timestamp: {scan_timestamp}.
 
-    Conduct a deep-dive investigation:
-    1. Use market data tools to get current price, volume, RSI, and 52-week range
-    2. Use price history tool to understand recent trend
-    3. Search for latest news, analyst coverage, and any catalysts
-    4. Build a clear trade thesis: what is happening and why does it matter?
-    5. Specify a suggested entry range, stop-loss level, and target price
-    6. Rate your own confidence: HIGH / MEDIUM / LOW
+    Conduct your domain investigation:
+    1. Get current price, volume, RSI, 52-week range
+    2. Get recent price history — what is the trend?
+    3. Search for latest news and any catalysts
+    4. Build your trade thesis: what is happening
+       and why does it matter RIGHT NOW?
+    5. Specify entry range, stop-loss, target price
+    6. Rate your confidence: HIGH / MEDIUM / LOW
 
-    Be specific. Numbers, not narratives.
+    Also: does this signal suggest any related
+    tickers worth nominating beyond {ticker}?
   expected_output: >
-    A structured hunter report containing:
-    - Signal summary (what triggered this, key metrics)
-    - Current technicals (price, RSI, volume ratio, trend)
-    - Trade thesis (1-3 sentences on WHY this is interesting)
-    - Suggested entry range, stop-loss, and price target
-    - Hunter confidence: HIGH / MEDIUM / LOW
-    - Any red flags or caveats you spotted
-  # agent is assigned dynamically in crew.py via select_hunter(signal_type)
-  # Do NOT hardcode agent here
+    Structured hunter report:
+    - Signal summary (what triggered, key metrics)
+    - Current technicals or fundamentals (your domain)
+    - Trade thesis (1-3 sentences, WHY this matters)
+    - Entry range, stop-loss, target price
+    - Confidence: HIGH / MEDIUM / LOW
+    - Related ticker nominations (if any)
+    - Red flags or caveats
+  agent: hunter_shark
 
-value_analysis:
+research_analysis:
   description: >
-    You are Value Shark. The hunter has flagged {ticker} at ${current_price}.
+    Review the hunter's report on {ticker} at
+    ${current_price}. Provide fundamental analysis.
 
-    You must research and report SPECIFIC numbers:
-    1. Current P/E ratio vs sector median P/E
-    2. Revenue growth rate (YoY) — accelerating or decelerating?
+    Report SPECIFIC numbers:
+    1. Current P/E vs sector median P/E
+    2. Revenue growth rate YoY — accelerating or
+       decelerating?
     3. Gross margin trend — expanding or compressing?
-    4. Your estimate of fair value per share
-    5. Upside/downside % from current price to your fair value estimate
+    4. Your fair value estimate per share
+    5. Upside/downside % to your fair value
 
-    Use web search to find current financials if needed. Do not estimate —
-    find real numbers. End with: CHEAP (>15% upside) / FAIR (0-15%) /
+    Is there an earnings catalyst or product event
+    within 30 days that could move the stock?
+
+    End with: CHEAP (>15% upside) / FAIR (0-15%) /
     EXPENSIVE (negative upside to fair value)
   expected_output: >
-    Exactly five data points as listed above, followed by valuation verdict:
-    CHEAP/FAIR/EXPENSIVE and a one-sentence explanation of the single biggest
-    fundamental risk to the bull case.
-  agent: value_shark
+    Five specific data points as listed.
+    Earnings catalyst: YES [date + event] or NO.
+    Valuation verdict: CHEAP / FAIR / EXPENSIVE.
+    One-sentence bottom line on fundamental risk.
+  agent: research_shark
   context:
     - hunter_research
 
 macro_analysis:
   description: >
-    You are Macro Shark. Assess the environment for a trade in {ticker} RIGHT NOW.
+    Assess macro and sector context for {ticker}.
 
-    Answer these specifically:
-    1. What sector is {ticker} in? Is that sector in favor or out of favor vs
-       the S&P 500 over the last 30 days?
-    2. Is {ticker} rate-sensitive? (High P/E growth stock = yes, value/commodity
-       = less so). Which way are rates moving?
-    3. Current VIX level — is risk appetite open or closed?
-       (VIX <15 = open, 15-20 = neutral, >20 = closed)
+    Answer specifically:
+    1. What sector is {ticker} in? In favor or out
+       of favor vs S&P 500 last 30 days?
+    2. Is {ticker} rate-sensitive? Which way are
+       rates moving — help or hurt?
+    3. Current VIX: <15 risk-on / 15-20 neutral
+       / >20 risk-off — which regime?
     4. Any sector-specific macro headwinds right now?
-       (tariffs, regulation, supply chain)
 
-    End with: GO (macro supports trade) / CAUTION (mixed signals) /
-    AVOID (macro headwind)
+    End with: GO / CAUTION / AVOID + one sentence.
+
+    Also: do you see a macro-driven opportunity in
+    ANY sector right now, independent of {ticker}?
+    If yes, nominate the ticker and 2-line thesis.
   expected_output: >
-    Four specific answers as listed, sector momentum assessment, rate sensitivity
-    verdict, VIX context, and final macro verdict: GO/CAUTION/AVOID
+    Four specific answers as listed.
+    Macro verdict: GO / CAUTION / AVOID + reason.
+    Unsolicited nomination (optional): ticker +
+    2-line thesis if a macro opportunity is visible.
   agent: macro_shark
+  context:
+    - hunter_research
+
+sentiment_analysis:
+  description: >
+    Assess sentiment and narrative for {ticker}.
+
+    Check and report:
+    1. Recent news tone (last 7 days): IMPROVING /
+       NEUTRAL / DETERIORATING — cite 1-2 headlines
+    2. Analyst activity: upgrades or downgrades
+       in the last 30 days?
+    3. Social/retail interest: rising or fading?
+    4. Insider activity: recent Form 4 filings?
+
+    Sentiment score: BULLISH / NEUTRAL / BEARISH.
+
+    Also: any ticker where you see a narrative shift
+    that hasn't hit price yet? Nominate with a
+    2-line thesis if yes.
+  expected_output: >
+    Four specific answers as listed.
+    Sentiment score: BULLISH / NEUTRAL / BEARISH.
+    Unsolicited nomination (optional): ticker +
+    2-line thesis if a narrative shift is visible.
+  agent: sentiment_shark
   context:
     - hunter_research
 
 contrarian_challenge:
   description: >
-    You are Contrarian Shark. Your teammates are excited about {ticker}.
-    Your job: find what they missed.
+    Stress-test the bull case for {ticker}.
+    You have seen hunter, research, macro, sentiment.
+    Find what everyone else missed.
 
     Research and answer:
-    1. Short interest % of float — is this crowded?
-       (>15% = crowded, 5-15% = moderate, <5% = light)
-    2. Has there been recent insider selling? (Check SEC Form 4 filings)
-    3. Any recent secondary offerings or dilution?
-    4. What is the BEAR thesis in one sentence?
+    1. Short interest % of float — crowded?
+       >15% crowded, 5-15% moderate, <5% light
+    2. Recent insider selling? (SEC Form 4)
+    3. Secondary offerings or dilution risk?
+    4. The bear thesis in one sentence
     5. What catalyst could cause a -20% move?
 
     Worry score 1-10:
-    1-3 = minor concerns, proceed
-    4-6 = real risks, size down
-    7-8 = significant red flags, half position only
-    9-10 = PASS regardless of bull case
+    1-4: minor concerns, normal sizing
+    5-6: real risks, flag SIZE-DOWN-25
+    7-8: significant flags, flag SIZE-DOWN-50
+    9-10: risk/reward broken, flag SIZE-DOWN-75
+
+    YOU DO NOT HAVE VETO POWER.
+    Only Apex makes the final call.
+    Make sure Apex has the full picture.
   expected_output: >
-    Five specific answers as listed above. Worry score: X/10 with one-sentence
-    justification. Final verdict: PROCEED / CAUTION (half size) / AVOID
+    Five specific answers as listed.
+    Worry score: X/10 + one-sentence justification.
+    Sizing flag: NORMAL / SIZE-DOWN-25 /
+    SIZE-DOWN-50 / SIZE-DOWN-75.
+    Final: "Decision is Apex's."
   agent: contrarian_shark
   context:
     - hunter_research
-    - value_analysis
+    - research_analysis
     - macro_analysis
+    - sentiment_analysis
+
+risk_assessment:
+  description: >
+    Assess portfolio-level impact before Apex commits
+    capital to {ticker}. Use "Get Portfolio State".
+
+    Answer:
+    1. Portfolio heat: total open position value as
+       % of starting capital.
+       <50% cool, 50-75% warm, 75-90% hot, >90% red
+    2. Sector concentration: what % is already in
+       {ticker}'s sector? Flag if adding takes it
+       above 40%.
+    3. Correlation risk: do existing positions move
+       with {ticker}? Flag if yes.
+    4. Stop-loss audit: are all existing stops still
+       valid at current prices?
+
+    Heat score 1-10:
+    1-4: room available, no concern
+    5-6: warming, suggest SIZE-DOWN-25
+    7-8: hot, suggest SIZE-DOWN-50
+    9-10: overheated, suggest SIZE-DOWN-75
+
+    YOU DO NOT HAVE VETO POWER.
+    Only Apex makes the final call.
+  expected_output: >
+    Four specific answers as listed.
+    Heat score: X/10 + one-sentence justification.
+    Sizing suggestion: NORMAL / SIZE-DOWN-25 /
+    SIZE-DOWN-50 / SIZE-DOWN-75.
+    Stop audit: ALL VALID or list needing adjustment.
+    Final: "Decision is Apex's."
+  agent: risk_shark
+  context:
+    - hunter_research
+    - contrarian_challenge
+
+wildcard_nomination:
+  description: >
+    You have seen the full panel on {ticker}.
+
+    PART 1 — Wildcard lens on {ticker}:
+    Is there a special situation angle the other
+    sharks missed? Crypto correlation, short squeeze
+    potential, M&A speculation, unusual options
+    activity? If yes, report it. If no, say so.
+
+    PART 2 — Unsolicited nomination:
+    Nominate your best independent trade idea right
+    now — the one nobody else is watching. Any
+    domain: crypto-correlated, spinoff, squeeze,
+    special situation. Give:
+    - Ticker
+    - Why now (1-2 sentences)
+    - Entry range, stop, target
+    - Confidence: HIGH / MEDIUM / LOW
+
+    If you have no strong idea, say so.
+    Do not nominate a weak idea to fill the slot.
+  expected_output: >
+    Part 1: Wildcard angle on {ticker} or "None."
+    Part 2: Unsolicited nomination with ticker,
+    thesis, levels, confidence. Or "No strong
+    unsolicited idea this cycle."
+  agent: wildcard_shark
+  context:
+    - hunter_research
+    - macro_analysis
+    - sentiment_analysis
 
 apex_decision:
   description: >
-    You are Apex Shark — final authority.
+    You are Apex Shark. Full panel analysis on
+    {ticker} at ${current_price}.
+    Signal: {signal_type} (value: {signal_value}).
+    You are the ONLY shark with decision authority.
 
-    You have four reports on {ticker} at ${current_price}.
-    Signal: {signal_type} (value: {signal_value})
+    STEP 0: Use "Get Shark Performance History" to
+    calibrate panel weights from historical win rates.
 
-    DECISION FRAMEWORK:
+    STEP 1: Use "Get Portfolio State" — check cash
+    and open positions.
 
-    STEP 0: Use "Get Shark Performance History" tool to review each hunter's
-    historical win rate and P&L. Use this to calibrate how much weight to give
-    the current hunter's thesis:
-    - Win rate >80%: trust their HIGH confidence calls, can override cautious
-      analysts
-    - Win rate 60-80%: standard weight, require analyst consensus
-    - Win rate <60%: require strong analyst support before buying, reduce
-      position size by 25%
-    - Win rate <40%: treat as analyst input only, do not count as primary signal
+    STEP 2: Compute panel score (0-9):
+      Hunter: HIGH=3, MED=2, LOW=1
+      Research: CHEAP=3, FAIR=2, EXPENSIVE=0
+      Macro: GO=3, CAUTION=1, AVOID=0
+      Contrarian modifier:
+        worry 1-4: -0
+        worry 5-6: -1
+        worry 7-8: -2
+        worry 9-10: -3
 
-    STEP 1: Get Portfolio State — check cash and positions before anything else.
+    STEP 3: Base size from score:
+      7-9: full, 5-6: 75%, 3-4: 50%,
+      1-2: 25%, 0: PASS (your call)
 
-    STEP 2: Score the panel:
-    - Hunter confidence HIGH=3, MEDIUM=2, LOW=1
-    - Value verdict CHEAP=3, FAIR=2, EXPENSIVE=0
-    - Macro verdict GO=3, CAUTION=1, AVOID=0
-    - Contrarian worry: subtract (worry_score / 10) * 3
+    Apply modifiers:
+      Risk heat 7-8: -25%
+      Risk heat 9-10: -50%
+      Contrarian worry 9-10: additional -25%
 
-    Panel score range: 0-9
-    Score >=6: BUY full size (conviction x $150/share budget)
-    Score 4-5: BUY half size
-    Score <4: PASS
-
-    STEP 3: Execute via tools if buying.
-
-    STEP 4: Run stop-loss check on all positions.
-
-    STEP 5: State which shark you weighted most and why.
-    The Contrarian's worry score is a position-sizer, not a veto. Only AVOID
-    from Contrarian = PASS.
+    STEP 4: Execute via "Execute Paper Buy" if buying.
+    STEP 5: Run "Check Stop Losses" on all positions.
+    STEP 6: Review unsolicited nominations from Macro,
+    Sentiment, Wildcard. Add best to watchlist note.
+    STEP 7: State full reasoning.
   expected_output: >
-    Decision: BUY [X shares] | PASS
+    Decision: BUY [X shares @ ~$Y] | PASS
     Panel score: X/9
+    (breakdown: Hunter=X Research=X Macro=X Mod=X)
+    Final size: X% of standard
     Conviction: X/10
-    Weighted most: [shark name] because [reason]
+    Weighted most: [shark] because [reason]
     Stop-loss: $X | Target: $X
-    Positions reviewed: [list any stops triggered]
+    Positions reviewed: [stops triggered if any]
+    Watching: [unsolicited nominations]
     Human action: what to do in your real account
   agent: apex_shark
   context:
     - hunter_research
-    - value_analysis
+    - research_analysis
     - macro_analysis
+    - sentiment_analysis
     - contrarian_challenge
+    - risk_assessment
+    - wildcard_nomination
