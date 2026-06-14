@@ -113,10 +113,35 @@ def scan_ticker(ticker: str) -> list[ScanSignal]:
     return signals
 
 
-def run_scan(watchlist: list[str] = DEFAULT_WATCHLIST) -> list[ScanSignal]:
+def get_dynamic_tickers(count: int = 25) -> list[str]:
+    """Pull top movers from yfinance screener — no auth required, no extra cost."""
+    import yfinance as yf
+    tickers: set[str] = set()
+    for screen_name in ("day_gainers", "day_losers", "most_actives"):
+        try:
+            result = yf.screen(screen_name, count=count)
+            for quote in result.get("quotes", []):
+                sym = quote.get("symbol", "")
+                if sym and "." not in sym and "-" not in sym and len(sym) <= 5:
+                    tickers.add(sym)
+        except Exception as e:
+            print(f"[scanner] Screener '{screen_name}' unavailable: {e}")
+    return sorted(tickers)
+
+
+def run_scan(watchlist: list[str] = DEFAULT_WATCHLIST, include_movers: bool = True) -> list[ScanSignal]:
     """Scan all tickers. Returns signals sorted by priority (highest first)."""
+    effective = list(watchlist)
+    if include_movers:
+        dynamic = get_dynamic_tickers()
+        added = [t for t in dynamic if t not in effective]
+        if added:
+            print(f"[scanner] +{len(added)} dynamic movers: {', '.join(added)}")
+            effective = effective + added
+    print(f"[scanner] Scanning {len(effective)} tickers ({len(watchlist)} static + {len(effective) - len(watchlist)} dynamic)")
+
     all_signals: list[ScanSignal] = []
-    for ticker in watchlist:
+    for ticker in effective:
         try:
             ticker_signals = scan_ticker(ticker)
             all_signals.extend(ticker_signals)
