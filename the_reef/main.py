@@ -63,23 +63,33 @@ def cmd_monitor():
 
 
 def cmd_dive(ticker: str):
-    from the_reef.scanner.monitor import ScanSignal
+    from the_reef.scanner.monitor import ScanSignal, SIGNAL_TYPES
     from the_reef.tools.market_data import get_price, get_volume_ratio
     from the_reef.crew import run_deep_dive
     from the_reef.brokerage.the_tank import TheTank
     from datetime import datetime, timezone
 
-    price = get_price(ticker)
-    if price is None:
-        print(f"[error] Could not fetch price for {ticker}")
-        sys.exit(1)
+    # Allow env var overrides — used by deep_dive.yml for private companies / specific signals
+    signal_type   = os.getenv("SIGNAL_TYPE", "MANUAL")
+    price_env     = os.getenv("PRICE_OVERRIDE")
+    value_env     = os.getenv("SIGNAL_VALUE")
 
-    vol = get_volume_ratio(ticker) or 1.0
+    if price_env:
+        price = float(price_env)
+    else:
+        price = get_price(ticker)
+        if price is None:
+            print(f"[error] Could not fetch price for {ticker}")
+            sys.exit(1)
+
+    value = float(value_env) if value_env else (get_volume_ratio(ticker) or 1.0)
+    priority = SIGNAL_TYPES.get(signal_type, 8)
+
     signal = ScanSignal(
         ticker=ticker.upper(),
-        signal_type="MANUAL",
-        priority=10,
-        value=vol,
+        signal_type=signal_type,
+        priority=priority,
+        value=value,
         price=price,
         timestamp=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )

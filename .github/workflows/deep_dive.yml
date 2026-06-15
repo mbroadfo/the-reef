@@ -4,7 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       ticker:
-        description: "Override ticker (leave blank to use top signal from Atlas)"
+        description: "Ticker symbol (leave blank to use top signal from Atlas)"
+        required: false
+      signal_type:
+        description: "Signal type (PRICE_BREAKOUT, VOLUME_SPIKE, NEWS_SENTIMENT, etc.)"
+        required: false
+        default: "MANUAL"
+      signal_value:
+        description: "Signal value — e.g. pct change or volume ratio"
+        required: false
+      price_override:
+        description: "Price override — use for private companies or test scenarios"
         required: false
 
 jobs:
@@ -34,6 +44,9 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SMS_RECIPIENT: ${{ secrets.SMS_RECIPIENT }}
           TICKER_OVERRIDE: ${{ github.event.inputs.ticker }}
+          SIGNAL_TYPE: ${{ github.event.inputs.signal_type }}
+          SIGNAL_VALUE: ${{ github.event.inputs.signal_value }}
+          PRICE_OVERRIDE: ${{ github.event.inputs.price_override }}
         run: |
           if [ -n "$TICKER_OVERRIDE" ]; then
             echo "Manual dive on: $TICKER_OVERRIDE"
