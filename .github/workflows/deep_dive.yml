@@ -1,4 +1,4 @@
-name: "Deep Dive - Shark Panel Analysis"
+name: "🦈 Deep Dive - Shark Panel Analysis"
 
 on:
   workflow_dispatch:
