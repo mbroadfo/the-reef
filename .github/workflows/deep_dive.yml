@@ -7,14 +7,14 @@ on:
         description: "Ticker symbol (leave blank to use top signal from Atlas)"
         required: false
       signal_type:
-        description: "Signal type (PRICE_BREAKOUT, VOLUME_SPIKE, NEWS_SENTIMENT, etc.)"
+        description: "Signal type: PRICE_BREAKOUT, VOLUME_SPIKE, NEWS_SENTIMENT, etc."
         required: false
         default: "MANUAL"
       signal_value:
-        description: "Signal value — e.g. pct change or volume ratio"
+        description: "Signal value (pct change or volume ratio)"
         required: false
       price_override:
-        description: "Price override — use for private companies or test scenarios"
+        description: "Price override for private companies or test scenarios"
         required: false
 
 jobs:
@@ -52,24 +52,11 @@ jobs:
             echo "Manual dive on: $TICKER_OVERRIDE"
             uv run python -m the_reef.main dive "$TICKER_OVERRIDE"
           else
-            TOP_TICKER=$(uv run python -c "
-from the_reef.scanner.monitor import load_signals
-from the_reef.brokerage.the_tank import TheTank, get_db
-from datetime import datetime, timezone, timedelta
-tank = TheTank()
-db = get_db()
-open_tickers = set(tank.positions.keys())
-cutoff = (datetime.now(timezone.utc) - timedelta(hours=4)).isoformat()
-recent = {d['ticker'] for d in db.decisions.find({'timestamp': {'\$gte': cutoff}})}
-blocked = open_tickers | recent
-sigs = load_signals(limit=20)
-picks = [s for s in sigs if s.ticker not in blocked]
-print(picks[0].ticker if picks else '')
-")
+            TOP_TICKER=$(uv run python -m the_reef.scanner.pick_signal)
             if [ -n "$TOP_TICKER" ]; then
-              echo "Diving on: $TOP_TICKER"
+              echo "Diving on top signal: $TOP_TICKER"
               uv run python -m the_reef.main dive "$TOP_TICKER"
             else
-              echo "No affordable signals in Atlas"
+              echo "No qualifying signals -- all blocked by open positions or recent dives"
             fi
           fi
