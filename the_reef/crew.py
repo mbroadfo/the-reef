@@ -203,13 +203,24 @@ def run_stop_loss_check(tank: TheTank | None = None) -> str:
     triggered = active_tank.check_stop_losses()
     results = []
     for ticker, price in triggered:
-        _, msg = active_tank.sell(
+        pos = active_tank.positions[ticker]
+        ok, msg = active_tank.sell(
             ticker=ticker,
-            shares=active_tank.positions[ticker].shares,
+            shares=pos.shares,
             price=price,
             reason="Stop-loss triggered — autonomous Apex Shark exit",
             outcome="stopped_out",
         )
         results.append(f"STOPPED OUT: {msg}")
+        if ok:
+            from .notifications.sms import send_sms
+            pnl = (price - pos.entry_price) * pos.shares
+            pnl_str = f"+${pnl:.0f}" if pnl >= 0 else f"-${abs(pnl):.0f}"
+            send_sms(
+                "REEF STOP",
+                f"STOPPED OUT {int(pos.shares)} {ticker} @ ${price:.2f}\n"
+                f"Entry ${pos.entry_price:.2f} | P&L {pnl_str}\n"
+                f"Cash: ${active_tank.cash:,.0f}",
+            )
 
     return "\n".join(results) if results else "All positions within stop-loss bounds."

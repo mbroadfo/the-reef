@@ -157,6 +157,7 @@ def cmd_report():
     from the_reef.brokerage.performance import format_report
     from the_reef.notifications.sms import daily_digest
     tank = TheTank()
+    tank.take_snapshot("daily_report")
     print(format_report(tank))
     daily_digest(
         portfolio_value=tank.portfolio_value(),

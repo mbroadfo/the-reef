@@ -357,6 +357,9 @@ class TheTank:
                 triggered.append((doc["_id"], doc["current_price"]))
         return triggered
 
+    def take_snapshot(self, event: str = "daily_report") -> None:
+        self._snapshot(event)
+
     def log_decision(self, ticker: str, signal_type: str, decision: str, conviction: int, rationale: str):
         """Persist Apex Shark's decision reasoning to the decisions collection."""
         self._db.decisions.insert_one({
