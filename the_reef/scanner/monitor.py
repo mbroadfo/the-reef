@@ -256,8 +256,9 @@ class ReefMonitor:
 
 
 if __name__ == "__main__":
-    # Run a single scan and print results — useful for GitHub Actions
+    # Run a single scan and print results — used by scanner.yml GitHub Actions
     import sys
+    from datetime import timedelta
 
     watchlist_arg = sys.argv[1].split(",") if len(sys.argv) > 1 else DEFAULT_WATCHLIST
     signals = run_scan(watchlist_arg)
@@ -268,6 +269,37 @@ if __name__ == "__main__":
         print(f"SIGNAL_COUNT={len(signals)}")
         for s in signals:
             print(f"  {s.signal_type}: {s.ticker} @ ${s.price:.2f}")
+
+        # Find best dispatch candidate — skip tickers already held or dived in last 4h
+        candidate = None
+        try:
+            from ..brokerage.the_tank import TheTank, get_db
+            tank = TheTank()
+            db = get_db()
+            open_tickers = set(tank.positions.keys())
+            cutoff = (datetime.now(timezone.utc) - timedelta(hours=4)).isoformat()
+            recently_dived = {
+                d["ticker"] for d in db.decisions.find({"timestamp": {"$gte": cutoff}})
+            }
+            blocked = open_tickers | recently_dived
+            for s in signals:
+                if s.ticker not in blocked:
+                    candidate = s
+                    break
+            if blocked:
+                print(f"[scanner] Dispatch blocked for: {', '.join(blocked)}")
+        except Exception as e:
+            print(f"[scanner] Guard check failed ({e}) — using top signal")
+            candidate = signals[0]
+
+        if candidate:
+            print(f"TOP_TICKER={candidate.ticker}")
+            print(f"TOP_PRIORITY={candidate.priority}")
+            print(f"TOP_SIGNAL={candidate.signal_type}")
+        else:
+            print("TOP_TICKER=")
+            print("TOP_PRIORITY=0")
+            print("TOP_SIGNAL=")
         sys.exit(0)
     else:
         print("SIGNALS_FOUND=false")

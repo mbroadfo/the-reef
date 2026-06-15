@@ -39,7 +39,20 @@ jobs:
             echo "Manual dive on: $TICKER_OVERRIDE"
             uv run python -m the_reef.main dive "$TICKER_OVERRIDE"
           else
-            TOP_TICKER=$(uv run python -c "from the_reef.scanner.monitor import load_signals; from the_reef.brokerage.the_tank import TheTank; tank=TheTank(); mx=tank.max_position_size(10); sigs=load_signals(limit=20); affordable=[s for s in sigs if s.price<=mx]; print(affordable[0].ticker if affordable else '')")
+            TOP_TICKER=$(uv run python -c "
+from the_reef.scanner.monitor import load_signals
+from the_reef.brokerage.the_tank import TheTank, get_db
+from datetime import datetime, timezone, timedelta
+tank = TheTank()
+db = get_db()
+open_tickers = set(tank.positions.keys())
+cutoff = (datetime.now(timezone.utc) - timedelta(hours=4)).isoformat()
+recent = {d['ticker'] for d in db.decisions.find({'timestamp': {'\$gte': cutoff}})}
+blocked = open_tickers | recent
+sigs = load_signals(limit=20)
+picks = [s for s in sigs if s.ticker not in blocked]
+print(picks[0].ticker if picks else '')
+")
             if [ -n "$TOP_TICKER" ]; then
               echo "Diving on: $TOP_TICKER"
               uv run python -m the_reef.main dive "$TOP_TICKER"

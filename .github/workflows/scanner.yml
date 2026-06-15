@@ -45,20 +45,38 @@ jobs:
           if echo "$OUTPUT" | grep -q "SIGNALS_FOUND=true"; then
             echo "signals_found=true" >> $GITHUB_OUTPUT
             COUNT=$(echo "$OUTPUT" | grep "SIGNAL_COUNT=" | cut -d= -f2)
-            echo "signal_count=$COUNT" >> $GITHUB_OUTPUT
+            echo "signal_count=${COUNT:-0}" >> $GITHUB_OUTPUT
+            TOP_TICKER=$(echo "$OUTPUT" | grep "^TOP_TICKER=" | cut -d= -f2)
+            TOP_PRIORITY=$(echo "$OUTPUT" | grep "^TOP_PRIORITY=" | cut -d= -f2)
+            TOP_SIGNAL=$(echo "$OUTPUT" | grep "^TOP_SIGNAL=" | cut -d= -f2)
+            echo "top_ticker=$TOP_TICKER" >> $GITHUB_OUTPUT
+            echo "top_priority=${TOP_PRIORITY:-0}" >> $GITHUB_OUTPUT
+            echo "top_signal=$TOP_SIGNAL" >> $GITHUB_OUTPUT
+            # Only auto-dispatch for high-priority signals and if a candidate passed guards
+            if [ -n "$TOP_TICKER" ] && [ "${TOP_PRIORITY:-0}" -ge 9 ]; then
+              echo "should_dispatch=true" >> $GITHUB_OUTPUT
+            else
+              echo "should_dispatch=false" >> $GITHUB_OUTPUT
+            fi
           else
             echo "signals_found=false" >> $GITHUB_OUTPUT
             echo "signal_count=0" >> $GITHUB_OUTPUT
+            echo "should_dispatch=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Trigger deep-dive
-        if: steps.run_scan.outputs.signals_found == 'true'
+      - name: Auto-dispatch deep dive
+        if: steps.run_scan.outputs.should_dispatch == 'true'
         uses: actions/github-script@v7
         with:
           script: |
+            const ticker = '${{ steps.run_scan.outputs.top_ticker }}'
+            const signal = '${{ steps.run_scan.outputs.top_signal }}'
+            const priority = '${{ steps.run_scan.outputs.top_priority }}'
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'deep_dive.yml',
-              ref: 'master'
+              ref: 'master',
+              inputs: { ticker: ticker }
             })
+            console.log(`Auto-dispatched deep dive: ${ticker} | ${signal} | priority ${priority}`)
