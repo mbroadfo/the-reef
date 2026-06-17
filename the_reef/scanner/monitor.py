@@ -69,6 +69,16 @@ def scan_ticker(ticker: str) -> list[ScanSignal]:
     if price is None:
         return signals
 
+    # New listing check — emit IPO_LISTING and skip technicals if < 30 trading days of history
+    try:
+        import yfinance as yf
+        hist = yf.Ticker(ticker).history(period="3mo")
+        if 0 < len(hist) < 30:
+            signals.append(ScanSignal(ticker, "IPO_LISTING", SIGNAL_TYPES["IPO_LISTING"], len(hist), price, now))
+            return signals
+    except Exception:
+        pass
+
     # Volume spike
     vol_ratio = get_volume_ratio(ticker)
     if vol_ratio is not None and vol_ratio >= 2.5:
@@ -129,6 +139,23 @@ def get_dynamic_tickers(count: int = 25) -> list[str]:
                     tickers.add(sym)
         except Exception as e:
             print(f"[scanner] Screener '{screen_name}' unavailable: {e}")
+    # IPO discovery — find new listings surfacing in top movers before they hit the watchlist
+    try:
+        for screen_name in ("day_gainers", "most_actives"):
+            result = yf.screen(screen_name, count=25)
+            for quote in result.get("quotes", []):
+                sym = quote.get("symbol", "")
+                if sym and "." not in sym and "-" not in sym and len(sym) <= 5 and sym not in tickers:
+                    try:
+                        hist = yf.Ticker(sym).history(period="3mo")
+                        if 0 < len(hist) < 30:
+                            tickers.add(sym)
+                            print(f"[scanner] IPO discovered: {sym} ({len(hist)} trading days old)")
+                    except Exception:
+                        pass
+    except Exception as e:
+        print(f"[scanner] IPO discovery failed: {e}")
+
     return sorted(tickers)
 
 
