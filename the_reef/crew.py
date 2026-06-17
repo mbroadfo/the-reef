@@ -159,6 +159,7 @@ class TheReefCrew:
             "RSI_OVERBOUGHT":     self.contrarian_shark(),
             "EARNINGS_UPCOMING":  self.research_shark(),
             "NEWS_SENTIMENT":     self.sentiment_shark(),
+            "IPO_LISTING":        self.research_shark(),  # No tape to read — go straight to fundamentals
         }
         return mapping.get(signal_type, self.hunter_shark())
 
@@ -172,12 +173,24 @@ def run_deep_dive(signal: ScanSignal, tank: TheTank | None = None) -> str:
     hunter_task = reef.hunter_research()
     hunter_task.agent = reef.select_hunter(signal.signal_type)
 
+    ipo_note = ""
+    if signal.signal_type == "IPO_LISTING":
+        ipo_note = (
+            "IMPORTANT — IPO CONTEXT: This stock has minimal price history (days, not months). "
+            "Do NOT attempt RSI, 20-day volume averages, or multi-week technical patterns — "
+            "that data does not exist yet. Instead focus on: S-1/prospectus revenue and margins, "
+            "Morningstar or analyst fair value estimates, post-IPO float and lock-up period "
+            "end date, valuation vs comparable public companies, and first-week trading "
+            "range dynamics. Treat this as a fundamental + sentiment analysis, not a technical one."
+        )
+
     inputs = {
         "ticker": signal.ticker,
         "signal_type": signal.signal_type,
         "signal_value": signal.value,
         "current_price": signal.price,
         "scan_timestamp": signal.timestamp,
+        "ipo_note": ipo_note,
     }
 
     result = reef.crew().kickoff(inputs=inputs)

@@ -10,6 +10,7 @@ hunter_research:
     Signal: {signal_type} (value: {signal_value})
     on {ticker} at ${current_price}.
     Timestamp: {scan_timestamp}.
+    {ipo_note}
 
     Conduct your domain investigation:
     1. Get current price, volume, RSI, 52-week range
@@ -37,6 +38,7 @@ research_analysis:
   description: >
     Review the hunter's report on {ticker} at
     ${current_price}. Provide fundamental analysis.
+    {ipo_note}
 
     Report SPECIFIC numbers:
     1. Current P/E vs sector median P/E
@@ -118,6 +120,7 @@ contrarian_challenge:
     Stress-test the bull case for {ticker}.
     You have seen hunter, research, macro, sentiment.
     Find what everyone else missed.
+    {ipo_note}
 
     Research and answer:
     1. Short interest % of float — crowded?

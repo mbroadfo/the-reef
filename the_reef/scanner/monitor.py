@@ -20,6 +20,7 @@ from ..tools.market_data import (
 # Signals ordered by excitement level — higher = more interesting
 SIGNAL_TYPES = {
     "EARNINGS_UPCOMING": 10,    # Earnings within 14 days
+    "IPO_LISTING":       10,    # Fresh IPO — manual trigger, no technical baseline
     "VOLUME_SPIKE":       9,    # Volume > 2.5x 20-day avg
     "PRICE_BREAKOUT":     8,    # Price change > 4% in one day
     "NEWS_SENTIMENT":     8,    # 5-day trend diverges from 1-day (news-driven move)
@@ -35,6 +36,8 @@ DEFAULT_WATCHLIST = [
     "COIN", "MSTR", "MARA", "HOOD",
     # Special situations → wildcard_shark
     "RKLB", "ASTS", "TSLA", "SMCI",
+    # IPO watch
+    "SPCX",
 ]
 
 SIGNALS_FILE = Path(__file__).parent.parent.parent / "data" / "scan_signals.json"
