@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { fetchTrades, fetchSectors } from '../api'
 import type { Trade, Sector } from '../types'
-import { getSharkColor, getSharkFilter, normalizeSharkName } from '../utils/sharks'
-import sharkImg from '../assets/shark-base.png'
+import { getSharkColor, normalizeSharkName } from '../utils/sharks'
+import SharkAvatar from './SharkAvatar'
 
 const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
 const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
@@ -64,7 +64,6 @@ export default function RightRail() {
             {trades.map(trade => {
               const name   = normalizeSharkName(trade.surfaced_by || 'Apex Shark')
               const color  = getSharkColor(name)
-              const filter = getSharkFilter(name)
               const pnl    = trade.pnl
 
               return (
@@ -72,21 +71,7 @@ export default function RightRail() {
                   key={trade.id}
                   className="flex gap-3 items-start py-3 border-b border-reef-border last:border-0"
                 >
-                  <div style={{
-                    width: '40px', height: '40px', borderRadius: '50%',
-                    border: `2px solid ${color}`, background: 'var(--reef-elevated)',
-                    overflow: 'hidden', flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <img
-                      src={sharkImg}
-                      alt={name}
-                      style={{
-                        width: '90%', height: '90%', objectFit: 'contain',
-                        filter, mixBlendMode: 'screen',
-                      }}
-                    />
-                  </div>
+                  <SharkAvatar name={name} size="md" />
 
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-sans font-semibold truncate" style={{ color }}>

@@ -236,6 +236,16 @@ def route_trade_detail(db, trade_id: int) -> dict:
     return _ok(trade)
 
 
+_LEGACY_SHARK_NAMES: dict[str, str] = {
+    "Fundamental Shark": "Research Shark",
+    "Value Shark":       "Research Shark",
+    "Earnings Shark":    "Research Shark",
+    "Momentum Shark":    "Hunter Shark",
+    "News Shark":        "Sentiment Shark",
+    "Options Shark":     "Risk Shark",
+}
+
+
 def route_sharks(db) -> dict:
     scores: dict[str, list[float]] = defaultdict(list)
 
@@ -243,6 +253,7 @@ def route_sharks(db) -> dict:
         pnl = trade.get("pnl") or 0.0
         surfaced = trade.get("surfaced_by", "")
         if surfaced:
+            surfaced = _LEGACY_SHARK_NAMES.get(surfaced, surfaced)
             scores[surfaced].append(pnl)
 
     result = []
