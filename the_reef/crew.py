@@ -13,7 +13,7 @@ from crewai_tools import SerperDevTool
 from .tools.market_data import GetPriceTool, GetHistoryTool
 from .tools.tank_tools import (
     GetPortfolioTool, ExecuteBuyTool, ExecuteSellTool, CheckStopLossesTool,
-    set_tank,
+    NominateTickerTool, set_tank,
 )
 from .tools.shark_history_tool import GetSharkHistoryTool
 from .brokerage.the_tank import TheTank
@@ -21,9 +21,10 @@ from .scanner.monitor import ScanSignal
 
 
 _market_tools = [GetPriceTool(), GetHistoryTool(), SerperDevTool()]
+_nominate_tool = [NominateTickerTool()]
 _apex_tools = [
     GetPortfolioTool(), ExecuteBuyTool(), ExecuteSellTool(),
-    CheckStopLossesTool(), GetSharkHistoryTool(),
+    CheckStopLossesTool(), GetSharkHistoryTool(), NominateTickerTool(),
 ]
 
 
@@ -56,7 +57,7 @@ class TheReefCrew:
     def wildcard_shark(self) -> Agent:
         return Agent(
             config=self.agents_config["wildcard_shark"],
-            tools=_market_tools + [SerperDevTool()],
+            tools=_market_tools + [SerperDevTool()] + _nominate_tool,
             verbose=True,
         )
 
@@ -66,7 +67,7 @@ class TheReefCrew:
     def macro_shark(self) -> Agent:
         return Agent(
             config=self.agents_config["macro_shark"],
-            tools=[SerperDevTool()],
+            tools=[SerperDevTool()] + _nominate_tool,
             verbose=True,
         )
 
@@ -74,7 +75,7 @@ class TheReefCrew:
     def sentiment_shark(self) -> Agent:
         return Agent(
             config=self.agents_config["sentiment_shark"],
-            tools=[SerperDevTool()],
+            tools=[SerperDevTool()] + _nominate_tool,
             verbose=True,
         )
 

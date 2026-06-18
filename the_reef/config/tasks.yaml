@@ -79,12 +79,15 @@ macro_analysis:
 
     Also: do you see a macro-driven opportunity in
     ANY sector right now, independent of {ticker}?
-    If yes, nominate the ticker and 2-line thesis.
+    If yes, call "Nominate Ticker" with the ticker,
+    your 2-line thesis, source="macro_shark", and
+    entry range. Then report the nomination here.
   expected_output: >
     Four specific answers as listed.
     Macro verdict: GO / CAUTION / AVOID + reason.
     Unsolicited nomination (optional): ticker +
     2-line thesis if a macro opportunity is visible.
+    Confirm: "Nominated [TICKER]" or "No nomination."
   agent: macro_shark
   context:
     - hunter_research
@@ -104,13 +107,16 @@ sentiment_analysis:
     Sentiment score: BULLISH / NEUTRAL / BEARISH.
 
     Also: any ticker where you see a narrative shift
-    that hasn't hit price yet? Nominate with a
-    2-line thesis if yes.
+    that hasn't hit price yet? If yes, call
+    "Nominate Ticker" with the ticker, your 2-line
+    thesis, source="sentiment_shark", and entry range.
+    Then report the nomination here.
   expected_output: >
     Four specific answers as listed.
     Sentiment score: BULLISH / NEUTRAL / BEARISH.
     Unsolicited nomination (optional): ticker +
     2-line thesis if a narrative shift is visible.
+    Confirm: "Nominated [TICKER]" or "No nomination."
   agent: sentiment_shark
   context:
     - hunter_research
@@ -209,13 +215,17 @@ wildcard_nomination:
     - Entry range, stop, target
     - Confidence: HIGH / MEDIUM / LOW
 
-    If you have no strong idea, say so.
-    Do not nominate a weak idea to fill the slot.
+    If confidence is HIGH or MEDIUM, call
+    "Nominate Ticker" with ticker, thesis,
+    source="wildcard_shark", and entry range.
+    If you have no strong idea, say so and skip
+    the tool call — do not nominate weak ideas.
   expected_output: >
     Part 1: Wildcard angle on {ticker} or "None."
     Part 2: Unsolicited nomination with ticker,
     thesis, levels, confidence. Or "No strong
     unsolicited idea this cycle."
+    Confirm: "Nominated [TICKER]" or "No nomination."
   agent: wildcard_shark
   context:
     - hunter_research
@@ -257,7 +267,9 @@ apex_decision:
     STEP 4: Execute via "Execute Paper Buy" if buying.
     STEP 5: Run "Check Stop Losses" on all positions.
     STEP 6: Review unsolicited nominations from Macro,
-    Sentiment, Wildcard. Add best to watchlist note.
+    Sentiment, Wildcard. If any weren't already
+    persisted by their shark, call "Nominate Ticker"
+    with source="apex_shark" for the best one.
     STEP 7: State full reasoning.
   expected_output: >
     Decision: BUY [X shares @ ~$Y] | PASS

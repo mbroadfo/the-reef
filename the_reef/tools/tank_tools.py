@@ -45,6 +45,13 @@ class SellInput(BaseModel):
     reason: str = Field(default="", description="Reason for selling")
 
 
+class NominationInput(BaseModel):
+    ticker: str = Field(..., description="Ticker symbol to nominate for the next scan cycle")
+    thesis: str = Field(..., description="1-2 sentence thesis — why this ticker is interesting RIGHT NOW")
+    source: str = Field(..., description="Your shark role, e.g. 'macro_shark', 'sentiment_shark', 'wildcard_shark'")
+    entry_range: str = Field(default="", description="Suggested entry price range, e.g. '$42-$45' (optional)")
+
+
 # ── tools ────────────────────────────────────────────────────────────────────
 
 class GetPortfolioTool(BaseTool):
@@ -132,6 +139,30 @@ class ExecuteSellTool(BaseTool):
 
         ok, msg = tank.sell(ticker=ticker, shares=pos.shares, price=price, reason=reason)
         return msg
+
+
+class NominateTickerTool(BaseTool):
+    name: str = "Nominate Ticker"
+    description: str = (
+        "Persist a ticker nomination to the watchlist so the scanner picks it up on the next cycle. "
+        "Use this when you identify a trade opportunity worth tracking but not acting on immediately. "
+        "The nomination expires after 48 hours if the scanner hasn't acted on it."
+    )
+    args_schema: type[BaseModel] = NominationInput
+
+    def _run(self, ticker: str, thesis: str, source: str, entry_range: str = "") -> str:
+        from ..brokerage.the_tank import get_db
+        from datetime import datetime, timezone
+        db = get_db()
+        db.nominations.create_index("created_at", expireAfterSeconds=172800)  # 48h TTL
+        db.nominations.insert_one({
+            "ticker": ticker.upper(),
+            "thesis": thesis,
+            "source": source,
+            "entry_range": entry_range,
+            "created_at": datetime.now(timezone.utc),
+        })
+        return f"Nominated {ticker.upper()} for next scan cycle ({source}). Thesis logged."
 
 
 class CheckStopLossesTool(BaseTool):

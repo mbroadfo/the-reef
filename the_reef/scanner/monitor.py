@@ -162,6 +162,21 @@ def get_dynamic_tickers(count: int = 25) -> list[str]:
 def run_scan(watchlist: list[str] = DEFAULT_WATCHLIST, include_movers: bool = True) -> list[ScanSignal]:
     """Scan all tickers. Returns signals sorted by priority (highest first)."""
     effective = list(watchlist)
+
+    # Pull active shark nominations (48h window) into the scan list
+    try:
+        from ..brokerage.the_tank import get_db
+        from datetime import timedelta
+        db = get_db()
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+        nominated = [d["ticker"] for d in db.nominations.find({"created_at": {"$gte": cutoff}})]
+        added = [t for t in nominated if t not in effective]
+        if added:
+            print(f"[scanner] +{len(added)} nominated ticker(s): {', '.join(added)}")
+            effective.extend(added)
+    except Exception as e:
+        print(f"[scanner] Could not load nominations: {e}")
+
     if include_movers:
         dynamic = get_dynamic_tickers()
         added = [t for t in dynamic if t not in effective]
