@@ -336,24 +336,26 @@ def route_sectors(db) -> dict:
         "Industrials":       "XLI",
         "Energy":            "XLE",
     }
-    try:
-        import yfinance as yf
-        result = []
-        for sector, ticker in SECTOR_ETFS.items():
-            hist = yf.Ticker(ticker).history(period="2d")
-            if len(hist) >= 2:
-                prev = hist["Close"].iloc[-2]
-                curr = hist["Close"].iloc[-1]
-                pct = round((curr - prev) / prev * 100, 2)
+    import yfinance as yf
+    result = []
+    for sector, ticker in SECTOR_ETFS.items():
+        pct = 0.0
+        try:
+            info = yf.Ticker(ticker).fast_info
+            prev = info.previous_close
+            curr = info.last_price
+            if prev and curr and prev > 0:
+                pct = round(float((curr - prev) / prev * 100), 2)
             else:
-                pct = 0.0
-            result.append({"sector": sector, "ticker": ticker, "pct_change": pct})
-        return _ok(result)
-    except Exception:
-        return _ok([
-            {"sector": s, "ticker": t, "pct_change": 0.0}
-            for s, t in SECTOR_ETFS.items()
-        ])
+                hist = yf.Ticker(ticker).history(period="5d")
+                if len(hist) >= 2:
+                    pct = round(float((hist["Close"].iloc[-1] - hist["Close"].iloc[-2]) / hist["Close"].iloc[-2] * 100), 2)
+                else:
+                    print(f"[sectors] No price data for {ticker}")
+        except Exception as e:
+            print(f"[sectors] {ticker} error: {e}")
+        result.append({"sector": sector, "ticker": ticker, "pct_change": pct})
+    return _ok(result)
 
 
 # ── router ────────────────────────────────────────────────────────────────────

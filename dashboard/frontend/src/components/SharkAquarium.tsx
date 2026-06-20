@@ -45,7 +45,7 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
               className={`card cursor-pointer hover:shadow-card-glow transition-all duration-200 flex flex-col items-center${!isActive ? ' opacity-50' : ''}`}
               style={{
                 padding: '8px 6px 10px',
-                minHeight: '220px',
+                minHeight: '160px',
                 position: 'relative',
                 borderColor: isActive ? color : undefined,
                 borderWidth: isActive ? '1.5px' : undefined,
