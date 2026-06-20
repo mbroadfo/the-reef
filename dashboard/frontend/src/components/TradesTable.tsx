@@ -32,11 +32,11 @@ export default function TradesTable({ trades, compact = false, dashboard = false
   if (dashboard) {
     return (
       <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full" style={{ fontSize: '11px' }}>
           <thead>
             <tr className="border-b border-reef-border">
-              {['Ticker', 'Date', 'Action', 'P&L', 'Shark'].map((h) => (
-                <th key={h} className="text-left text-slate-500 text-xs font-sans font-medium uppercase tracking-widest px-3 py-2.5">
+              {['Time', 'Shark', 'Symbol', 'Action', 'Qty', 'Price', 'Conf', 'P&L'].map((h) => (
+                <th key={h} className="text-left text-slate-500 font-sans font-medium uppercase tracking-widest px-2 py-2" style={{ fontSize: '10px' }}>
                   {h}
                 </th>
               ))}
@@ -45,38 +45,43 @@ export default function TradesTable({ trades, compact = false, dashboard = false
           <tbody>
             {displayed.map((t) => {
               const isBuy     = t.action === 'BUY'
-              const pnlColor  = t.pnl == null ? '' : t.pnl >= 0 ? 'text-gain' : 'text-loss'
+              const pnlColor  = t.pnl == null ? '#64748b' : t.pnl >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)'
               const sharkName = normalizeSharkName(t.surfaced_by || 'Apex Shark')
               const color     = getSharkColor(sharkName)
+              const conv      = t.conviction ?? 0
               return (
                 <tr
                   key={t.id}
                   onClick={() => navigate(`/trades/${t.id}`)}
                   className="border-b border-reef-border/50 hover:bg-reef-elevated/30 transition-colors cursor-pointer"
                 >
-                  <td className="px-3 py-2 font-bold font-mono text-white text-xs">{t.ticker}</td>
-                  <td className="px-3 py-2 text-slate-500 text-xs font-mono whitespace-nowrap">
+                  <td className="px-2 py-1.5 font-mono text-slate-500 whitespace-nowrap">
                     {new Date(t.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </td>
-                  <td className="px-3 py-2">
-                    <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded border ${
-                      isBuy
-                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
-                        : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                    }`}>
+                  <td className="px-2 py-1.5">
+                    <SharkAvatar name={sharkName} size="sm" />
+                  </td>
+                  <td className="px-2 py-1.5 font-mono font-bold text-white">{t.ticker}</td>
+                  <td className="px-2 py-1.5">
+                    <span className={`font-mono font-semibold px-1.5 py-0.5 rounded border ${
+                      isBuy ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                            : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                    }`} style={{ fontSize: '10px' }}>
                       {t.action}
                     </span>
                   </td>
-                  <td className={`px-3 py-2 font-mono text-xs ${pnlColor}`}>
-                    {t.pnl == null ? '—' : `${t.pnl >= 0 ? '+' : '-'}$${Math.abs(t.pnl).toFixed(0)}`}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-1.5">
-                      <SharkAvatar name={sharkName} size="sm" />
-                      <span className="text-xs font-sans truncate" style={{ color }}>
-                        {sharkName.split(' ')[0]}
-                      </span>
+                  <td className="px-2 py-1.5 font-mono text-slate-300">{t.shares}</td>
+                  <td className="px-2 py-1.5 font-mono text-slate-300">${t.price.toFixed(2)}</td>
+                  <td className="px-2 py-1.5">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ width: '36px', height: '4px', background: 'var(--reef-border)', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ width: `${conv * 10}%`, height: '100%', background: color, borderRadius: '2px' }} />
+                      </div>
+                      <span style={{ color: '#64748b', fontFamily: 'JetBrains Mono' }}>{conv}</span>
                     </div>
+                  </td>
+                  <td className="px-2 py-1.5 font-mono font-semibold" style={{ color: pnlColor }}>
+                    {t.pnl == null ? '—' : `${t.pnl >= 0 ? '+' : '-'}$${Math.abs(t.pnl).toFixed(0)}`}
                   </td>
                 </tr>
               )

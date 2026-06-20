@@ -46,6 +46,7 @@ export interface Position {
   vetted_by: string
   conviction: number
   entry_time: string
+  sector?: string
 }
 
 export interface Trade {

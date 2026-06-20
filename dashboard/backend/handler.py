@@ -22,6 +22,18 @@ import boto3
 from pymongo import MongoClient, DESCENDING
 
 _secrets: dict | None = None
+_sector_cache: dict[str, str] = {}
+
+
+def _get_sector(ticker: str) -> str:
+    if ticker not in _sector_cache:
+        try:
+            import yfinance as yf
+            info = yf.Ticker(ticker).info
+            _sector_cache[ticker] = info.get("sector") or "Other"
+        except Exception:
+            _sector_cache[ticker] = "Other"
+    return _sector_cache[ticker]
 
 
 def _load_secrets() -> dict:
@@ -187,6 +199,7 @@ def route_positions(db) -> dict:
             "vetted_by": p.get("vetted_by", ""),
             "conviction": p.get("conviction", 0),
             "entry_time": p.get("entry_time", ""),
+            "sector": _get_sector(p["_id"]),
         })
     result.sort(key=lambda x: x["unrealized_pnl"], reverse=True)
     return _ok(result)

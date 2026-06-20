@@ -91,32 +91,27 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
       {/* Sub-metrics row */}
       <div style={{ display: 'flex', gap: '8px' }}>
         <MetricBox
-          label="Trading Since"
-          value={portfolio.inception_date
-            ? new Date(portfolio.inception_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
-            : '—'}
+          label="Starting Value"
+          value={`$${fmt(portfolio.starting_cash)}`}
         />
         <MetricBox
-          label="No. Transactions"
-          value={String(portfolio.total_trades)}
+          label="Total Return"
+          value={`${portfolio.total_pnl_pct >= 0 ? '+' : ''}${portfolio.total_pnl_pct.toFixed(1)}%`}
+          positive={portfolio.total_pnl_pct >= 0}
         />
         <MetricBox
-          label="Total P&L"
-          value={`${portfolio.total_pnl >= 0 ? '+' : ''}$${fmt(Math.abs(portfolio.total_pnl))}`}
-          positive={portfolio.total_pnl >= 0}
+          label="Profit Factor"
+          value={portfolio.profit_factor != null ? portfolio.profit_factor.toFixed(2) : '—'}
+          positive={portfolio.profit_factor != null ? portfolio.profit_factor >= 1 : undefined}
         />
         <MetricBox
-          label="Max Gain"
-          value={portfolio.max_trade_gain != null
-            ? `+$${fmt(portfolio.max_trade_gain)}`
-            : '—'}
+          label="Best Trade"
+          value={portfolio.max_trade_gain != null ? `+$${fmt(portfolio.max_trade_gain)}` : '—'}
           positive={true}
         />
         <MetricBox
           label="Max Drawdown"
-          value={portfolio.max_drawdown != null
-            ? `${portfolio.max_drawdown.toFixed(1)}%`
-            : '—'}
+          value={portfolio.max_drawdown != null ? `${portfolio.max_drawdown.toFixed(1)}%` : '—'}
           positive={false}
         />
       </div>

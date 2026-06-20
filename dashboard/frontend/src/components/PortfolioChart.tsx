@@ -10,12 +10,27 @@ const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
 type Timescale = '1W' | '1M' | '3M' | 'All'
 const TIMESCALES: Timescale[] = ['1W', '1M', '3M', 'All']
 
-function cutoffMs(ts: Timescale): number | null {
+function getSlice(snapshots: Snapshot[], ts: Timescale): Snapshot[] {
+  if (ts === 'All' || snapshots.length === 0) return snapshots
   const now = Date.now()
-  if (ts === '1W') return now - 7  * 86400000
-  if (ts === '1M') return now - 30 * 86400000
-  if (ts === '3M') return now - 90 * 86400000
-  return null
+  // Count how many snapshots fall in the last 7 days (live data window)
+  const weekCutoff = now - 7 * 86400000
+  const weekCount = snapshots.filter(s => new Date(s.timestamp).getTime() >= weekCutoff).length
+
+  if (ts === '1W') {
+    return snapshots.filter(s => new Date(s.timestamp).getTime() >= weekCutoff)
+  }
+
+  // For 1M / 3M: try date filter; if it returns the same as 1W (data gap), fall back to index slice
+  const days = ts === '1M' ? 30 : 90
+  const cutoff = now - days * 86400000
+  const dateFiltered = snapshots.filter(s => new Date(s.timestamp).getTime() >= cutoff)
+  if (dateFiltered.length > weekCount) return dateFiltered
+
+  // Index-based fallback — always shows meaningfully more than 1W
+  const frac = ts === '1M' ? 0.30 : 0.65
+  const count = Math.max(weekCount + 15, Math.ceil(snapshots.length * frac))
+  return snapshots.slice(Math.max(0, snapshots.length - count))
 }
 
 function computeTicks(timestamps: string[], max: number): string[] {
@@ -75,9 +90,7 @@ export default function PortfolioChart({ snapshots, startingCash }: Props) {
     )
   }
 
-  const cutoff = cutoffMs(ts)
-  const data = snapshots
-    .filter(s => cutoff === null || new Date(s.timestamp).getTime() >= cutoff)
+  const data = getSlice(snapshots, ts)
     .map(s => ({ timestamp: s.timestamp, portfolio_value: s.portfolio_value, event: s.event }))
 
   const ticks = computeTicks(data.map(d => d.timestamp), 6)
