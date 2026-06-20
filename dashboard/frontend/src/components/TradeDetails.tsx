@@ -25,6 +25,7 @@ export default function TradeDetails({ trade }: { trade: Trade | null }) {
   const exitPrice = trade.exit_price ?? trade.price
   const pnlPct = entryPrice > 0 ? ((exitPrice - entryPrice) / entryPrice * 100) : 0
   const conviction = trade.conviction ?? 0
+  const isGain = pnl >= 0
 
   return (
     <div className="card p-4">
@@ -32,58 +33,73 @@ export default function TradeDetails({ trade }: { trade: Trade | null }) {
         Trade Details
       </div>
 
-      {/* Ticker + shark row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <SharkAvatar name={sharkName} size="md" />
-          <div>
-            <div style={{ fontSize: '10px', color: '#64748b', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {sharkName}
-            </div>
-            <div style={{ fontSize: '22px', fontWeight: 800, fontFamily: FONT_MONO, color: '#f1f5f9', lineHeight: 1.1 }}>
-              {trade.ticker}
-            </div>
+      {/* Ticker badge + shark header */}
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '12px' }}>
+        {/* Large ticker badge */}
+        <div style={{
+          width: '72px', height: '72px', borderRadius: '10px', flexShrink: 0,
+          border: `2px solid ${color}`,
+          background: `linear-gradient(135deg, ${color}18 0%, ${color}06 100%)`,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: '2px',
+        }}>
+          <div style={{ fontSize: trade.ticker.length > 4 ? '13px' : '18px', fontWeight: 800, fontFamily: FONT_MONO, color: '#f1f5f9', lineHeight: 1 }}>
+            {trade.ticker}
           </div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
           <div style={{
-            fontSize: '20px', fontWeight: 800, fontFamily: FONT_MONO,
-            color: pnl >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)',
-            lineHeight: 1,
+            fontSize: '9px', fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '0.05em',
+            color: isGain ? 'var(--reef-gain)' : 'var(--reef-loss)',
+            background: isGain ? 'rgba(0,255,136,0.12)' : 'rgba(239,68,68,0.12)',
+            padding: '1px 5px', borderRadius: '3px',
           }}>
-            {pnl >= 0 ? '+' : ''}${Math.abs(pnl).toFixed(2)}
+            {trade.action}
           </div>
-          <div style={{ fontSize: '12px', fontFamily: FONT_MONO, color: pnlPct >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)', marginTop: '2px' }}>
-            {pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%
+        </div>
+
+        {/* Shark + P&L */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+            <SharkAvatar name={sharkName} size="sm" />
+            <span style={{ fontSize: '11px', fontFamily: FONT_SANS, color, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {sharkName}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <div style={{
+              fontSize: '22px', fontWeight: 800, fontFamily: FONT_MONO,
+              color: isGain ? 'var(--reef-gain)' : 'var(--reef-loss)',
+              lineHeight: 1,
+            }}>
+              {isGain ? '+' : ''}${Math.abs(pnl).toFixed(2)}
+            </div>
+            <div style={{ fontSize: '13px', fontFamily: FONT_MONO, fontWeight: 600, color: isGain ? 'var(--reef-gain)' : 'var(--reef-loss)' }}>
+              {pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Entry → Exit + date */}
+      {/* Entry / Exit / Date */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '10px' }}>
-        <div>
-          <div style={{ fontSize: '10px', color: '#64748b', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Entry</div>
-          <div style={{ fontSize: '13px', fontFamily: FONT_MONO, color: '#f1f5f9', fontWeight: 600 }}>${entryPrice.toFixed(2)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: '10px', color: '#64748b', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Exit</div>
-          <div style={{ fontSize: '13px', fontFamily: FONT_MONO, color: '#f1f5f9', fontWeight: 600 }}>${exitPrice.toFixed(2)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: '10px', color: '#64748b', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</div>
-          <div style={{ fontSize: '11px', fontFamily: FONT_SANS, color: '#94a3b8' }}>{fmtDate(trade.exit_time ?? trade.timestamp)}</div>
-        </div>
+        {[
+          { label: 'Entry', value: `$${entryPrice.toFixed(2)}`, mono: true },
+          { label: 'Exit',  value: `$${exitPrice.toFixed(2)}`,  mono: true },
+          { label: 'Date',  value: fmtDate(trade.exit_time ?? trade.timestamp), mono: false },
+        ].map(({ label, value, mono }) => (
+          <div key={label}>
+            <div style={{ fontSize: '10px', color: '#64748b', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{label}</div>
+            <div style={{ fontSize: mono ? '13px' : '11px', fontFamily: mono ? FONT_MONO : FONT_SANS, color: '#f1f5f9', fontWeight: mono ? 600 : 400 }}>{value}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Conviction */}
+      {/* Conviction bar */}
       <div style={{ marginBottom: trade.apex_rationale ? '10px' : 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
           <span style={{ fontSize: '10px', color: '#64748b', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Conviction
           </span>
-          <span style={{ fontSize: '10px', fontFamily: FONT_MONO, color }}>
-            {conviction}/10
-          </span>
+          <span style={{ fontSize: '10px', fontFamily: FONT_MONO, color }}>{conviction}/10</span>
         </div>
         <div style={{ height: '4px', background: 'var(--reef-border)', borderRadius: '2px', overflow: 'hidden' }}>
           <div style={{ width: `${conviction * 10}%`, height: '100%', background: color, borderRadius: '2px' }} />

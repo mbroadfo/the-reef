@@ -6,18 +6,6 @@ const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
 const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
 const COLORS = ['#00ff88', '#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#ef4444', '#84cc16']
 
-const SECTOR_MAP: Record<string, string> = {
-  NVDA: 'Technology', AMD: 'Technology', INTC: 'Technology', QCOM: 'Technology',
-  AAPL: 'Technology', MSFT: 'Technology', GOOGL: 'Technology', GOOG: 'Technology',
-  META: 'Technology', AVGO: 'Technology', TSM: 'Technology', PLTR: 'Technology',
-  SMCI: 'Technology', ASTS: 'Technology', MSTR: 'Technology', CRWD: 'Technology',
-  AMZN: 'Consumer', TSLA: 'Consumer', NFLX: 'Consumer', SHOP: 'Consumer',
-  JPM: 'Financials', GS: 'Financials', BAC: 'Financials', V: 'Financials',
-  JNJ: 'Healthcare', PFE: 'Healthcare', LLY: 'Healthcare', MRNA: 'Healthcare',
-  XOM: 'Energy', CVX: 'Energy',
-  RKLB: 'Aerospace', SPCX: 'Aerospace',
-  SPY: 'Index', QQQ: 'Index', IWM: 'Index',
-}
 
 type View = 'symbol' | 'sector'
 
@@ -45,7 +33,7 @@ export default function PositionsOverview({ positions }: { positions: Position[]
 
   const sectorMap = new Map<string, number>()
   for (const p of positions) {
-    const sector = SECTOR_MAP[p.ticker] ?? 'Other'
+    const sector = p.sector ?? 'Other'
     sectorMap.set(sector, (sectorMap.get(sector) ?? 0) + p.market_value)
   }
   const bySector: SliceData[] = Array.from(sectorMap.entries())
