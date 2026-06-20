@@ -19,7 +19,7 @@ function formatDate(d: Date): string {
   })
 }
 
-export default function TopBar() {
+export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [now, setNow] = useState(() => new Date())
   const portfolio = usePortfolio()
 
@@ -34,8 +34,6 @@ export default function TopBar() {
   return (
     <div
       style={{
-        gridColumn: '2 / 4',
-        gridRow: '1',
         height: '88px',
         display: 'flex',
         alignItems: 'center',
@@ -44,8 +42,26 @@ export default function TopBar() {
         overflow: 'hidden',
       }}
     >
-      {/* Stat pills */}
-      <div style={{ display: 'flex', alignItems: 'stretch', height: '100%', flex: 1 }}>
+      {/* Hamburger — mobile only */}
+      {onMenuClick && (
+        <button
+          onClick={onMenuClick}
+          className="lg:hidden flex items-center justify-center ml-3 mr-1 shrink-0"
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: '#94a3b8', padding: '8px', borderRadius: '6px',
+            minWidth: '44px', minHeight: '44px',
+          }}
+          aria-label="Open navigation"
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M2 5h16M2 10h16M2 15h16" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"/>
+          </svg>
+        </button>
+      )}
+
+      {/* Stat pills — horizontally scrollable on mobile */}
+      <div style={{ display: 'flex', alignItems: 'stretch', height: '100%', flex: 1, overflowX: 'auto', scrollbarWidth: 'none' }}>
         <StatPill
           label="Portfolio Value"
           value={portfolio ? `$${fmt(portfolio.value)}` : '$—'}
@@ -98,10 +114,9 @@ export default function TopBar() {
         </StatPill>
       </div>
 
-      {/* Right: clock + user avatar */}
-      <div style={{
+      {/* Right: clock + user avatar — hidden on mobile */}
+      <div className="hidden lg:flex" style={{
         padding: '0 16px',
-        display: 'flex',
         alignItems: 'center',
         gap: '8px',
         borderLeft: '1px solid var(--reef-border)',

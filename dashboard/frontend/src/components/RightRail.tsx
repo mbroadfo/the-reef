@@ -42,8 +42,7 @@ export default function RightRail() {
 
   return (
     <div
-      className="bg-reef-card border-l border-reef-border overflow-y-auto p-4 flex flex-col gap-6"
-      style={{ gridColumn: '3', gridRow: '2' }}
+      className="bg-reef-card border-l border-reef-border overflow-y-auto p-4 flex flex-col gap-6 h-full"
     >
       {/* ── Shark Activity Feed ── */}
       <div>

@@ -4,6 +4,7 @@ import { PortfolioProvider } from './context/PortfolioContext'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
 import RightRail from './components/RightRail'
+import MobileNav from './components/MobileNav'
 import DashboardPage from './pages/DashboardPage'
 import PositionsPage from './pages/PositionsPage'
 import TradesPage from './pages/TradesPage'
@@ -14,27 +15,43 @@ const ComingSoon = () => (
 )
 
 function AppShell() {
+  const [navOpen, setNavOpen] = useState(false)
   const [, setLive] = useState(false)
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: '180px 1fr 340px',
-      gridTemplateRows: '88px 1fr',
-      height: '100vh',
-      width: '100vw',
-      overflow: 'hidden',
-      background: 'var(--reef-bg)',
-    }}>
-      <Sidebar />
-      <TopBar />
+    // Mobile: flex column. lg+: 3-column CSS grid.
+    // gridColumn/gridRow on children are ignored when flex is active.
+    <div
+      className="h-screen w-screen overflow-hidden bg-reef-bg flex flex-col lg:grid lg:grid-rows-[88px_1fr]"
+      style={{ gridTemplateColumns: '180px 1fr 340px' }}
+    >
+      {/* Sidebar — hidden on mobile, spans both rows on desktop */}
+      <div
+        className="hidden lg:flex lg:flex-col bg-reef-card border-r border-reef-border overflow-hidden"
+        style={{ gridColumn: 1, gridRow: '1 / 3' }}
+      >
+        <Sidebar />
+      </div>
+
+      {/* TopBar — spans cols 2-3 on desktop, full width on mobile */}
+      <div className="shrink-0" style={{ gridColumn: '2 / 4', gridRow: 1 }}>
+        <TopBar onMenuClick={() => setNavOpen(true)} />
+      </div>
+
+      {/* Main content */}
       <main
-        className="overflow-y-auto p-6 bg-reef-bg"
-        style={{ gridColumn: '2', gridRow: '2' }}
+        className="flex-1 overflow-y-auto p-4 lg:p-6 bg-reef-bg"
+        style={{ gridColumn: 2, gridRow: 2 }}
       >
         <Outlet context={{ setLive }} />
       </main>
-      <RightRail />
+
+      {/* Right rail — hidden on mobile, visible on desktop */}
+      <div className="hidden lg:block" style={{ gridColumn: 3, gridRow: 2 }}>
+        <RightRail />
+      </div>
+
+      <MobileNav open={navOpen} onClose={() => setNavOpen(false)} />
     </div>
   )
 }

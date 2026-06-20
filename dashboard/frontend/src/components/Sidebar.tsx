@@ -36,10 +36,7 @@ export default function Sidebar() {
   }, [])
 
   return (
-    <div
-      className="flex flex-col bg-reef-card border-r border-reef-border overflow-hidden"
-      style={{ gridColumn: '1', gridRow: '1 / 3' }}
-    >
+    <div className="flex flex-col bg-reef-card border-r border-reef-border overflow-hidden h-full">
       {/* Logo */}
       <div className="flex flex-col gap-1 px-4 py-5 border-b border-reef-border shrink-0">
         <div className="flex items-center gap-2">

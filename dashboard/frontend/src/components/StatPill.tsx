@@ -22,6 +22,7 @@ export default function StatPill({ label, value, change, positive, sparkline, ch
       padding: '0 20px',
       borderRight: '1px solid var(--reef-border)',
       minWidth: '130px',
+      flexShrink: 0,
       height: '100%',
     }}>
       <div style={{
@@ -31,6 +32,7 @@ export default function StatPill({ label, value, change, positive, sparkline, ch
         letterSpacing: '0.08em',
         color: '#64748b',
         marginBottom: '3px',
+        whiteSpace: 'nowrap',
       }}>
         {label}
       </div>
