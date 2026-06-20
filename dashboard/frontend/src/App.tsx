@@ -23,7 +23,7 @@ function AppShell() {
     // gridColumn/gridRow on children are ignored when flex is active.
     <div
       className="h-screen w-screen overflow-hidden bg-reef-bg flex flex-col lg:grid lg:grid-rows-[88px_1fr]"
-      style={{ gridTemplateColumns: '180px 1fr 340px' }}
+      style={{ gridTemplateColumns: '180px 1fr 420px' }}
     >
       {/* Sidebar — hidden on mobile, spans both rows on desktop */}
       <div

@@ -109,16 +109,32 @@ def route_portfolio(db) -> dict:
     # Active sharks — distinct surfaced_by values across all trades
     active_sharks = len(db.trades.distinct("surfaced_by"))
 
-    # Display value — use latest snapshot to reflect full 2025→2026 journey
-    latest_snap = db.portfolio_snapshots.find_one({}, sort=[("timestamp", DESCENDING)])
-    display_value = latest_snap["portfolio_value"] if latest_snap else portfolio_value
-
-    # Snapshots for chart (last 400)
+    # All snapshots chronologically — no limit so 1W/1M/3M timescale filters work correctly
     snaps = list(
         db.portfolio_snapshots.find({}, {"_id": 0})
         .sort("timestamp", 1)
-        .limit(400)
     )
+
+    # Display value — use latest snapshot to reflect full trading journey
+    display_value = snaps[-1]["portfolio_value"] if snaps else portfolio_value
+
+    # inception_date from first snapshot
+    inception_date = str(snaps[0]["timestamp"])[:10] if snaps else ""
+
+    # max single-trade gain
+    max_trade_gain = max((t.get("pnl") or 0.0 for t in closed), default=0.0)
+
+    # max drawdown from snapshot series (peak-to-trough %)
+    max_drawdown = 0.0
+    peak_val = snaps[0]["portfolio_value"] if snaps else starting
+    for s in snaps:
+        v = s["portfolio_value"]
+        if v > peak_val:
+            peak_val = v
+        if peak_val > 0:
+            dd = (peak_val - v) / peak_val * 100
+            if dd > max_drawdown:
+                max_drawdown = dd
 
     return _ok({
         "value": round(display_value, 2),
@@ -139,6 +155,9 @@ def route_portfolio(db) -> dict:
         "month_gain": round(month_gain, 2),
         "month_gain_pct": round(month_gain / starting * 100, 2) if starting else 0.0,
         "active_sharks": active_sharks,
+        "inception_date": inception_date,
+        "max_trade_gain": round(max_trade_gain, 2),
+        "max_drawdown": round(max_drawdown, 2),
         "snapshots": snaps,
     })
 

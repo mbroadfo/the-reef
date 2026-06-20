@@ -26,6 +26,9 @@ export interface Portfolio {
   month_gain?: number
   month_gain_pct?: number
   active_sharks?: number
+  inception_date?: string
+  max_trade_gain?: number
+  max_drawdown?: number
 }
 
 export interface Position {

@@ -35,7 +35,7 @@ export default function TradesTable({ trades, compact = false, dashboard = false
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-reef-border">
-              {['Date', 'Ticker', 'Action', 'P&L', 'Shark'].map((h) => (
+              {['Ticker', 'Date', 'Action', 'P&L', 'Shark'].map((h) => (
                 <th key={h} className="text-left text-slate-500 text-xs font-sans font-medium uppercase tracking-widest px-3 py-2.5">
                   {h}
                 </th>
@@ -54,10 +54,10 @@ export default function TradesTable({ trades, compact = false, dashboard = false
                   onClick={() => navigate(`/trades/${t.id}`)}
                   className="border-b border-reef-border/50 hover:bg-reef-elevated/30 transition-colors cursor-pointer"
                 >
+                  <td className="px-3 py-2 font-bold font-mono text-white text-xs">{t.ticker}</td>
                   <td className="px-3 py-2 text-slate-500 text-xs font-mono whitespace-nowrap">
                     {new Date(t.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </td>
-                  <td className="px-3 py-2 font-bold font-mono text-white text-xs">{t.ticker}</td>
                   <td className="px-3 py-2">
                     <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded border ${
                       isBuy

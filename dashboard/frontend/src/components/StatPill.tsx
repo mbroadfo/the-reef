@@ -22,7 +22,7 @@ export default function StatPill({ label, value, change, positive, sparkline, ch
       padding: '0 20px',
       borderRight: '1px solid var(--reef-border)',
       minWidth: '130px',
-      flexShrink: 0,
+      flex: '1 0 130px',
       height: '100%',
     }}>
       <div style={{

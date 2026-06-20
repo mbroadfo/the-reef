@@ -91,27 +91,33 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
       {/* Sub-metrics row */}
       <div style={{ display: 'flex', gap: '8px' }}>
         <MetricBox
-          label="Starting Value"
-          value={`$${fmt(portfolio.starting_cash)}`}
+          label="Trading Since"
+          value={portfolio.inception_date
+            ? new Date(portfolio.inception_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
+            : '—'}
         />
         <MetricBox
-          label="Cash Available"
-          value={`$${fmt(portfolio.cash)}`}
+          label="No. Transactions"
+          value={String(portfolio.total_trades)}
         />
         <MetricBox
-          label="Realized P&L"
-          value={`${portfolio.realized_pnl >= 0 ? '+' : ''}$${fmt(Math.abs(portfolio.realized_pnl))}`}
-          positive={portfolio.realized_pnl >= 0}
+          label="Total P&L"
+          value={`${portfolio.total_pnl >= 0 ? '+' : ''}$${fmt(Math.abs(portfolio.total_pnl))}`}
+          positive={portfolio.total_pnl >= 0}
         />
         <MetricBox
-          label="Unrealized P&L"
-          value={`${portfolio.unrealized_pnl >= 0 ? '+' : ''}$${fmt(Math.abs(portfolio.unrealized_pnl))}`}
-          positive={portfolio.unrealized_pnl >= 0}
+          label="Max Gain"
+          value={portfolio.max_trade_gain != null
+            ? `+$${fmt(portfolio.max_trade_gain)}`
+            : '—'}
+          positive={true}
         />
         <MetricBox
-          label="Profit Factor"
-          value={portfolio.profit_factor != null ? portfolio.profit_factor.toFixed(2) : '—'}
-          positive={portfolio.profit_factor != null ? portfolio.profit_factor >= 1 : undefined}
+          label="Max Drawdown"
+          value={portfolio.max_drawdown != null
+            ? `${portfolio.max_drawdown.toFixed(1)}%`
+            : '—'}
+          positive={false}
         />
       </div>
 
