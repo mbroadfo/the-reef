@@ -337,6 +337,20 @@ if __name__ == "__main__":
             print(f"[scanner] Guard check failed ({e}) — using top signal")
             candidate = signals[0]
 
+        # Daily dive cap — don't dispatch if we've already dived N times today
+        DAILY_DIVE_CAP = 3
+        if candidate:
+            try:
+                from ..brokerage.the_tank import get_db as _get_db
+                _db = _get_db()
+                today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                dives_today = _db.decisions.count_documents({"timestamp": {"$gte": today_start.isoformat()}})
+                if dives_today >= DAILY_DIVE_CAP:
+                    print(f"[scanner] Daily dive cap reached ({dives_today}/{DAILY_DIVE_CAP}) — skipping dispatch")
+                    candidate = None
+            except Exception as e:
+                print(f"[scanner] Cap check failed ({e}) — proceeding with dispatch")
+
         if candidate:
             print(f"TOP_TICKER={candidate.ticker}")
             print(f"TOP_PRIORITY={candidate.priority}")

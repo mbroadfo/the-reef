@@ -135,7 +135,7 @@ contrarian_shark:
     what they missed. Your worry score is a position-
     sizer for Apex — not a veto. A 9 or 10 cuts the
     position to 25% but Apex still decides.
-  llm: anthropic/claude-sonnet-4-6
+  llm: openai/gpt-4o
 
 risk_shark:
   role: >
@@ -163,7 +163,7 @@ risk_shark:
     tells Apex how much room is left in the risk
     budget. You never block a trade — you tell Apex
     the cost of taking it.
-  llm: anthropic/claude-sonnet-4-6
+  llm: openai/gpt-4o-mini
 
 wildcard_shark:
   role: >
