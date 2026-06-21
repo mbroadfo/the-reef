@@ -136,18 +136,18 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         height: '100%',
       }}>
         {/* Active Sharks */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '3px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '3px', minWidth: '180px' }}>
           <div style={{ fontSize: '11px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' }}>
             Active Sharks
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '20px', fontWeight: 700, fontFamily: FONT_MONO, color: '#f1f5f9', lineHeight: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '28px', fontWeight: 700, fontFamily: FONT_MONO, color: '#f1f5f9', lineHeight: 1 }}>
               {activeSharks}
             </span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--reef-gain)', fontFamily: FONT_SANS }}>All Systems Go</span>
-              <svg width="52" height="16" viewBox="0 0 52 16">
-                <polyline points="0,8 8,8 12,2 16,14 20,8 28,8 32,3 36,13 40,8 52,8"
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--reef-gain)', fontFamily: FONT_SANS }}>All Systems Go</span>
+              <svg width="64" height="18" viewBox="0 0 64 18">
+                <polyline points="0,9 8,9 13,2 18,16 23,9 32,9 37,3 42,15 47,9 64,9"
                   fill="none" stroke="var(--reef-gain)" strokeWidth="1.5"
                   strokeLinecap="round" strokeLinejoin="round" />
               </svg>
@@ -158,16 +158,20 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Market Open */}
+        {/* Market Open — 2 lines */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: '8px',
-          padding: '6px 12px', borderRadius: '999px',
+          padding: '8px 14px', borderRadius: '12px',
           background: 'var(--reef-elevated)', border: '1px solid var(--reef-border)',
         }}>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--reef-gain)', animation: 'pulse 2s infinite' }} />
-          <span style={{ fontSize: '14px', fontFamily: FONT_SANS, color: 'white' }}>Market Open</span>
-          <span style={{ fontFamily: FONT_MONO, fontSize: '13px', color: '#94a3b8' }}>{formatTime(now)}</span>
-          <span style={{ fontFamily: FONT_SANS, fontSize: '12px', color: '#64748b' }}>{formatDate(now)}</span>
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--reef-gain)', animation: 'pulse 2s infinite', flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontFamily: FONT_SANS, color: 'white', fontWeight: 600 }}>Market Open</span>
+              <span style={{ fontFamily: FONT_MONO, fontSize: '13px', color: '#94a3b8' }}>{formatTime(now)}</span>
+            </div>
+            <span style={{ fontFamily: FONT_SANS, fontSize: '11px', color: '#64748b' }}>{formatDate(now)}</span>
+          </div>
         </div>
 
         {/* User avatar */}
