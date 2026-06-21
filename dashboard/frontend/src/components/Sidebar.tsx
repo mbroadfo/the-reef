@@ -1,29 +1,24 @@
 import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
-import {
-  LayoutDashboard, Fish, Briefcase, ArrowLeftRight,
-  MapPin, Globe, Lightbulb, FileText, Settings,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import SentimentGauge from './SentimentGauge'
 import reefLogo from '../assets/the_reef_logo.png'
 import { fetchSentiment } from '../api'
 import type { Sentiment } from '../types'
 
-const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
-  { label: 'Command Center', path: '/',          icon: LayoutDashboard },
-  { label: 'Sharks',         path: '/sharks',    icon: Fish },
-  { label: 'Portfolio',      path: '/portfolio', icon: Briefcase },
-  { label: 'Trades',         path: '/trades',    icon: ArrowLeftRight },
-  { label: 'Positions',      path: '/positions', icon: MapPin },
-  { label: 'Market Map',     path: '/market',    icon: Globe },
-  { label: 'Insights',       path: '/insights',  icon: Lightbulb },
-  { label: 'Reports',        path: '/reports',   icon: FileText },
-  { label: 'Settings',       path: '/settings',  icon: Settings },
+const NAV_ITEMS: { label: string; path: string; emoji: string }[] = [
+  { label: 'Command Center', path: '/',          emoji: '⚡' },
+  { label: 'Sharks',         path: '/sharks',    emoji: '🦈' },
+  { label: 'Portfolio',      path: '/portfolio', emoji: '📊' },
+  { label: 'Trades',         path: '/trades',    emoji: '↗️' },
+  { label: 'Positions',      path: '/positions', emoji: '📍' },
+  { label: 'Market Map',     path: '/market',    emoji: '🌐' },
+  { label: 'Insights',       path: '/insights',  emoji: '💡' },
+  { label: 'Reports',        path: '/reports',   emoji: '📋' },
+  { label: 'Settings',       path: '/settings',  emoji: '⚙️' },
 ]
 
-const active   = 'flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium border-l-2 border-reef-gain text-reef-gain bg-reef-elevated'
-const inactive = 'flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium border-l-2 border-transparent text-slate-400 hover:text-white hover:bg-reef-elevated transition-colors'
+const active   = 'flex items-center gap-3 px-3 py-2.5 font-medium border-l-2 border-reef-gain text-reef-gain bg-reef-elevated'
+const inactive = 'flex items-center gap-3 px-3 py-2.5 font-medium border-l-2 border-transparent text-slate-400 hover:text-white hover:bg-reef-elevated transition-colors'
 
 export default function Sidebar() {
   const [sentiment, setSentiment] = useState<Sentiment | null>(null)
@@ -49,14 +44,15 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex flex-col py-2 flex-1 overflow-y-auto">
-        {NAV_ITEMS.map(({ label, path, icon: Icon }) => (
+        {NAV_ITEMS.map(({ label, path, emoji }) => (
           <NavLink
             key={path}
             to={path}
             end={path === '/'}
             className={({ isActive }) => isActive ? active : inactive}
+            style={{ fontSize: '15px' }}
           >
-            <Icon size={15} className="shrink-0" />
+            <span style={{ fontSize: '16px', lineHeight: 1, width: '20px', textAlign: 'center', flexShrink: 0 }}>{emoji}</span>
             <span>{label}</span>
           </NavLink>
         ))}

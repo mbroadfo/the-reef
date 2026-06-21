@@ -114,8 +114,10 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         </StatPill>
       </div>
 
-      {/* Right: clock + user avatar — hidden on mobile */}
+      {/* Right: clock + user avatar — fixed 605px to align with right rail column */}
       <div className="hidden lg:flex" style={{
+        width: '605px',
+        minWidth: '605px',
         padding: '0 16px',
         alignItems: 'center',
         gap: '8px',

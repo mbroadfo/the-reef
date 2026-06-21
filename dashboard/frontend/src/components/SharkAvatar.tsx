@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getSharkColor, normalizeSharkName } from '../utils/sharks'
+import sharkImg from '../assets/shark-base.png'
 
 const TINT: Record<string, string> = {
   momentum:   'hue-rotate(240deg) saturate(1.4)',
@@ -53,7 +54,7 @@ export default function SharkAvatar({ name, size = 'md' }: Props) {
       style={{ borderColor: color, boxShadow: shadow }}
     >
       <img
-        src="/shark-base.png"
+        src={sharkImg}
         alt={normalized}
         onError={() => setImgFailed(true)}
         className="w-full h-full object-contain"
