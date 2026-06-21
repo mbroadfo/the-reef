@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ReferenceDot, ResponsiveContainer,
 } from 'recharts'
 import type { Snapshot } from '../types'
@@ -13,7 +13,6 @@ const TIMESCALES: Timescale[] = ['1W', '1M', '3M', 'All']
 function getSlice(snapshots: Snapshot[], ts: Timescale): Snapshot[] {
   if (ts === 'All' || snapshots.length === 0) return snapshots
   const now = Date.now()
-  // Count how many snapshots fall in the last 7 days (live data window)
   const weekCutoff = now - 7 * 86400000
   const weekCount = snapshots.filter(s => new Date(s.timestamp).getTime() >= weekCutoff).length
 
@@ -21,13 +20,11 @@ function getSlice(snapshots: Snapshot[], ts: Timescale): Snapshot[] {
     return snapshots.filter(s => new Date(s.timestamp).getTime() >= weekCutoff)
   }
 
-  // For 1M / 3M: try date filter; if it returns the same as 1W (data gap), fall back to index slice
   const days = ts === '1M' ? 30 : 90
   const cutoff = now - days * 86400000
   const dateFiltered = snapshots.filter(s => new Date(s.timestamp).getTime() >= cutoff)
   if (dateFiltered.length > weekCount) return dateFiltered
 
-  // Index-based fallback — always shows meaningfully more than 1W
   const frac = ts === '1M' ? 0.30 : 0.65
   const count = Math.max(weekCount + 15, Math.ceil(snapshots.length * frac))
   return snapshots.slice(Math.max(0, snapshots.length - count))
@@ -48,24 +45,33 @@ function fmtY(v: number): string {
   return `$${v.toFixed(0)}`
 }
 
-interface TooltipPayload {
-  value: number
-  payload: { timestamp: string; event: string }
+function DiamondShape({ cx = 0, cy = 0 }: { cx?: number; cy?: number }) {
+  const s = 6
+  return (
+    <polygon
+      points={`${cx},${cy - s} ${cx + s},${cy} ${cx},${cy + s} ${cx - s},${cy}`}
+      fill="#00ff88"
+      stroke="var(--reef-card)"
+      strokeWidth={1.5}
+    />
+  )
 }
 
-function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: { value: number; payload: { timestamp: string; event: string } }[] }) {
   if (!active || !payload?.length) return null
   const { value, payload: p } = payload[0]
   const d = new Date(p.timestamp)
   return (
-    <div className="bg-reef-card border border-reef-border rounded-lg px-3 py-2 text-xs">
+    <div className="bg-reef-card border border-reef-border rounded-lg px-3 py-2 text-xs shadow-lg">
       <div className="text-slate-400 font-sans">
         {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        {' '}
+        {d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
       </div>
-      <div className="text-white font-bold font-mono">
+      <div className="text-white font-bold font-mono text-sm">
         ${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}
       </div>
-      {p.event && p.event !== 'daily' && (
+      {p.event && !['eod', 'daily', 'reset'].includes(p.event) && (
         <div className={`font-sans uppercase font-semibold ${p.event === 'BUY' ? 'text-blue-400' : 'text-amber-400'}`}>
           {p.event}
         </div>
@@ -94,7 +100,8 @@ export default function PortfolioChart({ snapshots, startingCash }: Props) {
     .map(s => ({ timestamp: s.timestamp, portfolio_value: s.portfolio_value, event: s.event }))
 
   const ticks = computeTicks(data.map(d => d.timestamp), 6)
-  const markers = data.filter(d => d.event === 'BUY' || d.event === 'SELL')
+  const buyMarkers = data.filter(d => d.event === 'BUY')
+  const lastPoint = data[data.length - 1]
 
   return (
     <div className="card p-4">
@@ -102,38 +109,35 @@ export default function PortfolioChart({ snapshots, startingCash }: Props) {
         <div style={{ fontSize: '11px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' }}>
           Portfolio Growth
         </div>
-        <div style={{ display: 'flex', gap: '4px' }}>
+        <select
+          value={ts}
+          onChange={e => setTs(e.target.value as Timescale)}
+          style={{
+            background: 'var(--reef-elevated)',
+            border: '1px solid var(--reef-border)',
+            borderRadius: '4px',
+            color: '#94a3b8',
+            fontSize: '11px',
+            fontFamily: FONT_SANS,
+            fontWeight: 600,
+            padding: '3px 24px 3px 10px',
+            cursor: 'pointer',
+            outline: 'none',
+            appearance: 'none',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'right 7px center',
+            backgroundSize: '8px',
+          }}
+        >
           {TIMESCALES.map(t => (
-            <button
-              key={t}
-              onClick={() => setTs(t)}
-              style={{
-                padding: '3px 10px',
-                borderRadius: '4px',
-                fontSize: '11px',
-                fontFamily: FONT_SANS,
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: '1px solid',
-                borderColor: ts === t ? 'var(--reef-gain)' : 'var(--reef-border)',
-                background: ts === t ? 'rgba(0,255,136,0.12)' : 'transparent',
-                color: ts === t ? 'var(--reef-gain)' : '#64748b',
-                transition: 'all 150ms',
-              }}
-            >
-              {t}
-            </button>
+            <option key={t} value={t} style={{ background: '#1a2535' }}>{t}</option>
           ))}
-        </div>
+        </select>
       </div>
+
       <ResponsiveContainer width="100%" height={220}>
-        <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id="gainGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor="#00ff88" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#00ff88" stopOpacity={0} />
-            </linearGradient>
-          </defs>
+        <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" vertical={false} />
           <XAxis
             dataKey="timestamp"
@@ -161,28 +165,35 @@ export default function PortfolioChart({ snapshots, startingCash }: Props) {
             strokeDasharray="4 4"
             label={{ value: 'Start', fill: 'var(--reef-border)', fontSize: 10, position: 'insideTopLeft' }}
           />
-          <Area
+          <Line
             type="monotone"
             dataKey="portfolio_value"
-            stroke="#00ff88"
+            stroke="#3b82f6"
             strokeWidth={2}
-            fill="url(#gainGrad)"
             dot={false}
-            activeDot={{ r: 4, fill: '#00ff88' }}
+            activeDot={{ r: 4, fill: '#3b82f6' }}
             isAnimationActive={false}
           />
-          {markers.map((m, i) => (
+          {buyMarkers.map((m, i) => (
             <ReferenceDot
               key={i}
               x={m.timestamp}
               y={m.portfolio_value}
-              r={4}
-              fill={m.event === 'BUY' ? '#3b82f6' : '#f59e0b'}
-              stroke="var(--reef-card)"
-              strokeWidth={1.5}
+              r={6}
+              shape={(props: { cx?: number; cy?: number }) => <DiamondShape cx={props.cx} cy={props.cy} />}
             />
           ))}
-        </AreaChart>
+          {lastPoint && (
+            <ReferenceDot
+              x={lastPoint.timestamp}
+              y={lastPoint.portfolio_value}
+              r={5}
+              fill="#3b82f6"
+              stroke="#1e3a8a"
+              strokeWidth={2}
+            />
+          )}
+        </LineChart>
       </ResponsiveContainer>
     </div>
   )
