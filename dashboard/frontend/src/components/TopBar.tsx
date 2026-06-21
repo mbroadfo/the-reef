@@ -19,41 +19,19 @@ function formatDate(d: Date): string {
   })
 }
 
-function WinRateRing({ pct }: { pct: number }) {
-  const size = 48
-  const cx = size / 2
-  const r = 18
+function WinRateArc({ pct }: { pct: number }) {
+  const size = 52, cx = 26, r = 21
   const circumference = 2 * Math.PI * r
   const filled = circumference * (pct / 100)
-  const gap = 2.5
-  const segments = 10
-  const segArc = circumference / segments
-  const segFill = segArc - gap
-  const filledSegs = Math.round((pct / 100) * segments)
-
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {Array.from({ length: segments }).map((_, i) => {
-        const offset = circumference - i * segArc
-        const isOn = i < filledSegs
-        return (
-          <circle
-            key={i}
-            cx={cx} cy={cx} r={r}
-            fill="none"
-            stroke={isOn ? 'var(--reef-gain)' : 'var(--reef-border)'}
-            strokeWidth="5"
-            strokeDasharray={`${segFill} ${circumference - segFill}`}
-            strokeDashoffset={offset}
-            strokeLinecap="butt"
-            transform={`rotate(-90 ${cx} ${cx})`}
-          />
-        )
-      })}
-      <text x={cx} y={cx + 1} textAnchor="middle" dominantBaseline="middle"
-        fill="white" fontSize="9" fontFamily="JetBrains Mono" fontWeight="700">
-        {pct.toFixed(0)}%
-      </text>
+      <circle cx={cx} cy={cx} r={r} fill="none" stroke="var(--reef-border)" strokeWidth="4" />
+      <circle cx={cx} cy={cx} r={r} fill="none"
+        stroke="var(--reef-gain)" strokeWidth="4"
+        strokeDasharray={`${filled} ${circumference - filled}`}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${cx} ${cx})`}
+      />
     </svg>
   )
 }
@@ -129,16 +107,21 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
             : undefined}
           positive={(portfolio?.month_gain ?? 0) >= 0}
         />
-        {/* Win Rate with segmented ring */}
+        {/* Win Rate — large text + clean arc */}
         <div style={{
           display: 'flex', flexDirection: 'column', justifyContent: 'center',
           padding: '0 20px', borderRight: '1px solid var(--reef-border)',
-          minWidth: '130px', flex: '1 0 130px', height: '100%',
+          minWidth: '150px', flex: '1 0 150px', height: '100%',
         }}>
-          <div style={{ fontSize: '11px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: '4px' }}>
+          <div style={{ fontSize: '11px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: '3px' }}>
             Win Rate
           </div>
-          <WinRateRing pct={winRate} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '20px', fontWeight: 700, fontFamily: FONT_MONO, color: '#f1f5f9', lineHeight: 1 }}>
+              {winRate.toFixed(1)}%
+            </span>
+            <WinRateArc pct={winRate} />
+          </div>
         </div>
       </div>
 
@@ -153,18 +136,18 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         height: '100%',
       }}>
         {/* Active Sharks */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', marginRight: '4px' }}>
-          <div style={{ fontSize: '11px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: '3px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '3px' }}>
+          <div style={{ fontSize: '11px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' }}>
             Active Sharks
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '20px', fontWeight: 700, fontFamily: FONT_MONO, color: '#f1f5f9', lineHeight: 1 }}>
               {activeSharks}
             </span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontSize: '10px', color: 'var(--reef-gain)', fontFamily: FONT_SANS }}>All Systems Go</span>
-              <svg width="40" height="14" viewBox="0 0 40 14">
-                <polyline points="0,7 8,7 11,2 14,12 17,7 25,7 28,3 31,11 34,7 40,7"
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--reef-gain)', fontFamily: FONT_SANS }}>All Systems Go</span>
+              <svg width="52" height="16" viewBox="0 0 52 16">
+                <polyline points="0,8 8,8 12,2 16,14 20,8 28,8 32,3 36,13 40,8 52,8"
                   fill="none" stroke="var(--reef-gain)" strokeWidth="1.5"
                   strokeLinecap="round" strokeLinejoin="round" />
               </svg>
