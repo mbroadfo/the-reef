@@ -110,3 +110,16 @@ export interface Sector {
   ticker: string
   pct_change: number
 }
+
+export interface Holding {
+  ticker: string
+  daily_pct: number
+  unrealized_pnl_pct: number
+  market_value: number
+  sector: string
+}
+
+export interface MarketData {
+  vix: { current: number; previous: number; pct_change: number }
+  holdings: Holding[]
+}

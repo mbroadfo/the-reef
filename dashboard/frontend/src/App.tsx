@@ -9,6 +9,8 @@ import DashboardPage from './pages/DashboardPage'
 import PositionsPage from './pages/PositionsPage'
 import TradesPage from './pages/TradesPage'
 import SharksPage from './pages/SharksPage'
+import PortfolioPage from './pages/PortfolioPage'
+import MarketPage from './pages/MarketPage'
 
 const ComingSoon = () => (
   <div className="text-slate-500 p-8">Coming soon</div>
@@ -67,8 +69,8 @@ export default function App() {
             <Route path="/positions" element={<PositionsPage />} />
             <Route path="/trades"    element={<TradesPage />} />
             <Route path="/trades/:id" element={<TradesPage />} />
-            <Route path="/portfolio" element={<ComingSoon />} />
-            <Route path="/market"    element={<ComingSoon />} />
+            <Route path="/portfolio" element={<PortfolioPage />} />
+            <Route path="/market"    element={<MarketPage />} />
             <Route path="/insights"  element={<ComingSoon />} />
             <Route path="/reports"   element={<ComingSoon />} />
             <Route path="/settings"  element={<ComingSoon />} />
