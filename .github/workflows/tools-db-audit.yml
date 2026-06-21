@@ -1,0 +1,26 @@
+name: "Tools: DB Audit"
+# Manual trigger — audits MongoDB data integrity and cross-checks dashboard metrics.
+# Outputs a full report to the Actions log. Exits non-zero if any hard failures found.
+on:
+  workflow_dispatch:
+    inputs:
+      db:
+        description: "Database name (the_reef or the_reef_dev)"
+        required: false
+        default: "the_reef"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: pip install pymongo[srv] -q
+
+      - name: Run audit
+        env:
+          MONGODB_URI: "mongodb+srv://mbroadfo_db_user:${{ secrets.MONGODB_PASSWORD }}@reef-m0.1sxeyjd.mongodb.net/?authSource=admin&appName=reef-m0"
+          MONGODB_DB: ${{ github.event.inputs.db || 'the_reef' }}
+        run: python tools/db_audit.py
