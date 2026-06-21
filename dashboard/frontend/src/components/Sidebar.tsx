@@ -33,11 +33,9 @@ export default function Sidebar() {
   return (
     <div className="flex flex-col bg-reef-card border-r border-reef-border overflow-hidden h-full">
       {/* Logo */}
-      <div className="flex flex-col gap-1 px-4 py-5 border-b border-reef-border shrink-0">
-        <div className="flex items-center gap-2">
-          <img src={reefLogo} alt="The Reef" style={{ height: '48px', width: 'auto', filter: 'brightness(1.4) drop-shadow(0 0 6px rgba(0,255,136,0.3))' }} />
-        </div>
-        <div className="text-[9px] font-mono tracking-widest text-slate-500 uppercase">
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-reef-border shrink-0">
+        <img src={reefLogo} alt="The Reef" style={{ height: '48px', width: 'auto', filter: 'brightness(1.4) drop-shadow(0 0 6px rgba(0,255,136,0.3))', flexShrink: 0 }} />
+        <div className="text-[9px] font-mono tracking-widest text-slate-500 uppercase leading-tight">
           AI Trading Command Center
         </div>
       </div>
