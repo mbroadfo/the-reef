@@ -1,9 +1,9 @@
-name: 🦈 Scanner — Detect Signals
+name: Scanner - Detect Signals
 
 on:
   schedule:
-    # Every 5 minutes, Mon–Fri, 9:30am–4:00pm ET (13:30–21:00 UTC)
-    - cron: "*/5 13-20 * * 1-5"
+    # Every 20 minutes, Mon-Fri, 9:30am-4:00pm ET (13:30-21:00 UTC)
+    - cron: "*/20 13-20 * * 1-5"
     - cron: "30 13 * * 1-5"   # catch 9:30am ET open exactly
   workflow_dispatch:           # Manual trigger from GitHub UI
     inputs:
