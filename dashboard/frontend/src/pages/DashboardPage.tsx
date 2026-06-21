@@ -18,10 +18,11 @@ function fmt(n: number) {
 interface MetricBoxProps {
   label: string
   value: string
+  subtitle?: string
   positive?: boolean
 }
 
-function MetricBox({ label, value, positive }: MetricBoxProps) {
+function MetricBox({ label, value, subtitle, positive }: MetricBoxProps) {
   const color = positive === undefined ? '#f1f5f9' : positive ? 'var(--reef-gain)' : 'var(--reef-loss)'
   return (
     <div style={{
@@ -38,6 +39,11 @@ function MetricBox({ label, value, positive }: MetricBoxProps) {
       <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: FONT_MONO, color }}>
         {value}
       </div>
+      {subtitle && (
+        <div style={{ fontSize: '11px', fontWeight: 600, fontFamily: FONT_MONO, color, marginTop: '1px', opacity: 0.8 }}>
+          {subtitle}
+        </div>
+      )}
     </div>
   )
 }
@@ -82,6 +88,10 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
 
   const lastSell = trades.find(t => t.action === 'SELL' && t.pnl !== null) ?? null
 
+  const bestDay = portfolio.snapshots.length > 1
+    ? Math.max(...portfolio.snapshots.slice(1).map((s, i) => s.portfolio_value - portfolio.snapshots[i].portfolio_value))
+    : 0
+
   return (
     <div className="px-6 py-6 space-y-4">
 
@@ -95,19 +105,19 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
           value={`$${fmt(portfolio.starting_cash)}`}
         />
         <MetricBox
-          label="Total Return"
-          value={`${portfolio.total_pnl_pct >= 0 ? '+' : ''}${portfolio.total_pnl_pct.toFixed(1)}%`}
+          label="Total Gain"
+          value={`${portfolio.total_pnl >= 0 ? '+' : ''}$${fmt(portfolio.total_pnl)}`}
+          subtitle={`${portfolio.total_pnl_pct >= 0 ? '+' : ''}${portfolio.total_pnl_pct.toFixed(1)}%`}
           positive={portfolio.total_pnl_pct >= 0}
         />
         <MetricBox
-          label="Profit Factor"
-          value={portfolio.profit_factor != null ? portfolio.profit_factor.toFixed(2) : '—'}
-          positive={portfolio.profit_factor != null ? portfolio.profit_factor >= 1 : undefined}
+          label="Net Contributions"
+          value="$0.00"
         />
         <MetricBox
-          label="Best Trade"
-          value={portfolio.max_trade_gain != null ? `+$${fmt(portfolio.max_trade_gain)}` : '—'}
-          positive={true}
+          label="Best Day"
+          value={bestDay > 0 ? `+$${fmt(bestDay)}` : '—'}
+          positive={bestDay > 0}
         />
         <MetricBox
           label="Max Drawdown"

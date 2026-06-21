@@ -56,10 +56,13 @@ export default function TradesTable({ trades, compact = false, dashboard = false
                   className="border-b border-reef-border/50 hover:bg-reef-elevated/30 transition-colors cursor-pointer"
                 >
                   <td className="px-2 py-1.5 font-mono text-slate-500 whitespace-nowrap">
-                    {new Date(t.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {new Date(t.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                   </td>
                   <td className="px-2 py-1.5">
-                    <SharkAvatar name={sharkName} size="sm" />
+                    <div className="flex items-center gap-1.5">
+                      <SharkAvatar name={sharkName} size="sm" />
+                      <span className="text-xs font-sans truncate" style={{ color, maxWidth: '80px' }}>{sharkName}</span>
+                    </div>
                   </td>
                   <td className="px-2 py-1.5 font-mono font-bold text-white">{t.ticker}</td>
                   <td className="px-2 py-1.5">
@@ -73,11 +76,12 @@ export default function TradesTable({ trades, compact = false, dashboard = false
                   <td className="px-2 py-1.5 font-mono text-slate-300">{t.shares}</td>
                   <td className="px-2 py-1.5 font-mono text-slate-300">${t.price.toFixed(2)}</td>
                   <td className="px-2 py-1.5">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <div style={{ width: '36px', height: '4px', background: 'var(--reef-border)', borderRadius: '2px', overflow: 'hidden' }}>
-                        <div style={{ width: `${conv * 10}%`, height: '100%', background: color, borderRadius: '2px' }} />
-                      </div>
-                      <span style={{ color: '#64748b', fontFamily: 'JetBrains Mono' }}>{conv}</span>
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '50%',
+                      border: `2px solid ${color}`, display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', background: `${color}18`,
+                    }}>
+                      <span style={{ fontSize: '9px', fontFamily: 'JetBrains Mono', fontWeight: 700, color }}>{conv * 10}%</span>
                     </div>
                   </td>
                   <td className="px-2 py-1.5 font-mono font-semibold" style={{ color: pnlColor }}>

@@ -44,8 +44,8 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
               onClick={() => navigate('/sharks')}
               className={`card cursor-pointer hover:shadow-card-glow transition-all duration-200 flex flex-col items-center${!isActive ? ' opacity-50' : ''}`}
               style={{
-                padding: '8px 6px 10px',
-                minHeight: '160px',
+                padding: '10px 8px 12px',
+                minHeight: '200px',
                 position: 'relative',
                 borderColor: isActive ? color : undefined,
                 borderWidth: isActive ? '1.5px' : undefined,
@@ -65,7 +65,7 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
               <div style={{
                 position: 'relative',
                 width: '100%',
-                height: '100px',
+                height: '120px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -100,7 +100,7 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
               {/* Return % */}
               <div style={{ textAlign: 'center', marginTop: '6px' }}>
                 <div style={{
-                  fontSize: '16px',
+                  fontSize: '18px',
                   fontWeight: '800',
                   fontFamily: FONT_MONO,
                   color: returnVal == null ? '#64748b' : returnVal > 0 ? 'var(--reef-gain)' : returnVal < 0 ? 'var(--reef-loss)' : '#64748b',

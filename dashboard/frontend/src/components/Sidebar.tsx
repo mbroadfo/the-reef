@@ -62,9 +62,17 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Sentiment gauge pinned to bottom */}
-      <div className="px-4 py-4 border-t border-reef-border shrink-0">
-        <SentimentGauge score={sentiment?.score ?? 0} label={sentiment?.label} />
+      {/* Sentiment gauge + quote pinned to bottom */}
+      <div className="border-t border-reef-border shrink-0">
+        <div className="px-4 pt-4 pb-2">
+          <SentimentGauge score={sentiment?.score ?? 0} label={sentiment?.label} />
+        </div>
+        <div className="px-4 pb-4 text-center">
+          <div className="text-[10px] text-slate-600 italic leading-relaxed">
+            "The best traders don't predict the future, they prepare for it."
+          </div>
+          <div className="text-[10px] text-slate-700 mt-1 not-italic">— The Reef</div>
+        </div>
       </div>
     </div>
   )

@@ -45,11 +45,11 @@ export default function SharkAvatar({ name, size = 'md' }: Props) {
     </div>
   )
 
-  if (size !== 'lg' || imgFailed) return base
+  if (imgFailed) return base
 
   return (
     <div
-      className="w-16 h-16 rounded-full bg-reef-elevated border-2 overflow-hidden shrink-0"
+      className={`${SIZE[size]} rounded-full bg-reef-elevated border-2 overflow-hidden shrink-0`}
       style={{ borderColor: color, boxShadow: shadow }}
     >
       <img

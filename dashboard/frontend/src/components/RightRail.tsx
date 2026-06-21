@@ -11,7 +11,11 @@ function relativeTime(ts: string): string {
   const mins = Math.floor((Date.now() - new Date(ts).getTime()) / 60000)
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
-  return `${Math.floor(mins / 60)}h ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}d ago`
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function heatStyle(pct: number) {
@@ -126,14 +130,15 @@ export default function RightRail() {
               }}
             >
               <div style={{
-                fontSize: '10px',
+                fontSize: '9px',
                 fontFamily: FONT_SANS,
                 fontWeight: '600',
                 textTransform: 'uppercase',
-                letterSpacing: '0.06em',
+                letterSpacing: '0.04em',
                 color: '#94a3b8',
+                lineHeight: 1.2,
               }}>
-                {s.sector.split(' ')[0]}
+                {s.sector}
               </div>
               <div style={{
                 fontSize: '13px',
