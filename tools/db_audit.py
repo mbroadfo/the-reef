@@ -58,8 +58,6 @@ else:
     ok(f"cash=${cash:.2f}  starting=${starting:.2f}")
     if cash < 0:
         flag(f"Negative cash balance: ${cash:.2f}")
-    if cash > starting * 1.5:
-        warn(f"Cash (${cash:.2f}) is >150% of starting — possible accounting error")
 
 
 # ── 3. Trades audit ───────────────────────────────────────────────────────────
@@ -199,15 +197,23 @@ if state:
         else:
             ok(f"Latest snapshot=${snap_value:.2f} — within ${diff:.2f} of live value")
 
-    # Realized PnL cross-check
+    # Cash math cross-check: starting + realized - cost_of_open_positions ≈ cash
     closed = [t for t in all_trades if t.get("action") == "SELL" and t.get("pnl") is not None]
     total_realized = sum(t.get("pnl", 0) for t in closed)
-    starting = state.get("starting_cash", 10000)
-    expected_cash = starting + total_realized - equity
-    cash_diff = abs(cash - (starting + total_realized - sum(
-        b["shares"] * b["price"] for ticker in buys for b in buys[ticker]
+    open_cost = sum(
+        b["shares"] * b["price"]
+        for ticker in buys
+        for b in buys[ticker]
         if any(p["_id"] == ticker for p in positions)
-    )))
+    )
+    starting = state.get("starting_cash", 10000)
+    expected_cash = starting + total_realized - open_cost
+    cash_diff = abs(cash - expected_cash)
+    if cash_diff > 10:
+        warn(f"Cash mismatch: actual=${cash:.2f}, expected=${expected_cash:.2f} "
+             f"(starting={starting:.2f} + realized={total_realized:.2f} - open_cost={open_cost:.2f}), diff=${cash_diff:.2f}")
+    else:
+        ok(f"Cash math checks out: ${cash:.2f} ≈ starting + realized - open_cost")
     ok(f"Total realized PnL from SELLs: ${total_realized:.2f}")
     ok(f"Wins: {len([t for t in closed if t.get('pnl',0)>0])}  Losses: {len([t for t in closed if t.get('pnl',0)<=0])}")
 
@@ -259,8 +265,11 @@ if convictions:
 
 # ── 9. Decisions collection ───────────────────────────────────────────────────
 section("9. DECISIONS COLLECTION")
+total_decisions = db.decisions.count_documents({})
 decisions = list(db.decisions.find({}, {"_id": 0}).sort("timestamp", DESCENDING).limit(5))
-ok(f"Recent decisions: {len(decisions)}")
+ok(f"Total decisions: {total_decisions}")
+if total_decisions == 0:
+    warn("No decisions — TradeDetails Apex rationale will be blank for all trades")
 for d in decisions:
     ok(f"  {str(d.get('timestamp',''))[:19]}  {d.get('ticker','?')}  {d.get('decision','?')}  conviction={d.get('conviction','?')}")
 
