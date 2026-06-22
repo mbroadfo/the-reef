@@ -24,8 +24,23 @@ from pymongo import MongoClient, DESCENDING
 _secrets: dict | None = None
 _sector_cache: dict[str, str] = {}
 
+# Hardcoded sectors for all reef watchlist tickers — avoids slow yf.info calls
+_KNOWN_SECTORS: dict[str, str] = {
+    "NVDA": "Technology",              "AMD": "Technology",
+    "AVGO": "Technology",              "ARM": "Technology",
+    "TSM": "Technology",               "SMCI": "Technology",
+    "AAPL": "Technology",              "PLTR": "Technology",
+    "META": "Communication Services",  "ASTS": "Communication Services",
+    "COIN": "Financial Services",      "MSTR": "Financial Services",
+    "MARA": "Financial Services",      "HOOD": "Financial Services",
+    "TSLA": "Consumer Cyclical",       "RKLB": "Industrials",
+    "SPCX": "Industrials",
+}
+
 
 def _get_sector(ticker: str) -> str:
+    if ticker in _KNOWN_SECTORS:
+        return _KNOWN_SECTORS[ticker]
     if ticker not in _sector_cache:
         try:
             import yfinance as yf
