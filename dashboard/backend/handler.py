@@ -359,12 +359,39 @@ def route_sentiment(db) -> dict:
     })
 
 
-def route_market(db) -> dict:
-    import yfinance as yf
-    positions = list(db.positions.find())
+def _yf_pct(ticker: str) -> float:
+    """Fetch day % change for a single ticker. Returns 0.0 on any error."""
+    try:
+        import yfinance as yf
+        fi = yf.Ticker(ticker).fast_info
+        prev = fi.previous_close
+        curr = fi.last_price
+        if prev and curr and prev > 0:
+            return round(float((curr - prev) / prev * 100), 2)
+        hist = yf.Ticker(ticker).history(period="5d")
+        if len(hist) >= 2:
+            return round(float((hist["Close"].iloc[-1] - hist["Close"].iloc[-2]) / hist["Close"].iloc[-2] * 100), 2)
+    except Exception as e:
+        print(f"[yf_pct] {ticker}: {e}")
+    return 0.0
 
-    # VIX
-    vix_data: dict = {"current": 0.0, "previous": 0.0, "pct_change": 0.0}
+
+def route_market(db) -> dict:
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import yfinance as yf
+
+    positions = list(db.positions.find())
+    tickers = ["^VIX"] + [p["_id"] for p in positions]
+
+    # Fetch all tickers in parallel
+    pct_map: dict[str, float] = {}
+    with ThreadPoolExecutor(max_workers=len(tickers)) as ex:
+        futures = {ex.submit(_yf_pct, t): t for t in tickers}
+        for f in as_completed(futures):
+            pct_map[futures[f]] = f.result()
+
+    vix_pct = pct_map.get("^VIX", 0.0)
+    vix_data: dict = {"current": 0.0, "previous": 0.0, "pct_change": vix_pct}
     try:
         fi = yf.Ticker("^VIX").fast_info
         curr = fi.last_price
@@ -376,27 +403,17 @@ def route_market(db) -> dict:
                 "pct_change": round(float((curr - prev) / prev * 100), 2),
             }
     except Exception as e:
-        print(f"[market] VIX error: {e}")
+        print(f"[market] VIX detail error: {e}")
 
-    # Holdings daily performance
     holdings = []
     for p in positions:
         ticker = p["_id"]
         entry = p.get("entry_price", 0) or 0
         current = p.get("current_price", 0) or 0
         unrealized_pnl_pct = round((current - entry) / entry * 100, 2) if entry else 0.0
-        daily_pct = 0.0
-        try:
-            fi2 = yf.Ticker(ticker).fast_info
-            prev2 = fi2.previous_close
-            curr2 = fi2.last_price
-            if prev2 and curr2 and prev2 > 0:
-                daily_pct = round(float((curr2 - prev2) / prev2 * 100), 2)
-        except Exception:
-            pass
         holdings.append({
             "ticker": ticker,
-            "daily_pct": daily_pct,
+            "daily_pct": pct_map.get(ticker, 0.0),
             "unrealized_pnl_pct": unrealized_pnl_pct,
             "market_value": round(p.get("shares", 0) * current, 2),
             "sector": _get_sector(ticker),
@@ -407,6 +424,8 @@ def route_market(db) -> dict:
 
 
 def route_sectors(db) -> dict:
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     SECTOR_ETFS = {
         "Technology":        "XLK",
         "Financials":        "XLF",
@@ -415,25 +434,15 @@ def route_sectors(db) -> dict:
         "Industrials":       "XLI",
         "Energy":            "XLE",
     }
-    import yfinance as yf
-    result = []
-    for sector, ticker in SECTOR_ETFS.items():
-        pct = 0.0
-        try:
-            info = yf.Ticker(ticker).fast_info
-            prev = info.previous_close
-            curr = info.last_price
-            if prev and curr and prev > 0:
-                pct = round(float((curr - prev) / prev * 100), 2)
-            else:
-                hist = yf.Ticker(ticker).history(period="5d")
-                if len(hist) >= 2:
-                    pct = round(float((hist["Close"].iloc[-1] - hist["Close"].iloc[-2]) / hist["Close"].iloc[-2] * 100), 2)
-                else:
-                    print(f"[sectors] No price data for {ticker}")
-        except Exception as e:
-            print(f"[sectors] {ticker} error: {e}")
-        result.append({"sector": sector, "ticker": ticker, "pct_change": pct})
+
+    with ThreadPoolExecutor(max_workers=len(SECTOR_ETFS)) as ex:
+        futures = {ex.submit(_yf_pct, etf): (sector, etf) for sector, etf in SECTOR_ETFS.items()}
+        results = {meta: f.result() for f, meta in [(f, futures[f]) for f in as_completed(futures)]}
+
+    result = [
+        {"sector": sector, "ticker": etf, "pct_change": results[(sector, etf)]}
+        for sector, etf in SECTOR_ETFS.items()
+    ]
     return _ok(result)
 
 
