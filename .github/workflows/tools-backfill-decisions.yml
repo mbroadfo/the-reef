@@ -1,0 +1,22 @@
+name: Tools: Backfill Decisions
+on:
+  workflow_dispatch:
+    inputs:
+      db:
+        description: "Database name"
+        required: false
+        default: "the_reef"
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: pip install pymongo[srv] dnspython
+      - name: Run backfill
+        env:
+          MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+          DB_NAME: ${{ inputs.db }}
+        run: python tools/backfill_decisions.py
