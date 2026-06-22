@@ -172,11 +172,12 @@ for p in positions:
     else:
         ok(f"Position {ticker}: shares={shares_pos} matches trade history")
 
-    # Check entry_price vs first BUY price
+    # Check entry_price vs most recent BUY price (tickers may have multiple trade rounds)
     if ticker in buys:
-        first_buy_price = buys[ticker][0].get("price", 0)
-        if abs(entry_price - first_buy_price) > 0.01:
-            warn(f"Position {ticker}: entry_price={entry_price} vs first BUY price={first_buy_price}")
+        latest_buy = max(buys[ticker], key=lambda t: t.get("id", 0))
+        latest_buy_price = latest_buy.get("price", 0)
+        if abs(entry_price - latest_buy_price) > 0.01:
+            warn(f"Position {ticker}: entry_price={entry_price} vs latest BUY price={latest_buy_price}")
 
 
 # ── 6. Portfolio value cross-check ────────────────────────────────────────────
@@ -200,12 +201,8 @@ if state:
     # Cash math cross-check: starting + realized - cost_of_open_positions ≈ cash
     closed = [t for t in all_trades if t.get("action") == "SELL" and t.get("pnl") is not None]
     total_realized = sum(t.get("pnl", 0) for t in closed)
-    open_cost = sum(
-        b["shares"] * b["price"]
-        for ticker in buys
-        for b in buys[ticker]
-        if any(p["_id"] == ticker for p in positions)
-    )
+    # Open cost = position shares × entry_price (not all buys for that ticker)
+    open_cost = sum(p["shares"] * p["entry_price"] for p in positions)
     starting = state.get("starting_cash", 10000)
     expected_cash = starting + total_realized - open_cost
     cash_diff = abs(cash - expected_cash)

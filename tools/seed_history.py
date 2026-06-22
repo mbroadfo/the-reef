@@ -265,7 +265,8 @@ def main():
 
     # ── Idempotent cleanup — delete all seeded data ────────────────────────────
     print("\nCleaning up previous seed data…")
-    n_trades    = db.trades.delete_many({"seeded": True}).deleted_count
+    # Remove seeded=True docs (new style) and legacy negative-ID trades (old style)
+    n_trades    = db.trades.delete_many({"$or": [{"seeded": True}, {"id": {"$lt": 0}}]}).deleted_count
     n_positions = db.positions.delete_many({"seeded": True}).deleted_count
     n_snaps     = db.portfolio_snapshots.delete_many({}).deleted_count
     n_decisions = db.decisions.delete_many({"seeded": True}).deleted_count
