@@ -175,7 +175,14 @@ def route_portfolio(db) -> dict:
 
 
 def route_positions(db) -> dict:
+    from concurrent.futures import ThreadPoolExecutor
     docs = list(db.positions.find())
+
+    # Pre-fetch all sectors in parallel
+    tickers = [p["_id"] for p in docs]
+    with ThreadPoolExecutor(max_workers=max(1, len(tickers))) as ex:
+        sector_map = dict(zip(tickers, ex.map(_get_sector, tickers)))
+
     result = []
     for p in docs:
         entry = p["entry_price"]
@@ -199,7 +206,7 @@ def route_positions(db) -> dict:
             "vetted_by": p.get("vetted_by", ""),
             "conviction": p.get("conviction", 0),
             "entry_time": p.get("entry_time", ""),
-            "sector": _get_sector(p["_id"]),
+            "sector": sector_map.get(p["_id"], "Other"),
         })
     result.sort(key=lambda x: x["unrealized_pnl"], reverse=True)
     return _ok(result)

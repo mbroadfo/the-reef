@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { fetchPortfolio, fetchSharks, fetchTrades, fetchPositions } from '../api'
-import type { Portfolio, Shark, Trade, Position } from '../types'
+import { fetchSharks, fetchTrades, fetchPositions } from '../api'
+import { usePortfolio } from '../context/PortfolioContext'
+import type { Shark, Trade, Position } from '../types'
 import PortfolioChart from '../components/PortfolioChart'
 import SharkAquarium from '../components/SharkAquarium'
 import TradesTable from '../components/TradesTable'
@@ -49,19 +50,20 @@ function MetricBox({ label, value, subtitle, positive }: MetricBoxProps) {
 }
 
 export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void }) {
-  const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
+  const portfolio                  = usePortfolio()
   const [sharks, setSharks]       = useState<Shark[]>([])
   const [trades, setTrades]       = useState<Trade[]>([])
   const [positions, setPositions] = useState<Position[]>([])
   const [error, setError]         = useState<string | null>(null)
+  const [ready, setReady]         = useState(false)
 
   useEffect(() => {
-    Promise.all([fetchPortfolio(), fetchSharks(), fetchTrades(20), fetchPositions()])
-      .then(([p, s, t, pos]) => {
-        setPortfolio(p)
+    Promise.all([fetchSharks(), fetchTrades(20), fetchPositions()])
+      .then(([s, t, pos]) => {
         setSharks(s)
         setTrades(t.trades)
         setPositions(pos)
+        setReady(true)
         onLive(true)
       })
       .catch((e) => {
@@ -78,7 +80,7 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
     )
   }
 
-  if (!portfolio) {
+  if (!portfolio || !ready) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-12 text-slate-500 text-sm font-sans animate-pulse">
         Loading...
