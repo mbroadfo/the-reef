@@ -143,9 +143,6 @@ def route_portfolio(db) -> dict:
         .sort("timestamp", 1)
     )
 
-    # Display value — use latest snapshot to reflect full trading journey
-    display_value = snaps[-1]["portfolio_value"] if snaps else portfolio_value
-
     # inception_date from first snapshot
     inception_date = str(snaps[0]["timestamp"])[:10] if snaps else ""
 
@@ -165,12 +162,12 @@ def route_portfolio(db) -> dict:
                 max_drawdown = dd
 
     return _ok({
-        "value": round(display_value, 2),
+        "value": round(portfolio_value, 2),
         "cash": round(cash, 2),
         "equity": round(equity, 2),
         "starting_cash": round(starting, 2),
-        "total_pnl": round(display_value - starting, 2),
-        "total_pnl_pct": round((display_value - starting) / starting * 100, 2),
+        "total_pnl": round(portfolio_value - starting, 2),
+        "total_pnl_pct": round((portfolio_value - starting) / starting * 100, 2),
         "realized_pnl": round(total_realized, 2),
         "unrealized_pnl": round(unrealized, 2),
         "win_rate_pct": round(len(wins) / len(closed) * 100, 1) if closed else 0.0,
@@ -179,9 +176,9 @@ def route_portfolio(db) -> dict:
         "losses": len(losses),
         "profit_factor": round(profit_factor, 2) if profit_factor is not None else None,
         "today_gain": round(today_gain, 2),
-        "today_gain_pct": round(today_gain / display_value * 100, 2) if display_value else 0.0,
+        "today_gain_pct": round(today_gain / portfolio_value * 100, 2) if portfolio_value else 0.0,
         "month_gain": round(month_gain, 2),
-        "month_gain_pct": round(month_gain / display_value * 100, 2) if display_value else 0.0,
+        "month_gain_pct": round(month_gain / portfolio_value * 100, 2) if portfolio_value else 0.0,
         "active_sharks": active_sharks,
         "inception_date": inception_date,
         "max_trade_gain": round(max_trade_gain, 2),
@@ -218,8 +215,8 @@ def route_positions(db) -> dict:
             "unrealized_pnl_pct": round(pnl / cost * 100, 2) if cost else 0.0,
             "cost_basis": round(cost, 2),
             "market_value": round(mv, 2),
-            "surfaced_by": _LEGACY_SHARK_NAMES.get(p.get("surfaced_by", ""), p.get("surfaced_by", "")),
-            "vetted_by": _LEGACY_SHARK_NAMES.get(p.get("vetted_by", ""), p.get("vetted_by", "")),
+            "surfaced_by": _norm_names(p.get("surfaced_by", "")),
+            "vetted_by": _norm_names(p.get("vetted_by", "")),
             "conviction": p.get("conviction", 0),
             "entry_time": p.get("entry_time", ""),
             "sector": sector_map.get(p["_id"], "Other"),
@@ -231,8 +228,6 @@ def route_positions(db) -> dict:
 def route_trades(db, limit: int = 50, skip: int = 0) -> dict:
     docs = list(db.trades.find().sort("id", DESCENDING).skip(skip).limit(limit))
     result = []
-    def _norm(name: str) -> str:
-        return _LEGACY_SHARK_NAMES.get(name, name)
 
     for t in docs:
         result.append({
@@ -242,8 +237,8 @@ def route_trades(db, limit: int = 50, skip: int = 0) -> dict:
             "shares": t["shares"],
             "price": t["price"],
             "timestamp": t["timestamp"],
-            "surfaced_by": _norm(t.get("surfaced_by", "")),
-            "vetted_by": _norm(t.get("vetted_by", "")),
+            "surfaced_by": _norm_names(t.get("surfaced_by", "")),
+            "vetted_by": _norm_names(t.get("vetted_by", "")),
             "conviction": t.get("conviction", 0),
             "stop_loss": t.get("stop_loss"),
             "target_price": t.get("target_price"),
@@ -269,8 +264,8 @@ def route_trade_detail(db, trade_id: int) -> dict:
         "shares": doc["shares"],
         "price": doc["price"],
         "timestamp": doc["timestamp"],
-        "surfaced_by": doc.get("surfaced_by", ""),
-        "vetted_by": doc.get("vetted_by", ""),
+        "surfaced_by": _norm_names(doc.get("surfaced_by", "")),
+        "vetted_by": _norm_names(doc.get("vetted_by", "")),
         "conviction": doc.get("conviction", 0),
         "stop_loss": doc.get("stop_loss"),
         "target_price": doc.get("target_price"),
@@ -312,6 +307,13 @@ _LEGACY_SHARK_NAMES: dict[str, str] = {
     "News Shark":        "Sentiment Shark",
     "Options Shark":     "Risk Shark",
 }
+
+
+def _norm_names(s: str) -> str:
+    """Normalize a single name or comma-separated list of shark names."""
+    if not s:
+        return s
+    return ", ".join(_LEGACY_SHARK_NAMES.get(p.strip(), p.strip()) for p in s.split(",") if p.strip())
 
 
 def route_sharks(db) -> dict:
