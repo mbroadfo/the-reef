@@ -1,4 +1,4 @@
-name: Tools: Backfill Decisions
+name: "Tools: Backfill Decisions"
 on:
   workflow_dispatch:
     inputs:
