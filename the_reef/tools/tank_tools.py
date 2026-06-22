@@ -115,6 +115,14 @@ class ExecuteBuyTool(BaseTool):
             target_price=target,
             reason=reason,
         )
+        if ok:
+            tank.log_decision(
+                ticker=ticker,
+                signal_type="TRADE_EXECUTION",
+                decision="BUY",
+                conviction=conviction,
+                rationale=f"Surfaced by {surfaced_by}. Vetted by {vetted_by}. {reason}",
+            )
         return msg
 
 
@@ -137,7 +145,7 @@ class ExecuteSellTool(BaseTool):
         if price is None:
             return f"Could not get current price for {ticker} — sell aborted"
 
-        ok, msg = tank.sell(ticker=ticker, shares=pos.shares, price=price, reason=reason)
+        _, msg = tank.sell(ticker=ticker, shares=pos.shares, price=price, reason=reason)
         return msg
 
 

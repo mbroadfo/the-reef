@@ -133,8 +133,9 @@ def route_portfolio(db) -> dict:
         if (_d := _parse_date(t.get("timestamp"))) is not None and _d >= month_start
     )
 
-    # Active sharks — distinct surfaced_by values across all trades
-    active_sharks = len(db.trades.distinct("surfaced_by"))
+    # Active sharks — distinct normalized names across all trades
+    raw_names = db.trades.distinct("surfaced_by")
+    active_sharks = len({_LEGACY_SHARK_NAMES.get(n, n) for n in raw_names if n})
 
     # All snapshots chronologically — no limit so 1W/1M/3M timescale filters work correctly
     snaps = list(
@@ -217,8 +218,8 @@ def route_positions(db) -> dict:
             "unrealized_pnl_pct": round(pnl / cost * 100, 2) if cost else 0.0,
             "cost_basis": round(cost, 2),
             "market_value": round(mv, 2),
-            "surfaced_by": p.get("surfaced_by", ""),
-            "vetted_by": p.get("vetted_by", ""),
+            "surfaced_by": _LEGACY_SHARK_NAMES.get(p.get("surfaced_by", ""), p.get("surfaced_by", "")),
+            "vetted_by": _LEGACY_SHARK_NAMES.get(p.get("vetted_by", ""), p.get("vetted_by", "")),
             "conviction": p.get("conviction", 0),
             "entry_time": p.get("entry_time", ""),
             "sector": sector_map.get(p["_id"], "Other"),
@@ -230,6 +231,9 @@ def route_positions(db) -> dict:
 def route_trades(db, limit: int = 50, skip: int = 0) -> dict:
     docs = list(db.trades.find().sort("id", DESCENDING).skip(skip).limit(limit))
     result = []
+    def _norm(name: str) -> str:
+        return _LEGACY_SHARK_NAMES.get(name, name)
+
     for t in docs:
         result.append({
             "id": t["id"],
@@ -238,8 +242,8 @@ def route_trades(db, limit: int = 50, skip: int = 0) -> dict:
             "shares": t["shares"],
             "price": t["price"],
             "timestamp": t["timestamp"],
-            "surfaced_by": t.get("surfaced_by", ""),
-            "vetted_by": t.get("vetted_by", ""),
+            "surfaced_by": _norm(t.get("surfaced_by", "")),
+            "vetted_by": _norm(t.get("vetted_by", "")),
             "conviction": t.get("conviction", 0),
             "stop_loss": t.get("stop_loss"),
             "target_price": t.get("target_price"),
@@ -291,6 +295,16 @@ def route_trade_detail(db, trade_id: int) -> dict:
 
 
 _LEGACY_SHARK_NAMES: dict[str, str] = {
+    # snake_case CrewAI agent names → display names
+    "hunter_shark":     "Hunter Shark",
+    "research_shark":   "Research Shark",
+    "macro_shark":      "Macro Shark",
+    "sentiment_shark":  "Sentiment Shark",
+    "contrarian_shark": "Contrarian Shark",
+    "risk_shark":       "Risk Shark",
+    "wildcard_shark":   "Wildcard Shark",
+    "apex_shark":       "Apex Shark",
+    # legacy title-case renames
     "Fundamental Shark": "Research Shark",
     "Value Shark":       "Research Shark",
     "Earnings Shark":    "Research Shark",
