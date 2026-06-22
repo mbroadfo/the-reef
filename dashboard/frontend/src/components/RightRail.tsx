@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-import { fetchTrades, fetchSectors } from '../api'
-import type { Trade, Sector } from '../types'
+import { fetchTrades } from '../api'
+import type { Trade } from '../types'
 import { getSharkColor, normalizeSharkName } from '../utils/sharks'
 import SharkAvatar from './SharkAvatar'
 
 const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
-const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
 
 function relativeTime(ts: string): string {
   const mins = Math.floor((Date.now() - new Date(ts).getTime()) / 60000)
@@ -18,29 +17,13 @@ function relativeTime(ts: string): string {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function heatStyle(pct: number) {
-  if (pct > 1)    return { background: 'rgba(0,255,136,0.22)', border: '0.5px solid rgba(0,255,136,0.3)' }
-  if (pct > 0.5)  return { background: 'rgba(0,255,136,0.14)' }
-  if (pct > 0)    return { background: 'rgba(0,255,136,0.07)' }
-  if (pct > -0.5) return { background: 'rgba(255,68,68,0.12)' }
-  return { background: 'rgba(255,68,68,0.20)', border: '0.5px solid rgba(255,68,68,0.25)' }
-}
-
 export default function RightRail() {
-  const [trades, setTrades]   = useState<Trade[]>([])
-  const [sectors, setSectors] = useState<Sector[]>([])
+  const [trades, setTrades] = useState<Trade[]>([])
 
   useEffect(() => {
     const loadTrades = () => fetchTrades(8).then(r => setTrades(r.trades)).catch(() => {})
     loadTrades()
     const id = setInterval(loadTrades, 30_000)
-    return () => clearInterval(id)
-  }, [])
-
-  useEffect(() => {
-    const loadSectors = () => fetchSectors().then(setSectors).catch(() => {})
-    loadSectors()
-    const id = setInterval(loadSectors, 300_000)
     return () => clearInterval(id)
   }, [])
 
@@ -100,58 +83,6 @@ export default function RightRail() {
         )}
       </div>
 
-      {/* ── Market Heat Map ── */}
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-xs font-sans uppercase tracking-widest text-slate-500">
-            Market Heat Map
-          </span>
-          <span style={{ fontSize: '11px', color: '#64748b', fontFamily: FONT_SANS, cursor: 'default' }}>
-            Today ▾
-          </span>
-        </div>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gridTemplateRows: 'auto auto',
-          gap: '3px',
-        }}>
-          {sectors.map(s => (
-            <div
-              key={s.ticker}
-              style={{
-                ...heatStyle(s.pct_change),
-                padding: '8px',
-                borderRadius: '6px',
-                minHeight: '48px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div style={{
-                fontSize: '9px',
-                fontFamily: FONT_SANS,
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#94a3b8',
-                lineHeight: 1.2,
-              }}>
-                {s.sector}
-              </div>
-              <div style={{
-                fontSize: '13px',
-                fontFamily: FONT_MONO,
-                fontWeight: '700',
-                color: s.pct_change >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)',
-              }}>
-                {s.pct_change >= 0 ? '+' : ''}{s.pct_change.toFixed(2)}%
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   )
 }

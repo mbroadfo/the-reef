@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { fetchSectors, fetchMarket, fetchDecisions } from '../api'
-import type { Sector, MarketData, Decision } from '../types'
+import { fetchSectors, fetchMarket } from '../api'
+import type { Sector, MarketData } from '../types'
 
 const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
 const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
@@ -87,90 +87,16 @@ function VIXGauge({ vix }: { vix: MarketData['vix'] }) {
   )
 }
 
-// ── Signals feed ─────────────────────────────────────────────────────────────
-
-function relTime(ts: string): string {
-  const mins = Math.floor((Date.now() - new Date(ts).getTime()) / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  return `${Math.floor(hrs / 24)}d ago`
-}
-
-function SignalsFeed({ decisions }: { decisions: Decision[] }) {
-  return (
-    <div className="card p-4">
-      <div style={{ fontSize: '11px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: '12px' }}>
-        Recent Signals
-      </div>
-      {decisions.length === 0 ? (
-        <div style={{ fontSize: '12px', color: '#64748b', fontFamily: FONT_SANS, padding: '16px 0', textAlign: 'center' }}>No signals yet</div>
-      ) : (
-        <div>
-          {decisions.map((d, i) => {
-            const isBuy = d.decision === 'BUY'
-            const isSell = d.decision === 'SELL'
-            const badgeColor = isBuy ? { bg: 'rgba(59,130,246,0.12)', text: '#3b82f6', border: 'rgba(59,130,246,0.3)' }
-                             : isSell ? { bg: 'rgba(245,158,11,0.12)', text: '#f59e0b', border: 'rgba(245,158,11,0.3)' }
-                             : { bg: 'rgba(100,116,139,0.12)', text: '#64748b', border: 'rgba(100,116,139,0.3)' }
-            return (
-              <div
-                key={i}
-                style={{
-                  display: 'flex', gap: '10px', alignItems: 'flex-start',
-                  padding: '10px 0', borderBottom: i < decisions.length - 1 ? '1px solid var(--reef-border)' : 'none',
-                }}
-              >
-                {/* Decision badge */}
-                <div style={{
-                  width: '44px', padding: '2px 0', borderRadius: '4px', flexShrink: 0, textAlign: 'center',
-                  fontSize: '10px', fontFamily: FONT_MONO, fontWeight: 700,
-                  color: badgeColor.text, background: badgeColor.bg, border: `1px solid ${badgeColor.border}`,
-                }}>
-                  {d.decision || 'PASS'}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '2px' }}>
-                    <span style={{ fontSize: '13px', fontFamily: FONT_MONO, fontWeight: 700, color: '#f1f5f9' }}>{d.ticker}</span>
-                    {d.signal_type && (
-                      <span style={{ fontSize: '9px', fontFamily: FONT_SANS, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        {d.signal_type}
-                      </span>
-                    )}
-                    <span style={{ fontSize: '10px', fontFamily: FONT_MONO, color: '#3b82f6', marginLeft: 'auto' }}>
-                      {d.conviction}/10
-                    </span>
-                  </div>
-                  {d.rationale && (
-                    <div style={{ fontSize: '11px', fontFamily: FONT_SANS, color: '#64748b', lineHeight: 1.5 }}>
-                      {d.rationale.slice(0, 140)}{d.rationale.length > 140 ? '…' : ''}
-                    </div>
-                  )}
-                  <div style={{ fontSize: '10px', fontFamily: FONT_SANS, color: '#475569', marginTop: '3px' }}>
-                    {relTime(d.timestamp)}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MarketPage() {
-  const [sectors, setSectors]     = useState<Sector[]>([])
-  const [market, setMarket]       = useState<MarketData | null>(null)
-  const [decisions, setDecisions] = useState<Decision[]>([])
-  const [loaded, setLoaded]       = useState(false)
+  const [sectors, setSectors] = useState<Sector[]>([])
+  const [market, setMarket]   = useState<MarketData | null>(null)
+  const [loaded, setLoaded]   = useState(false)
 
   useEffect(() => {
-    Promise.all([fetchSectors(), fetchMarket(), fetchDecisions()])
-      .then(([s, m, d]) => { setSectors(s); setMarket(m); setDecisions(d); setLoaded(true) })
+    Promise.all([fetchSectors(), fetchMarket()])
+      .then(([s, m]) => { setSectors(s); setMarket(m); setLoaded(true) })
       .catch(() => setLoaded(true))
   }, [])
 
@@ -222,9 +148,6 @@ export default function MarketPage() {
           </div>
         </div>
       )}
-
-      {/* Signals feed */}
-      <SignalsFeed decisions={decisions} />
 
     </div>
   )

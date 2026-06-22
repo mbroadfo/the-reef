@@ -113,8 +113,8 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
           positive={portfolio.total_pnl_pct >= 0}
         />
         <MetricBox
-          label="Net Contributions"
-          value="$0.00"
+          label="Open Positions"
+          value={`${positions.length}`}
         />
         <MetricBox
           label="Best Day"
