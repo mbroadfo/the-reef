@@ -11,7 +11,7 @@ from pymongo import MongoClient
 def main():
     db_name = os.environ.get("DB_NAME", "the_reef")
     password = os.environ["MONGODB_PASSWORD"]
-    uri = f"mongodb+srv://reef-admin:{password}@reef-m0.mongodb.net/{db_name}?retryWrites=true&w=majority"
+    uri = f"mongodb+srv://mbroadfo_db_user:{password}@reef-m0.1sxeyjd.mongodb.net/?authSource=admin&appName=reef-m0"
     db = MongoClient(uri)[db_name]
 
     # Build a set of (ticker, timestamp) already in decisions for dedup
