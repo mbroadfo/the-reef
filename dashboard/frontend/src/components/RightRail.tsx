@@ -112,7 +112,7 @@ function TradeRow({ trade, last }: { trade: Trade; last: boolean }) {
             fontSize: '11px', fontFamily: FONT_MONO, fontWeight: 700,
             color: trade.pnl >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)',
           }}>
-            {trade.pnl >= 0 ? '+' : ''}${Math.abs(trade.pnl).toFixed(0)}
+            {trade.pnl >= 0 ? '+$' : '-$'}{Math.abs(trade.pnl).toFixed(0)}
           </div>
         )}
       </div>
