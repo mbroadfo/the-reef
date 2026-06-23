@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { fetchSharks, fetchTrades, fetchPositions } from '../api'
+import { fetchSharks, fetchPositions } from '../api'
 import { usePortfolio } from '../context/PortfolioContext'
-import type { Shark, Trade, Position } from '../types'
+import type { Shark, Position } from '../types'
 import PortfolioChart from '../components/PortfolioChart'
 import SharkAquarium from '../components/SharkAquarium'
-import TradesTable from '../components/TradesTable'
-import PositionsOverview from '../components/PositionsOverview'
-import TradeDetails from '../components/TradeDetails'
+import TickerTape from '../components/TickerTape'
+import NominationPipeline from '../components/NominationPipeline'
+import AlphaBenchmark from '../components/AlphaBenchmark'
 
 const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
 const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
@@ -52,16 +51,14 @@ function MetricBox({ label, value, subtitle, positive }: MetricBoxProps) {
 export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void }) {
   const portfolio                  = usePortfolio()
   const [sharks, setSharks]       = useState<Shark[]>([])
-  const [trades, setTrades]       = useState<Trade[]>([])
   const [positions, setPositions] = useState<Position[]>([])
   const [error, setError]         = useState<string | null>(null)
   const [ready, setReady]         = useState(false)
 
   useEffect(() => {
-    Promise.all([fetchSharks(), fetchTrades(20), fetchPositions()])
-      .then(([s, t, pos]) => {
+    Promise.all([fetchSharks(), fetchPositions()])
+      .then(([s, pos]) => {
         setSharks(s)
-        setTrades(t.trades)
         setPositions(pos)
         setReady(true)
         onLive(true)
@@ -87,8 +84,6 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
       </div>
     )
   }
-
-  const lastSell = trades.find(t => t.action === 'SELL' && t.pnl !== null) ?? null
 
   const bestDay = portfolio.snapshots.length > 1
     ? Math.max(...portfolio.snapshots.slice(1).map((s, i) => s.portfolio_value - portfolio.snapshots[i].portfolio_value))
@@ -131,31 +126,15 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
       {/* Aquarium */}
       <SharkAquarium sharks={sharks} />
 
+      {/* Ticker tape */}
+      <TickerTape />
+
       {/* Bottom row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Left: Recent Trades */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-slate-500 text-xs font-sans uppercase tracking-widest">
-              Recent Trades
-            </h2>
-            <Link to="/trades" className="text-slate-600 hover:text-reef-gain text-xs font-sans transition-colors">
-              View all →
-            </Link>
-          </div>
-          <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
-            <TradesTable trades={trades} dashboard />
-          </div>
-        </div>
-
-        {/* Right: Positions + Trade Details */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <PositionsOverview positions={positions} />
-          <TradeDetails trade={lastSell} />
-        </div>
-
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <NominationPipeline />
+        <AlphaBenchmark />
       </div>
+
     </div>
   )
 }

@@ -123,3 +123,28 @@ export interface MarketData {
   vix: { current: number; previous: number; pct_change: number }
   holdings: Holding[]
 }
+
+export interface Nomination {
+  ticker: string
+  thesis: string
+  source: string
+  entry_range: string
+  created_at: string
+  expires_in_hours: number
+}
+
+export interface AlphaSeries {
+  date: string
+  value: number
+}
+
+export interface AlphaData {
+  reef_series: AlphaSeries[]
+  spy_series: AlphaSeries[]
+  alpha: number | null
+  sharpe: number | null
+  win_rate: number | null
+  conviction_winners: number | null
+  conviction_losers: number | null
+  as_of: string
+}

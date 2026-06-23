@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { fetchTrades, fetchMarket } from '../api'
-import type { Trade, MarketData } from '../types'
-import { getSharkColor, normalizeSharkName } from '../utils/sharks'
-import SharkAvatar from './SharkAvatar'
+import type { ReactNode } from 'react'
+import { fetchPositions, fetchTrades, fetchMarket } from '../api'
+import type { Position, Trade, MarketData } from '../types'
 
 const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
 const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
@@ -18,123 +17,187 @@ function relativeTime(ts: string): string {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-export default function RightRail() {
-  const [trades, setTrades]   = useState<Trade[]>([])
-  const [market, setMarket]   = useState<MarketData | null>(null)
-
-  useEffect(() => {
-    const loadTrades = () => fetchTrades(8).then(r => setTrades(r.trades)).catch(() => {})
-    loadTrades()
-    const id = setInterval(loadTrades, 30_000)
-    return () => clearInterval(id)
-  }, [])
-
-  useEffect(() => {
-    const loadMarket = () => fetchMarket().then(setMarket).catch(() => {})
-    loadMarket()
-    const id = setInterval(loadMarket, 300_000)
-    return () => clearInterval(id)
-  }, [])
-
+function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div
-      className="bg-reef-card border-l border-reef-border overflow-y-auto p-4 flex flex-col gap-6 h-full"
-    >
-      {/* ── Shark Activity Feed ── */}
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-xs font-sans uppercase tracking-widest text-slate-500">
-            Shark Activity Feed
-          </span>
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-reef-elevated border border-reef-border">
-            <div className="w-1.5 h-1.5 rounded-full bg-reef-gain animate-pulse" />
-            <span className="text-xs text-reef-gain">Live</span>
-          </div>
-        </div>
+    <div style={{ fontSize: '10px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#475569', marginBottom: '10px' }}>
+      {children}
+    </div>
+  )
+}
 
-        {trades.length === 0 ? (
-          <div className="text-xs text-slate-600 py-6 text-center">No trades yet</div>
-        ) : (
-          <div>
-            {trades.map(trade => {
-              const name   = normalizeSharkName(trade.surfaced_by || 'Apex Shark')
-              const color  = getSharkColor(name)
-              const pnl    = trade.pnl
-
-              return (
-                <div
-                  key={trade.id}
-                  className="flex gap-3 items-start py-3 border-b border-reef-border last:border-0"
-                >
-                  <SharkAvatar name={name} size="md" />
-
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-sans font-semibold truncate" style={{ color }}>
-                      {name}
-                    </div>
-                    <div className="text-xs text-slate-400">
-                      {trade.action === 'BUY' ? 'Bought' : 'Sold'} {trade.ticker}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {relativeTime(trade.timestamp)}
-                    </div>
-                  </div>
-
-                  {pnl !== null && pnl !== undefined && (
-                    <div className={`text-xs font-mono font-semibold shrink-0 ${pnl >= 0 ? 'text-gain' : 'text-loss'}`}>
-                      {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ── VIX ── */}
-      {market && (() => {
-        const vix = market.vix.current
-        const regime = vix === 0 ? 'No Data' : vix < 15 ? 'Low Vol' : vix < 20 ? 'Normal' : vix < 30 ? 'Elevated' : 'Fear'
-        const vixColor = vix === 0 ? '#64748b' : vix < 15 ? 'var(--reef-gain)' : vix < 20 ? '#f1f5f9' : vix < 30 ? '#f59e0b' : 'var(--reef-loss)'
-        const pctColor = market.vix.pct_change >= 0 ? 'var(--reef-loss)' : 'var(--reef-gain)'
+function PositionsPanel({ positions }: { positions: Position[] }) {
+  if (positions.length === 0) {
+    return <div style={{ fontSize: '11px', color: '#475569', fontFamily: FONT_SANS, padding: '8px 0' }}>No open positions</div>
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+      {positions.map((p, i) => {
+        const pnlColor = p.unrealized_pnl >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)'
+        const stopDist = p.stop_loss && p.current_price
+          ? ((p.current_price - p.stop_loss) / p.current_price * 100)
+          : null
         return (
-          <div>
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-sans uppercase tracking-widest text-slate-500">
-                Volatility Index
+          <div
+            key={p.ticker}
+            style={{
+              padding: '8px 0',
+              borderBottom: i < positions.length - 1 ? '1px solid var(--reef-border)' : 'none',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '3px' }}>
+              <span style={{ fontSize: '13px', fontFamily: FONT_MONO, fontWeight: 800, color: '#f1f5f9' }}>
+                {p.ticker}
+              </span>
+              <span style={{ fontSize: '13px', fontFamily: FONT_MONO, fontWeight: 700, color: pnlColor }}>
+                {p.unrealized_pnl >= 0 ? '+' : ''}${p.unrealized_pnl.toFixed(2)}
               </span>
             </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '10px', fontFamily: FONT_SANS, color: '#64748b' }}>
+                {p.shares} sh @ ${p.entry_price.toFixed(2)}
+              </span>
+              <span style={{ fontSize: '11px', fontFamily: FONT_MONO, fontWeight: 600, color: pnlColor }}>
+                {p.unrealized_pnl_pct >= 0 ? '+' : ''}{p.unrealized_pnl_pct.toFixed(1)}%
+              </span>
+            </div>
+            {stopDist !== null && (
+              <div style={{ fontSize: '10px', fontFamily: FONT_SANS, color: '#475569', marginTop: '2px' }}>
+                Stop ${p.stop_loss?.toFixed(2)} · {stopDist.toFixed(1)}% away
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function TradesPanel({ trades }: { trades: Trade[] }) {
+  if (trades.length === 0) {
+    return <div style={{ fontSize: '11px', color: '#475569', fontFamily: FONT_SANS, padding: '8px 0' }}>No trades yet</div>
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+      {trades.map((t, i) => {
+        const isBuy = t.action === 'BUY'
+        return (
+          <div
+            key={t.id}
+            style={{
+              display: 'flex', gap: '8px', alignItems: 'center',
+              padding: '7px 0',
+              borderBottom: i < trades.length - 1 ? '1px solid var(--reef-border)' : 'none',
+            }}
+          >
             <div style={{
-              background: 'var(--reef-elevated)',
-              border: '1px solid var(--reef-border)',
-              borderRadius: '8px',
-              padding: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px',
+              width: '36px', textAlign: 'center', flexShrink: 0,
+              fontSize: '9px', fontFamily: FONT_MONO, fontWeight: 700,
+              color: isBuy ? '#3b82f6' : '#f59e0b',
+              border: `1px solid ${isBuy ? 'rgba(59,130,246,0.3)' : 'rgba(245,158,11,0.3)'}`,
+              background: isBuy ? 'rgba(59,130,246,0.08)' : 'rgba(245,158,11,0.08)',
+              borderRadius: '3px', padding: '2px 0',
             }}>
-              <div>
-                <div style={{ fontSize: '9px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: '4px' }}>VIX</div>
-                <div style={{ fontSize: '30px', fontWeight: 800, fontFamily: FONT_MONO, color: vixColor, lineHeight: 1 }}>
-                  {vix > 0 ? vix.toFixed(2) : '—'}
+              {t.action}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '12px', fontFamily: FONT_MONO, fontWeight: 700, color: '#f1f5f9' }}>
+                {t.ticker}
+              </div>
+              <div style={{ fontSize: '10px', fontFamily: FONT_SANS, color: '#475569' }}>
+                {relativeTime(t.timestamp)}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: '11px', fontFamily: FONT_MONO, color: '#64748b' }}>
+                ${t.price.toFixed(2)}
+              </div>
+              {t.pnl !== null && (
+                <div style={{ fontSize: '10px', fontFamily: FONT_MONO, fontWeight: 600, color: t.pnl >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)' }}>
+                  {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}
                 </div>
-                {vix > 0 && (
-                  <div style={{ fontSize: '12px', fontFamily: FONT_MONO, fontWeight: 600, color: pctColor, marginTop: '2px' }}>
-                    {market.vix.pct_change >= 0 ? '+' : ''}{market.vix.pct_change.toFixed(2)}%
-                  </div>
-                )}
-              </div>
-              <div style={{
-                padding: '5px 12px', borderRadius: '6px', fontFamily: FONT_SANS, fontSize: '13px', fontWeight: 700,
-                color: vixColor, border: `1px solid ${vixColor}30`, background: `${vixColor}12`,
-              }}>
-                {regime}
-              </div>
+              )}
             </div>
           </div>
         )
-      })()}
+      })}
+    </div>
+  )
+}
+
+export default function RightRail() {
+  const [positions, setPositions] = useState<Position[]>([])
+  const [trades, setTrades]       = useState<Trade[]>([])
+  const [market, setMarket]       = useState<MarketData | null>(null)
+
+  useEffect(() => {
+    const load = () => {
+      fetchPositions().then(setPositions).catch(() => {})
+      fetchTrades(5).then(r => setTrades(r.trades)).catch(() => {})
+    }
+    load()
+    const id = setInterval(load, 30_000)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    fetchMarket().then(setMarket).catch(() => {})
+    const id = setInterval(() => fetchMarket().then(setMarket).catch(() => {}), 300_000)
+    return () => clearInterval(id)
+  }, [])
+
+  const vix = market?.vix
+  const vixColor = !vix || vix.current === 0 ? '#64748b'
+    : vix.current < 15 ? 'var(--reef-gain)'
+    : vix.current < 20 ? '#f1f5f9'
+    : vix.current < 30 ? '#f59e0b'
+    : 'var(--reef-loss)'
+  const regime = !vix || vix.current === 0 ? 'No Data'
+    : vix.current < 15 ? 'Low Vol'
+    : vix.current < 20 ? 'Normal'
+    : vix.current < 30 ? 'Elevated'
+    : 'Fear'
+
+  return (
+    <div className="bg-reef-card border-l border-reef-border overflow-y-auto p-4 flex flex-col gap-5 h-full">
+
+      {/* Open Positions */}
+      <div>
+        <SectionLabel>Open Positions</SectionLabel>
+        <PositionsPanel positions={positions} />
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--reef-border)' }} />
+
+      {/* Recent Trades */}
+      <div>
+        <SectionLabel>Recent Trades</SectionLabel>
+        <TradesPanel trades={trades} />
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--reef-border)', marginTop: 'auto' }} />
+
+      {/* VIX strip */}
+      {vix && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingTop: '4px' }}>
+          <div>
+            <div style={{ fontSize: '9px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#475569' }}>VIX</div>
+            <div style={{ fontSize: '22px', fontWeight: 800, fontFamily: FONT_MONO, color: vixColor, lineHeight: 1 }}>
+              {vix.current > 0 ? vix.current.toFixed(2) : '—'}
+            </div>
+            {vix.current > 0 && (
+              <div style={{ fontSize: '10px', fontFamily: FONT_MONO, color: vix.pct_change >= 0 ? 'var(--reef-loss)' : 'var(--reef-gain)' }}>
+                {vix.pct_change >= 0 ? '+' : ''}{vix.pct_change.toFixed(2)}%
+              </div>
+            )}
+          </div>
+          <div style={{
+            padding: '3px 10px', borderRadius: '5px', fontFamily: FONT_SANS, fontSize: '11px', fontWeight: 700,
+            color: vixColor, border: `1px solid ${vixColor}30`, background: `${vixColor}12`,
+          }}>
+            {regime}
+          </div>
+        </div>
+      )}
 
     </div>
   )
