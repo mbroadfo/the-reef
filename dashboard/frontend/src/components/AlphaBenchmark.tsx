@@ -15,10 +15,11 @@ function Sparkline({ data }: { data: AlphaData }) {
   if (reef.length < 2) {
     return (
       <div style={{
-        height: `${H}px`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '11px', fontFamily: FONT_SANS, color: '#475569',
+        height: `${H}px`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
+        border: '1px dashed var(--reef-border)', borderRadius: '6px',
       }}>
-        Accumulating data…
+        <div style={{ fontSize: '11px', fontFamily: FONT_SANS, color: '#475569' }}>Building history…</div>
+        <div style={{ fontSize: '10px', fontFamily: FONT_SANS, color: '#334155' }}>Chart populates as daily snapshots accumulate</div>
       </div>
     )
   }

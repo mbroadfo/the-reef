@@ -475,8 +475,15 @@ def route_nominations(db) -> dict:
         ).sort("created_at", DESCENDING)
     )
 
+    # Deduplicate — keep most recent nomination per ticker
+    seen: set[str] = set()
     result = []
     for d in docs:
+        ticker = d.get("ticker", "")
+        if ticker in seen:
+            continue
+        seen.add(ticker)
+
         created = d["created_at"]
         if isinstance(created, str):
             created = datetime.fromisoformat(created.replace("Z", "+00:00"))
@@ -484,13 +491,15 @@ def route_nominations(db) -> dict:
             created = created.replace(tzinfo=timezone.utc)
         expires_in_hours = max(0.0, ((created + timedelta(hours=48)) - now).total_seconds() / 3600)
         result.append({
-            "ticker":           d.get("ticker", ""),
+            "ticker":           ticker,
             "thesis":           d.get("thesis", ""),
             "source":           _norm_names(d.get("source", "")),
             "entry_range":      d.get("entry_range", ""),
             "created_at":       d.get("created_at"),
             "expires_in_hours": round(expires_in_hours, 1),
         })
+        if len(result) >= 10:
+            break
 
     return _ok(result)
 

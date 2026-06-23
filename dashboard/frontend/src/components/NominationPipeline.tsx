@@ -68,7 +68,7 @@ export default function NominationPipeline() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {nominations.map((n, i) => (
             <div
               key={i}

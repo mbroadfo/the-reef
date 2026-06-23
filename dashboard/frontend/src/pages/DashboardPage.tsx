@@ -129,8 +129,8 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
       {/* Ticker tape */}
       <TickerTape />
 
-      {/* Bottom row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Bottom row — fixed height so both cards align */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ height: '460px' }}>
         <NominationPipeline />
         <AlphaBenchmark />
       </div>
