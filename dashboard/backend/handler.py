@@ -9,13 +9,16 @@ Routes:
   GET /api/trades/{id}  single trade + matching decision
   GET /api/sentiment    AI sentiment score 0-100 (Bullish/Neutral/Bearish)
   GET /api/sectors      sector ETF % changes (XLK, XLF, XLV, XLY, XLI, XLE)
+  GET /api/nominations  active scanner nominations (< 48h TTL)
+  GET /api/alpha        Reef vs SPY performance + Sharpe/win-rate stats
 """
 from __future__ import annotations
 
 import json
 import os
+import statistics
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import boto3
@@ -461,6 +464,139 @@ def route_market(db) -> dict:
     return _ok({"vix": vix_data, "holdings": holdings})
 
 
+def route_nominations(db) -> dict:
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=48)
+
+    docs = list(
+        db.nominations.find(
+            {"created_at": {"$gte": cutoff}},
+            {"_id": 0},
+        ).sort("created_at", DESCENDING)
+    )
+
+    result = []
+    for d in docs:
+        created = d["created_at"]
+        if isinstance(created, str):
+            created = datetime.fromisoformat(created.replace("Z", "+00:00"))
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        expires_in_hours = max(0.0, ((created + timedelta(hours=48)) - now).total_seconds() / 3600)
+        result.append({
+            "ticker":           d.get("ticker", ""),
+            "thesis":           d.get("thesis", ""),
+            "source":           _norm_names(d.get("source", "")),
+            "entry_range":      d.get("entry_range", ""),
+            "created_at":       d.get("created_at"),
+            "expires_in_hours": round(expires_in_hours, 1),
+        })
+
+    return _ok(result)
+
+
+def route_alpha(db) -> dict:
+    import yfinance as yf
+
+    def _snap_date(ts):
+        try:
+            if isinstance(ts, datetime):
+                return ts.astimezone(timezone.utc).date()
+            return datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone(timezone.utc).date()
+        except Exception:
+            return None
+
+    snaps = list(db.portfolio_snapshots.find({}, {"_id": 0}).sort("timestamp", 1))
+
+    # Group by date — last snapshot value per day
+    date_value: dict = {}
+    for s in snaps:
+        d = _snap_date(s["timestamp"])
+        if d:
+            date_value[d] = s["portfolio_value"]
+
+    sorted_dates = sorted(date_value.keys())
+
+    _empty = {
+        "reef_series": [], "spy_series": [], "alpha": None,
+        "sharpe": None, "win_rate": None,
+        "conviction_winners": None, "conviction_losers": None,
+        "as_of": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if len(sorted_dates) < 2:
+        return _ok(_empty)
+
+    start_date, end_date = sorted_dates[0], sorted_dates[-1]
+
+    # Fetch SPY daily closes
+    spy_map: dict = {}
+    try:
+        hist = yf.Ticker("SPY").history(
+            start=str(start_date - timedelta(days=5)),
+            end=str(end_date + timedelta(days=2)),
+        )
+        for idx in hist.index:
+            d = idx.date() if hasattr(idx, "date") else idx
+            spy_map[d] = float(hist.loc[idx, "Close"])
+    except Exception as e:
+        print(f"[alpha] SPY fetch error: {e}")
+
+    # SPY baseline: last trading day on or before start_date
+    spy_base = None
+    for d in sorted(spy_map):
+        if d <= start_date:
+            spy_base = spy_map[d]
+
+    reef_base = date_value[sorted_dates[0]]
+    reef_series = []
+    spy_series  = []
+    last_spy    = spy_base
+
+    for d in sorted_dates:
+        if d in spy_map:
+            last_spy = spy_map[d]
+        reef_series.append({"date": str(d), "value": round(date_value[d] / reef_base * 100, 2)})
+        spy_val = round(last_spy / spy_base * 100, 2) if spy_base and last_spy else 100.0
+        spy_series.append({"date": str(d), "value": spy_val})
+
+    reef_total = (date_value[sorted_dates[-1]] / reef_base - 1) * 100
+    spy_total  = (spy_series[-1]["value"] / 100 - 1) * 100 if spy_series else 0.0
+    alpha      = round(reef_total - spy_total, 2)
+
+    # Sharpe — meaningful only with ≥ 10 daily observations
+    sharpe = None
+    if len(sorted_dates) >= 10:
+        daily_returns = [
+            date_value[sorted_dates[i]] / date_value[sorted_dates[i - 1]] - 1
+            for i in range(1, len(sorted_dates))
+        ]
+        std_r = statistics.stdev(daily_returns) if len(daily_returns) > 1 else 0.0
+        if std_r > 0:
+            sharpe = round(statistics.mean(daily_returns) / std_r * (252 ** 0.5), 2)
+
+    # Win rate + conviction split from closed trades
+    closed  = list(db.trades.find({"action": "SELL", "pnl": {"$ne": None}}))
+    winners = [t for t in closed if (t.get("pnl") or 0) > 0]
+    losers  = [t for t in closed if (t.get("pnl") or 0) <= 0]
+    win_rate = round(len(winners) / len(closed) * 100, 1) if closed else None
+
+    def _avg_conviction(trades):
+        vals = [t.get("conviction") for t in trades if t.get("conviction")]
+        return round(sum(vals) / len(vals), 1) if vals else None
+
+    return _ok({
+        "reef_series":         reef_series,
+        "spy_series":          spy_series,
+        "alpha":               alpha,
+        "sharpe":              sharpe,
+        "win_rate":            win_rate,
+        "conviction_winners":  _avg_conviction(winners),
+        "conviction_losers":   _avg_conviction(losers),
+        "as_of":               datetime.now(timezone.utc).isoformat(),
+    })
+
+
 def route_sectors(db) -> dict:
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -521,6 +657,10 @@ def handler(event: dict, context) -> dict:
             return route_sectors(db)
         elif path == "/api/market":
             return route_market(db)
+        elif path == "/api/nominations":
+            return route_nominations(db)
+        elif path == "/api/alpha":
+            return route_alpha(db)
         else:
             return _err(404, f"No route: {path}")
     except Exception as exc:
