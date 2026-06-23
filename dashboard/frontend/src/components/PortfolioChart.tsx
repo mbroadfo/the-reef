@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ReferenceDot, ResponsiveContainer,
@@ -7,27 +7,29 @@ import type { Snapshot } from '../types'
 
 const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
 
-type Timescale = '1W' | '1M' | '3M' | 'All'
-const TIMESCALES: Timescale[] = ['1W', '1M', '3M', 'All']
+type Timescale = '1D' | '3D' | '5D' | '1W' | '1M' | '3M' | '6M' | '1Y' | '3Y' | '5Y' | 'Max'
+
+const ALL_TIMESCALES: Timescale[] = ['1D', '3D', '5D', '1W', '1M', '3M', '6M', '1Y', '3Y', '5Y', 'Max']
+
+const RANGE_DAYS: Record<Timescale, number | null> = {
+  '1D': 1, '3D': 3, '5D': 5, '1W': 7, '1M': 30, '3M': 90,
+  '6M': 180, '1Y': 365, '3Y': 1095, '5Y': 1825, 'Max': null,
+}
 
 function getSlice(snapshots: Snapshot[], ts: Timescale): Snapshot[] {
-  if (ts === 'All' || snapshots.length === 0) return snapshots
-  const now = Date.now()
-  const weekCutoff = now - 7 * 86400000
-  const weekCount = snapshots.filter(s => new Date(s.timestamp).getTime() >= weekCutoff).length
+  const days = RANGE_DAYS[ts]
+  if (days === null || snapshots.length === 0) return snapshots
+  const cutoff = Date.now() - days * 86400000
+  const filtered = snapshots.filter(s => new Date(s.timestamp).getTime() >= cutoff)
+  return filtered.length > 1 ? filtered : snapshots
+}
 
-  if (ts === '1W') {
-    return snapshots.filter(s => new Date(s.timestamp).getTime() >= weekCutoff)
-  }
-
-  const days = ts === '1M' ? 30 : 90
-  const cutoff = now - days * 86400000
-  const dateFiltered = snapshots.filter(s => new Date(s.timestamp).getTime() >= cutoff)
-  if (dateFiltered.length > weekCount) return dateFiltered
-
-  const frac = ts === '1M' ? 0.30 : 0.65
-  const count = Math.max(weekCount + 15, Math.ceil(snapshots.length * frac))
-  return snapshots.slice(Math.max(0, snapshots.length - count))
+function tickFormat(ts: Timescale, v: string): string {
+  const d = new Date(v)
+  if (ts === '1D') return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  if (ts === '1Y' || ts === '3Y' || ts === '5Y' || ts === 'Max')
+    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function computeTicks(timestamps: string[], max: number): string[] {
@@ -65,8 +67,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: { valu
     <div className="bg-reef-card border border-reef-border rounded-lg px-3 py-2 text-xs shadow-lg">
       <div className="text-slate-400 font-sans">
         {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-        {' '}
-        {d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+        {' '}{d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
       </div>
       <div className="text-white font-bold font-mono text-sm">
         ${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -86,7 +87,28 @@ interface Props {
 }
 
 export default function PortfolioChart({ snapshots, startingCash }: Props) {
-  const [ts, setTs] = useState<Timescale>('All')
+  const dataDays = useMemo(() => {
+    if (snapshots.length === 0) return 0
+    return (Date.now() - new Date(snapshots[0].timestamp).getTime()) / 86400000
+  }, [snapshots])
+
+  const enabledSet = useMemo(() => {
+    return new Set(ALL_TIMESCALES.filter(ts => {
+      const days = RANGE_DAYS[ts]
+      return days === null || dataDays >= days
+    }))
+  }, [dataDays])
+
+  const defaultTs: Timescale = useMemo(() => {
+    if (dataDays < 1) return '1D'
+    if (dataDays < 3) return '3D'
+    if (dataDays < 5) return '5D'
+    if (dataDays < 7) return '1W'
+    if (dataDays < 30) return '1W'
+    return '1M'
+  }, [dataDays])
+
+  const [ts, setTs] = useState<Timescale>(defaultTs)
 
   if (snapshots.length < 2) {
     return (
@@ -104,45 +126,48 @@ export default function PortfolioChart({ snapshots, startingCash }: Props) {
   const lastPoint = data[data.length - 1]
 
   return (
-    <div className="card p-4">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+    <div className="card p-3">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
         <div style={{ fontSize: '11px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' }}>
           Portfolio Growth
         </div>
-        <select
-          value={ts}
-          onChange={e => setTs(e.target.value as Timescale)}
-          style={{
-            background: 'var(--reef-elevated)',
-            border: '1px solid var(--reef-border)',
-            borderRadius: '4px',
-            color: '#94a3b8',
-            fontSize: '11px',
-            fontFamily: FONT_SANS,
-            fontWeight: 600,
-            padding: '3px 24px 3px 10px',
-            cursor: 'pointer',
-            outline: 'none',
-            appearance: 'none',
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E")`,
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'right 7px center',
-            backgroundSize: '8px',
-          }}
-        >
-          {TIMESCALES.map(t => (
-            <option key={t} value={t} style={{ background: '#1a2535' }}>{t}</option>
-          ))}
-        </select>
+        {/* Timescale pill buttons */}
+        <div style={{ display: 'flex', gap: '2px' }}>
+          {ALL_TIMESCALES.map(t => {
+            const on = enabledSet.has(t)
+            const active = t === ts
+            return (
+              <button
+                key={t}
+                disabled={!on}
+                onClick={() => on && setTs(t)}
+                style={{
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  border: active ? '1px solid rgba(59,130,246,0.5)' : '1px solid transparent',
+                  background: active ? 'rgba(59,130,246,0.15)' : 'transparent',
+                  color: active ? '#3b82f6' : on ? '#64748b' : '#2d3748',
+                  fontSize: '10px',
+                  fontFamily: FONT_SANS,
+                  fontWeight: 600,
+                  cursor: on ? 'pointer' : 'default',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {t}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={220}>
+      <ResponsiveContainer width="100%" height={200}>
         <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" vertical={false} />
           <XAxis
             dataKey="timestamp"
             ticks={ticks}
-            tickFormatter={(v) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            tickFormatter={v => tickFormat(ts, v)}
             tick={{ fill: '#64748b', fontSize: 11, fontFamily: 'Space Grotesk' }}
             axisLine={false}
             tickLine={false}

@@ -1,64 +1,80 @@
-import { useEffect, useRef, useState } from 'react'
-import { fetchMarket, fetchNominations } from '../api'
-import type { Holding, Nomination } from '../types'
+import { useEffect, useState } from 'react'
+import { fetchPositions, fetchNominations } from '../api'
+import type { Position, Nomination } from '../types'
 
 const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
 const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
 
-interface TapeItem {
-  ticker: string
-  pct?: number
-  label?: string
-  isHolding: boolean
+function Divider() {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 16px', color: '#1e293b', userSelect: 'none' }}>
+      ◆
+    </span>
+  )
 }
 
-function TapeChip({ item }: { item: TapeItem }) {
-  const color = item.isHolding
-    ? item.pct! >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)'
-    : '#64748b'
-
+function HoldingChip({ pos }: { pos: Position }) {
+  const pnlColor = pos.unrealized_pnl_pct >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)'
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '0 20px', whiteSpace: 'nowrap' }}>
-      <span style={{
-        fontSize: '11px', fontFamily: FONT_MONO, fontWeight: 700,
-        color: item.isHolding ? '#f1f5f9' : '#475569',
-      }}>
-        {item.ticker}
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '0 18px', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: '12px', fontFamily: FONT_MONO, fontWeight: 800, color: '#f1f5f9' }}>
+        {pos.ticker}
       </span>
-      {item.isHolding && item.pct !== undefined ? (
-        <span style={{ fontSize: '11px', fontFamily: FONT_MONO, fontWeight: 600, color }}>
-          {item.pct >= 0 ? '+' : ''}{item.pct.toFixed(2)}%
-        </span>
-      ) : (
-        <span style={{ fontSize: '10px', fontFamily: FONT_SANS, color: '#475569' }}>
-          {item.label ?? 'watchlist'}
-        </span>
-      )}
-      <span style={{ color: '#1e293b', marginLeft: '12px' }}>·</span>
+      <span style={{ fontSize: '12px', fontFamily: FONT_MONO, fontWeight: 600, color: '#94a3b8' }}>
+        ${pos.current_price.toFixed(2)}
+      </span>
+      <span style={{ fontSize: '12px', fontFamily: FONT_MONO, fontWeight: 700, color: pnlColor }}>
+        {pos.unrealized_pnl_pct >= 0 ? '+' : ''}{pos.unrealized_pnl_pct.toFixed(1)}%
+      </span>
+    </span>
+  )
+}
+
+function WatchlistChip({ ticker }: { ticker: string }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '0 14px', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: '11px', fontFamily: FONT_MONO, fontWeight: 600, color: '#475569' }}>
+        {ticker}
+      </span>
     </span>
   )
 }
 
 export default function TickerTape() {
-  const [holdings, setHoldings]       = useState<Holding[]>([])
+  const [positions, setPositions]     = useState<Position[]>([])
   const [nominations, setNominations] = useState<Nomination[]>([])
-  const trackRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetchMarket().then(m => setHoldings(m.holdings)).catch(() => {})
+    fetchPositions().then(setPositions).catch(() => {})
     fetchNominations().then(setNominations).catch(() => {})
+    const id = setInterval(() => {
+      fetchPositions().then(setPositions).catch(() => {})
+    }, 60_000)
+    return () => clearInterval(id)
   }, [])
 
-  const items: TapeItem[] = [
-    ...holdings.map(h => ({ ticker: h.ticker, pct: h.daily_pct, isHolding: true })),
-    ...nominations.map(n => ({ ticker: n.ticker, label: n.source, isHolding: false })),
-  ]
+  if (positions.length === 0 && nominations.length === 0) return null
 
-  if (items.length === 0) return null
+  const watchlistTickers = nominations.map(n => n.ticker)
 
-  // Duplicate items so the scroll loop is seamless
-  const allItems = [...items, ...items, ...items]
-  const duration = Math.max(20, items.length * 4)
+  // Build one loop unit: holdings · WATCHLIST label · nominations
+  const unit = (
+    <>
+      {positions.map(p => <HoldingChip key={p.ticker} pos={p} />)}
+      {nominations.length > 0 && (
+        <>
+          <Divider />
+          <span style={{ fontSize: '9px', fontFamily: FONT_SANS, fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 8px' }}>
+            Watchlist
+          </span>
+          {watchlistTickers.map(t => <WatchlistChip key={t} ticker={t} />)}
+          <Divider />
+        </>
+      )}
+    </>
+  )
+
+  const duration = Math.max(20, (positions.length + nominations.length) * 3)
 
   return (
     <div style={{
@@ -67,32 +83,17 @@ export default function TickerTape() {
       borderTop: '1px solid var(--reef-border)',
       borderBottom: '1px solid var(--reef-border)',
       overflow: 'hidden',
-      height: '32px',
+      height: '34px',
       display: 'flex',
       alignItems: 'center',
       position: 'relative',
     }}>
-      {/* Fade edges */}
-      <div style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0, width: '48px', zIndex: 1,
-        background: 'linear-gradient(to right, var(--reef-elevated), transparent)',
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute', right: 0, top: 0, bottom: 0, width: '48px', zIndex: 1,
-        background: 'linear-gradient(to left, var(--reef-elevated), transparent)',
-        pointerEvents: 'none',
-      }} />
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '40px', zIndex: 1, background: 'linear-gradient(to right, var(--reef-elevated), transparent)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '40px', zIndex: 1, background: 'linear-gradient(to left, var(--reef-elevated), transparent)', pointerEvents: 'none' }} />
 
-      <div
-        ref={trackRef}
-        style={{
-          display: 'flex',
-          animation: `ticker-scroll ${duration}s linear infinite`,
-          willChange: 'transform',
-        }}
-      >
-        {allItems.map((item, i) => <TapeChip key={i} item={item} />)}
+      <div style={{ display: 'flex', animation: `ticker-scroll ${duration}s linear infinite`, willChange: 'transform' }}>
+        {/* Triple-repeat for seamless loop */}
+        {unit}{unit}{unit}
       </div>
 
       <style>{`

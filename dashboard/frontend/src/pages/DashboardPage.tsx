@@ -90,7 +90,7 @@ export default function DashboardPage({ onLive }: { onLive: (v: boolean) => void
     : 0
 
   return (
-    <div className="px-6 py-6 space-y-4">
+    <div className="px-4 py-3 space-y-3">
 
       {/* Chart */}
       <PortfolioChart snapshots={portfolio.snapshots} startingCash={portfolio.starting_cash} />
