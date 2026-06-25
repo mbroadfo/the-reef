@@ -24,9 +24,13 @@ function getSlice(snapshots: Snapshot[], ts: Timescale): Snapshot[] {
   return filtered.length > 1 ? filtered : snapshots
 }
 
-function tickFormat(ts: Timescale, v: string): string {
+function tickFormat(spanDays: number, ts: Timescale, v: string): string {
   const d = new Date(v)
-  if (ts === '1D') return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  if (spanDays < 1)
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  if (spanDays < 3)
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+           ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
   if (ts === '1Y' || ts === '3Y' || ts === '5Y' || ts === 'Max')
     return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -121,6 +125,10 @@ export default function PortfolioChart({ snapshots, startingCash }: Props) {
   const data = getSlice(snapshots, ts)
     .map(s => ({ timestamp: s.timestamp, portfolio_value: s.portfolio_value, event: s.event }))
 
+  const spanDays = data.length > 1
+    ? (new Date(data[data.length - 1].timestamp).getTime() - new Date(data[0].timestamp).getTime()) / 86400000
+    : 0
+
   const ticks = computeTicks(data.map(d => d.timestamp), 6)
   const buyMarkers = data.filter(d => d.event === 'BUY')
   const lastPoint = data[data.length - 1]
@@ -167,7 +175,7 @@ export default function PortfolioChart({ snapshots, startingCash }: Props) {
           <XAxis
             dataKey="timestamp"
             ticks={ticks}
-            tickFormatter={v => tickFormat(ts, v)}
+            tickFormatter={v => tickFormat(spanDays, ts, v)}
             tick={{ fill: '#64748b', fontSize: 11, fontFamily: 'Space Grotesk' }}
             axisLine={false}
             tickLine={false}

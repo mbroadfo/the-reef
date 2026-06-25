@@ -19,7 +19,7 @@ function SectionHeader({ children }: { children: string }) {
   return (
     <div style={{
       fontSize: '10px', fontFamily: FONT_SANS, fontWeight: 700,
-      textTransform: 'uppercase', letterSpacing: '0.1em', color: '#334155',
+      textTransform: 'uppercase', letterSpacing: '0.1em', color: '#4e6070',
       marginBottom: '8px',
     }}>
       {children}

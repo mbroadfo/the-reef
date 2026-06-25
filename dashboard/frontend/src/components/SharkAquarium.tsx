@@ -42,10 +42,10 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
             <div
               key={rosterName}
               onClick={() => navigate('/sharks')}
-              className={`card cursor-pointer hover:shadow-card-glow transition-all duration-200 flex flex-col items-center${!isActive ? ' opacity-50' : ''}`}
+              className={`card cursor-pointer hover:shadow-card-glow transition-all duration-200 flex flex-col items-center${!isActive ? ' opacity-60' : ''}`}
               style={{
                 padding: '10px 8px 12px',
-                minHeight: '200px',
+                minHeight: isActive ? '200px' : '160px',
                 position: 'relative',
                 borderColor: isActive ? color : undefined,
                 borderWidth: isActive ? '1.5px' : undefined,
@@ -97,59 +97,37 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
                 />
               </div>
 
-              {/* Return % */}
-              <div style={{ textAlign: 'center', marginTop: '6px' }}>
-                <div style={{
-                  fontSize: '18px',
-                  fontWeight: '800',
-                  fontFamily: FONT_MONO,
-                  color: returnVal == null ? '#64748b' : returnVal > 0 ? 'var(--reef-gain)' : returnVal < 0 ? 'var(--reef-loss)' : '#64748b',
-                  lineHeight: 1,
-                }}>
-                  {returnVal != null ? `${returnVal > 0 ? '+' : ''}${returnVal.toFixed(1)}%` : '—'}
+              {/* Return % or Hunting state */}
+              {isActive ? (
+                <>
+                  <div style={{ textAlign: 'center', marginTop: '6px' }}>
+                    <div style={{
+                      fontSize: '18px', fontWeight: '800', fontFamily: FONT_MONO,
+                      color: returnVal! > 0 ? 'var(--reef-gain)' : returnVal! < 0 ? 'var(--reef-loss)' : '#64748b',
+                      lineHeight: 1,
+                    }}>
+                      {returnVal! > 0 ? '+' : ''}{returnVal!.toFixed(1)}%
+                    </div>
+                    <div style={{ fontSize: '9px', fontFamily: FONT_SANS, color: '#94a3b8', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      30D Return
+                    </div>
+                  </div>
+                  <div style={{ width: '100%', marginTop: '8px' }}>
+                    <div style={{ width: '100%', height: '4px', background: 'var(--reef-border)', borderRadius: '2px', overflow: 'hidden' }}>
+                      <div style={{ width: `${confidence}%`, height: '100%', background: color, borderRadius: '2px', transition: 'width 300ms ease' }} />
+                    </div>
+                    <div style={{ fontSize: '10px', fontWeight: '600', fontFamily: FONT_SANS, color: '#94a3b8', textAlign: 'center', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      {confidence.toFixed(0)}% Confidence
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={{ textAlign: 'center', marginTop: '10px', padding: '6px 0' }}>
+                  <div style={{ fontSize: '10px', fontFamily: FONT_SANS, fontWeight: 600, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                    Hunting
+                  </div>
                 </div>
-                <div style={{
-                  fontSize: '9px',
-                  fontFamily: FONT_SANS,
-                  color: '#94a3b8',
-                  marginTop: '2px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                }}>
-                  30D Return
-                </div>
-              </div>
-
-              {/* Confidence bar */}
-              <div style={{ width: '100%', marginTop: '8px' }}>
-                <div style={{
-                  width: '100%',
-                  height: '4px',
-                  background: 'var(--reef-border)',
-                  borderRadius: '2px',
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    width: `${confidence}%`,
-                    height: '100%',
-                    background: color,
-                    borderRadius: '2px',
-                    transition: 'width 300ms ease',
-                  }} />
-                </div>
-                <div style={{
-                  fontSize: '10px',
-                  fontWeight: '600',
-                  fontFamily: FONT_SANS,
-                  color: '#94a3b8',
-                  textAlign: 'center',
-                  marginTop: '4px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                }}>
-                  {confidence.toFixed(0)}% Confidence
-                </div>
-              </div>
+              )}
             </div>
           )
         })}
