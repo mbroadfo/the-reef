@@ -13,7 +13,7 @@ const DEFAULT_WATCHLIST = [
 
 function Divider() {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 16px', color: '#1e293b', userSelect: 'none' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 16px', color: '#334155', userSelect: 'none' }}>
       ◆
     </span>
   )
@@ -39,7 +39,7 @@ function HoldingChip({ pos }: { pos: Position }) {
 function WatchlistChip({ ticker }: { ticker: string }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '0 14px', whiteSpace: 'nowrap' }}>
-      <span style={{ fontSize: '11px', fontFamily: FONT_MONO, fontWeight: 600, color: '#475569' }}>
+      <span style={{ fontSize: '11px', fontFamily: FONT_MONO, fontWeight: 600, color: '#94a3b8' }}>
         {ticker}
       </span>
     </span>
@@ -78,7 +78,7 @@ export default function TickerTape() {
       {allWatchlist.length > 0 && (
         <>
           <Divider />
-          <span style={{ fontSize: '9px', fontFamily: FONT_SANS, fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 8px' }}>
+          <span style={{ fontSize: '9px', fontFamily: FONT_SANS, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 8px' }}>
             Watchlist
           </span>
           {allWatchlist.map(t => <WatchlistChip key={t} ticker={t} />)}

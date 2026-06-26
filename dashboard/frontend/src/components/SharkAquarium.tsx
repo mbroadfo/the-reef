@@ -123,7 +123,7 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
                 </>
               ) : (
                 <div style={{ textAlign: 'center', marginTop: '10px', padding: '6px 0' }}>
-                  <div style={{ fontSize: '10px', fontFamily: FONT_SANS, fontWeight: 600, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  <div style={{ fontSize: '11px', fontFamily: FONT_SANS, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                     Hunting
                   </div>
                 </div>

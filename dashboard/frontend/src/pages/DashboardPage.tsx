@@ -33,14 +33,14 @@ function MetricBox({ label, value, subtitle, positive }: MetricBoxProps) {
       flex: 1,
       minWidth: 0,
     }}>
-      <div style={{ fontSize: '10px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: '4px' }}>
+      <div style={{ fontSize: '10px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8', marginBottom: '4px' }}>
         {label}
       </div>
-      <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: FONT_MONO, color }}>
+      <div style={{ fontSize: '17px', fontWeight: 700, fontFamily: FONT_MONO, color }}>
         {value}
       </div>
       {subtitle && (
-        <div style={{ fontSize: '11px', fontWeight: 600, fontFamily: FONT_MONO, color, marginTop: '1px', opacity: 0.8 }}>
+        <div style={{ fontSize: '12px', fontWeight: 600, fontFamily: FONT_MONO, color, marginTop: '1px' }}>
           {subtitle}
         </div>
       )}
