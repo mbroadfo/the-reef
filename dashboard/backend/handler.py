@@ -466,7 +466,7 @@ def route_market(db) -> dict:
 
 def route_nominations(db) -> dict:
     now = datetime.now(timezone.utc)
-    cutoff = now - timedelta(hours=48)
+    cutoff = now - timedelta(days=7)  # show last 7 days, not just 48h
 
     docs = list(
         db.nominations.find(
@@ -490,6 +490,7 @@ def route_nominations(db) -> dict:
         if created.tzinfo is None:
             created = created.replace(tzinfo=timezone.utc)
         expires_in_hours = max(0.0, ((created + timedelta(hours=48)) - now).total_seconds() / 3600)
+        fresh = expires_in_hours > 0
         result.append({
             "ticker":           ticker,
             "thesis":           d.get("thesis", ""),
@@ -497,8 +498,9 @@ def route_nominations(db) -> dict:
             "entry_range":      d.get("entry_range", ""),
             "created_at":       d.get("created_at"),
             "expires_in_hours": round(expires_in_hours, 1),
+            "fresh":            fresh,
         })
-        if len(result) >= 10:
+        if len(result) >= 15:
             break
 
     return _ok(result)

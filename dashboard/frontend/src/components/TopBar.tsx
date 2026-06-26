@@ -5,18 +5,51 @@ import StatPill from './StatPill'
 const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
 const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
 
-function formatTime(d: Date): string {
-  return d.toLocaleTimeString('en-US', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: true, timeZone: 'America/New_York',
-  }) + ' ET'
-}
-
 function formatDate(d: Date): string {
   return d.toLocaleDateString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric',
     timeZone: 'America/New_York',
   })
+}
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function getMarketInfo(now: Date): { isOpen: boolean; label: string; detail: string } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: false,
+  }).formatToParts(now)
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? ''
+  const wd  = get('weekday')
+  const h   = parseInt(get('hour'))
+  const m   = parseInt(get('minute'))
+  const totalMins = h * 60 + m
+  const OPEN  = 9 * 60 + 30
+  const CLOSE = 16 * 60
+
+  const fmtDur = (mins: number) => {
+    const hours = Math.floor(mins / 60), rem = mins % 60
+    return hours > 0 ? `${hours}h ${rem}m` : `${rem}m`
+  }
+
+  if (WEEKDAYS.includes(wd) && totalMins >= OPEN && totalMins < CLOSE) {
+    return { isOpen: true, label: 'Market Open', detail: `Closes in ${fmtDur(CLOSE - totalMins)}` }
+  }
+  if (WEEKDAYS.includes(wd) && totalMins < OPEN) {
+    return { isOpen: false, label: 'Pre-Market', detail: `Opens in ${fmtDur(OPEN - totalMins)}` }
+  }
+
+  // After close or weekend — find next weekday
+  const curIdx = DAY_NAMES.indexOf(wd)
+  let daysAhead = 1
+  while (!WEEKDAYS.includes(DAY_NAMES[(curIdx + daysAhead) % 7])) daysAhead++
+  const nextWD  = DAY_NAMES[(curIdx + daysAhead) % 7]
+  const minsToOpen = (24 * 60 - totalMins) + (daysAhead - 1) * 24 * 60 + OPEN
+  const detail = minsToOpen > 20 * 60
+    ? `Opens ${daysAhead === 1 ? 'tomorrow' : nextWD} 9:30 AM`
+    : `Opens in ${fmtDur(minsToOpen)}`
+  return { isOpen: false, label: 'Market Closed', detail }
 }
 
 function WinRateArc({ pct }: { pct: number }) {
@@ -136,43 +169,56 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         height: '100%',
       }}>
         {/* Active Sharks */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '3px', minWidth: '180px' }}>
-          <div style={{ fontSize: '11px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' }}>
-            Active Sharks
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '28px', fontWeight: 700, fontFamily: FONT_MONO, color: '#f1f5f9', lineHeight: 1 }}>
-              {activeSharks}
-            </span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--reef-gain)', fontFamily: FONT_SANS }}>All Systems Go</span>
-              <svg width="64" height="18" viewBox="0 0 64 18">
-                <polyline points="0,9 8,9 13,2 18,16 23,9 32,9 37,3 42,15 47,9 64,9"
-                  fill="none" stroke="var(--reef-gain)" strokeWidth="1.5"
-                  strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+        {(() => {
+          const TOTAL = 7
+          const idle = TOTAL - activeSharks
+          const statusLabel = activeSharks === TOTAL ? 'All Systems Go'
+            : activeSharks === 0 ? 'All Hunting'
+            : `${idle} Hunting`
+          const statusColor = activeSharks === TOTAL ? 'var(--reef-gain)' : activeSharks === 0 ? '#475569' : '#f59e0b'
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '3px', minWidth: '180px' }}>
+              <div style={{ fontSize: '11px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' }}>
+                Active Sharks
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '28px', fontWeight: 700, fontFamily: FONT_MONO, color: '#f1f5f9', lineHeight: 1 }}>
+                  {activeSharks} <span style={{ fontSize: '16px', color: '#334155' }}>/ {TOTAL}</span>
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: statusColor, fontFamily: FONT_SANS }}>{statusLabel}</span>
+                  <svg width="64" height="18" viewBox="0 0 64 18">
+                    <polyline points="0,9 8,9 13,2 18,16 23,9 32,9 37,3 42,15 47,9 64,9"
+                      fill="none" stroke={statusColor} strokeWidth="1.5"
+                      strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          )
+        })()}
 
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Market Open — 2 lines */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '8px',
-          padding: '8px 14px', borderRadius: '12px',
-          background: 'var(--reef-elevated)', border: '1px solid var(--reef-border)',
-        }}>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--reef-gain)', animation: 'pulse 2s infinite', flexShrink: 0 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '13px', fontFamily: FONT_SANS, color: 'white', fontWeight: 600 }}>Market Open</span>
-              <span style={{ fontFamily: FONT_MONO, fontSize: '13px', color: '#94a3b8' }}>{formatTime(now)}</span>
+        {/* Market clock — countdown */}
+        {(() => {
+          const { isOpen, label, detail } = getMarketInfo(now)
+          const dotColor = isOpen ? 'var(--reef-gain)' : '#475569'
+          return (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '8px 14px', borderRadius: '12px',
+              background: 'var(--reef-elevated)', border: '1px solid var(--reef-border)',
+            }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: dotColor, animation: isOpen ? 'pulse 2s infinite' : undefined, flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '13px', fontFamily: FONT_SANS, color: 'white', fontWeight: 600 }}>{label}</span>
+                <span style={{ fontFamily: FONT_MONO, fontSize: '11px', color: '#64748b' }}>{detail}</span>
+              </div>
             </div>
-            <span style={{ fontFamily: FONT_SANS, fontSize: '11px', color: '#64748b' }}>{formatDate(now)}</span>
-          </div>
-        </div>
+          )
+        })()}
 
         {/* User avatar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>

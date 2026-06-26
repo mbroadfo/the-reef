@@ -111,7 +111,7 @@ export default function AlphaBenchmark() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
         <span style={{ fontSize: '11px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b' }}>
-          Alpha vs Benchmark
+          The Reef vs S&amp;P 500
         </span>
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontFamily: FONT_SANS, color: '#3b82f6' }}>
@@ -133,7 +133,7 @@ export default function AlphaBenchmark() {
         }}>
           {alphaStr}
         </span>
-        <span style={{ fontSize: '11px', fontFamily: FONT_SANS, color: '#475569' }}>alpha</span>
+        <span style={{ fontSize: '11px', fontFamily: FONT_SANS, color: '#475569' }}>vs SPY since reset</span>
       </div>
 
       {/* Chart */}

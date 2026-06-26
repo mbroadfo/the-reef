@@ -5,6 +5,12 @@ import type { Position, Nomination } from '../types'
 const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
 const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
 
+const DEFAULT_WATCHLIST = [
+  "NVDA", "AMD", "AVGO", "ARM", "TSM", "META", "PLTR",
+  "COIN", "MSTR", "MARA", "HOOD",
+  "RKLB", "ASTS", "TSLA", "SMCI", "SPCX",
+]
+
 function Divider() {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0 16px', color: '#1e293b', userSelect: 'none' }}>
@@ -53,28 +59,36 @@ export default function TickerTape() {
     return () => clearInterval(id)
   }, [])
 
-  if (positions.length === 0 && nominations.length === 0) return null
+  // Always show — use DEFAULT_WATCHLIST as static fill
+  const nominatedTickers = nominations.map(n => n.ticker)
+  const positionTickers  = new Set(positions.map(p => p.ticker))
 
-  const watchlistTickers = nominations.map(n => n.ticker)
+  // Watchlist = nominated tickers + DEFAULT_WATCHLIST not already in positions/nominations
+  const extraWatchlist = DEFAULT_WATCHLIST.filter(
+    t => !positionTickers.has(t) && !nominatedTickers.includes(t)
+  )
+  const allWatchlist = [...nominatedTickers, ...extraWatchlist]
 
-  // Build one loop unit: holdings · WATCHLIST label · nominations
+  if (positions.length === 0 && allWatchlist.length === 0) return null
+
+  // Build one loop unit: holdings · WATCHLIST label · watchlist
   const unit = (
     <>
       {positions.map(p => <HoldingChip key={p.ticker} pos={p} />)}
-      {nominations.length > 0 && (
+      {allWatchlist.length > 0 && (
         <>
           <Divider />
           <span style={{ fontSize: '9px', fontFamily: FONT_SANS, fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 8px' }}>
             Watchlist
           </span>
-          {watchlistTickers.map(t => <WatchlistChip key={t} ticker={t} />)}
+          {allWatchlist.map(t => <WatchlistChip key={t} ticker={t} />)}
           <Divider />
         </>
       )}
     </>
   )
 
-  const duration = Math.max(20, (positions.length + nominations.length) * 3)
+  const duration = Math.max(30, (positions.length + allWatchlist.length) * 2)
 
   return (
     <div style={{

@@ -5,15 +5,28 @@ import type { Nomination } from '../types'
 const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
 const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
 
-function TTLChip({ hours }: { hours: number }) {
-  const color = hours < 6 ? '#f59e0b' : hours < 12 ? '#94a3b8' : '#475569'
-  const label = hours < 1
-    ? `${Math.round(hours * 60)}m left`
-    : `${Math.round(hours)}h left`
+function AgeChip({ n }: { n: Nomination }) {
+  if (n.fresh) {
+    const hours = n.expires_in_hours
+    const color = hours < 6 ? '#f59e0b' : hours < 12 ? '#94a3b8' : '#475569'
+    const label = hours < 1 ? `${Math.round(hours * 60)}m left` : `${Math.round(hours)}h left`
+    return (
+      <span style={{
+        fontSize: '10px', fontFamily: FONT_MONO, fontWeight: 600, color,
+        border: `1px solid ${color}40`, background: `${color}12`,
+        borderRadius: '4px', padding: '1px 6px', whiteSpace: 'nowrap', flexShrink: 0,
+      }}>
+        {label}
+      </span>
+    )
+  }
+  // Expired
+  const hoursAgo = Math.round((48 - n.expires_in_hours))
+  const label = hoursAgo >= 24 ? `${Math.floor(hoursAgo / 24)}d ago` : `${hoursAgo}h ago`
   return (
     <span style={{
-      fontSize: '10px', fontFamily: FONT_MONO, fontWeight: 600, color,
-      border: `1px solid ${color}40`, background: `${color}12`,
+      fontSize: '10px', fontFamily: FONT_MONO, fontWeight: 600, color: '#334155',
+      border: '1px solid #334155', background: 'transparent',
       borderRadius: '4px', padding: '1px 6px', whiteSpace: 'nowrap', flexShrink: 0,
     }}>
       {label}
@@ -46,6 +59,14 @@ export default function NominationPipeline() {
     return () => clearInterval(id)
   }, [])
 
+  const fresh = nominations.filter(n => n.fresh)
+  const stale = nominations.filter(n => !n.fresh)
+
+  const headerCount = !loaded ? '…'
+    : fresh.length > 0 ? `${fresh.length} active`
+    : stale.length > 0 ? `${stale.length} recent`
+    : '0 active'
+
   return (
     <div className="card p-4 flex flex-col h-full">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -53,7 +74,7 @@ export default function NominationPipeline() {
           Nomination Pipeline
         </span>
         <span style={{ fontSize: '10px', fontFamily: FONT_MONO, color: '#475569' }}>
-          {nominations.length} active
+          {headerCount}
         </span>
       </div>
 
@@ -63,8 +84,8 @@ export default function NominationPipeline() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '24px 0' }}>
           <div style={{ fontSize: '24px' }}>🦈</div>
           <div style={{ fontSize: '12px', fontFamily: FONT_SANS, color: '#475569', textAlign: 'center', lineHeight: 1.5 }}>
-            Scanner is hunting…<br />
-            <span style={{ color: '#334155', fontSize: '11px' }}>Next cycle will surface nominations</span>
+            No nominations this week<br />
+            <span style={{ color: '#334155', fontSize: '11px' }}>Sharks are watching the water</span>
           </div>
         </div>
       ) : (
@@ -76,12 +97,14 @@ export default function NominationPipeline() {
                 display: 'flex', gap: '10px', alignItems: 'flex-start',
                 padding: '10px 0',
                 borderBottom: i < nominations.length - 1 ? '1px solid var(--reef-border)' : 'none',
+                opacity: n.fresh ? 1 : 0.55,
               }}
             >
               {/* Ticker badge */}
               <div style={{
                 minWidth: '48px', padding: '3px 0', borderRadius: '4px', textAlign: 'center',
-                fontSize: '11px', fontFamily: FONT_MONO, fontWeight: 800, color: '#f1f5f9',
+                fontSize: '11px', fontFamily: FONT_MONO, fontWeight: 800,
+                color: n.fresh ? '#f1f5f9' : '#475569',
                 background: 'var(--reef-elevated)', border: '1px solid var(--reef-border)',
                 flexShrink: 0,
               }}>
@@ -102,7 +125,7 @@ export default function NominationPipeline() {
                 </div>
               </div>
 
-              <TTLChip hours={n.expires_in_hours} />
+              <AgeChip n={n} />
             </div>
           ))}
         </div>

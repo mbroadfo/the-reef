@@ -22,7 +22,8 @@ dashboard/backend/lambda.zip
 dashboard/backend/package/
 
 # Node
-dashboard/frontend/node_modules/
+node_modules/
+screenshots/
 dashboard/frontend/dist/
 dashboard/frontend/tsconfig.tsbuildinfo
 dashboard/infra/state-check.json

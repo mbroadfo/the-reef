@@ -131,6 +131,7 @@ export interface Nomination {
   entry_range: string
   created_at: string
   expires_in_hours: number
+  fresh: boolean
 }
 
 export interface AlphaSeries {

@@ -201,11 +201,16 @@ export default function RightRail() {
               </div>
             )}
           </div>
-          <div style={{
-            padding: '4px 12px', borderRadius: '5px', fontFamily: FONT_SANS, fontSize: '12px', fontWeight: 700,
-            color: vixColor, border: `1px solid ${vixColor}30`, background: `${vixColor}12`,
-          }}>
-            {regime}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ fontSize: '9px', fontFamily: FONT_SANS, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#334155' }}>
+              Stress
+            </div>
+            <div style={{
+              padding: '3px 10px', borderRadius: '5px', fontFamily: FONT_SANS, fontSize: '12px', fontWeight: 700,
+              color: vixColor, border: `1px solid ${vixColor}30`, background: `${vixColor}12`,
+            }}>
+              {regime}
+            </div>
           </div>
         </div>
       )}
