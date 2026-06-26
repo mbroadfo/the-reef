@@ -27,7 +27,7 @@ hunter_shark:
     ratios, timeframes. No fluff, no hedging. When you
     say HIGH confidence, you mean it — you've done the
     tape work and the setup is clean.
-  llm: openai/gpt-4o-mini-mini
+  llm: openai/gpt-4o-mini
 
 research_shark:
   role: >
@@ -162,7 +162,7 @@ risk_shark:
     tells Apex how much room is left in the risk
     budget. You never block a trade — you tell Apex
     the cost of taking it.
-  llm: openai/gpt-4o-mini-mini
+  llm: openai/gpt-4o-mini
 
 wildcard_shark:
   role: >
