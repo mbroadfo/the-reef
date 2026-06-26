@@ -11,6 +11,7 @@ Routes:
   GET /api/sectors      sector ETF % changes (XLK, XLF, XLV, XLY, XLI, XLE)
   GET /api/nominations  active scanner nominations (< 48h TTL)
   GET /api/alpha        Reef vs SPY performance + Sharpe/win-rate stats
+  GET /api/conviction   today's conviction points state for all 7 analyst sharks
 """
 from __future__ import annotations
 
@@ -233,6 +234,9 @@ def route_trades(db, limit: int = 50, skip: int = 0) -> dict:
     result = []
 
     for t in docs:
+        raw_sponsored = t.get("sponsored_by", t.get("surfaced_by", "apex_shark"))
+        conviction_bids: dict = t.get("conviction_bids", {})
+        sponsor_bid = conviction_bids.get(raw_sponsored) if conviction_bids else None
         result.append({
             "id": t["id"],
             "ticker": t["ticker"],
@@ -250,6 +254,8 @@ def route_trades(db, limit: int = 50, skip: int = 0) -> dict:
             "pnl": t.get("pnl"),
             "exit_price": t.get("exit_price"),
             "exit_time": t.get("exit_time"),
+            "sponsored_by": _norm_names(raw_sponsored) if raw_sponsored else None,
+            "sponsor_bid": sponsor_bid,
         })
     total = db.trades.count_documents({})
     return _ok({"trades": result, "total": total, "skip": skip, "limit": limit})
@@ -608,6 +614,37 @@ def route_alpha(db) -> dict:
     })
 
 
+def route_conviction(db) -> dict:
+    from datetime import date
+    today = date.today().isoformat()
+
+    _SHARKS = [
+        "hunter_shark", "research_shark", "macro_shark", "sentiment_shark",
+        "contrarian_shark", "risk_shark", "wildcard_shark",
+    ]
+
+    docs = list(db.shark_points.find({"date": today}, {"_id": 0}))
+    shark_map = {d["shark_id"]: d for d in docs}
+
+    result = []
+    for shark_id in _SHARKS:
+        doc = shark_map.get(shark_id)
+        bids = doc.get("bids", []) if doc else []
+        last_bid = bids[-1] if bids else None
+        result.append({
+            "shark_id": shark_id,
+            "points_remaining": doc.get("points_remaining", 10) if doc else 10,
+            "points_spent": doc.get("points_spent", 0) if doc else 0,
+            "last_bid": {
+                "ticker": last_bid["ticker"],
+                "bid": last_bid["bid"],
+                "direction": last_bid["direction"],
+            } if last_bid else None,
+        })
+
+    return _ok({"date": today, "sharks": result})
+
+
 def route_sectors(db) -> dict:
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -672,6 +709,8 @@ def handler(event: dict, context) -> dict:
             return route_nominations(db)
         elif path == "/api/alpha":
             return route_alpha(db)
+        elif path == "/api/conviction":
+            return route_conviction(db)
         else:
             return _err(404, f"No route: {path}")
     except Exception as exc:

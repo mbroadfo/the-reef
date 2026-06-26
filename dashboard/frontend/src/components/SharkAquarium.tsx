@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import type { Shark } from '../types'
+import type { Shark, ConvictionData } from '../types'
 import { getSharkColor, getSharkFilter, normalizeSharkName, AQUARIUM_ROSTER } from '../utils/sharks'
+import { fetchConviction } from '../api'
 import sharkImg from '../assets/shark-base.png'
 
 const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
@@ -8,6 +10,13 @@ const FONT_MONO = "'JetBrains Mono', 'Fira Code', monospace"
 
 export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
   const navigate = useNavigate()
+  const [conviction, setConviction] = useState<ConvictionData | null>(null)
+
+  useEffect(() => {
+    fetchConviction().then(setConviction).catch(() => {})
+    const id = setInterval(() => fetchConviction().then(setConviction).catch(() => {}), 300_000)
+    return () => clearInterval(id)
+  }, [])
 
   return (
     <div className="w-full">
@@ -34,9 +43,12 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
             ? parseFloat(((shark!.total_pnl / 10000) * 100).toFixed(1))
             : null
 
-          const parts     = normalizeSharkName(rosterName).split(' ')
-          const firstName = parts[0]
-          const lastName  = parts.slice(1).join(' ')
+          const parts       = normalizeSharkName(rosterName).split(' ')
+          const firstName   = parts[0]
+          const lastName    = parts.slice(1).join(' ')
+          const convShark   = conviction?.sharks.find(s => s.shark_id === rosterName)
+          const ptsLeft     = convShark?.points_remaining ?? 10
+          const lastBid     = convShark?.last_bid ?? null
 
           return (
             <div
@@ -128,6 +140,23 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
                   </div>
                 </div>
               )}
+
+              {/* Conviction points */}
+              <div style={{ marginTop: '8px', borderTop: '1px solid #1e293b', paddingTop: '6px', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '9px', fontFamily: FONT_SANS, color: ptsLeft > 5 ? '#22c55e' : ptsLeft > 2 ? '#f59e0b' : '#ef4444', fontWeight: 700 }}>
+                    {ptsLeft} pts
+                  </span>
+                  {lastBid && (
+                    <span style={{ fontSize: '9px', fontFamily: FONT_MONO, fontWeight: 700, color: lastBid.bid >= 0 ? '#22c55e' : '#ef4444' }}>
+                      {lastBid.ticker} {lastBid.bid >= 0 ? '+' : ''}{lastBid.bid}
+                    </span>
+                  )}
+                </div>
+                <div style={{ width: '100%', height: '3px', background: '#1e293b', borderRadius: '2px', marginTop: '3px', overflow: 'hidden' }}>
+                  <div style={{ width: `${ptsLeft * 10}%`, height: '100%', background: ptsLeft > 5 ? '#22c55e' : ptsLeft > 2 ? '#f59e0b' : '#ef4444', borderRadius: '2px', transition: 'width 300ms ease' }} />
+                </div>
+              </div>
             </div>
           )
         })}

@@ -211,6 +211,8 @@ class TheTank:
         stop_loss: Optional[float] = None,
         target_price: Optional[float] = None,
         reason: str = "",
+        sponsored_by: str = "apex_shark",
+        conviction_bids: Optional[dict] = None,
     ) -> tuple[bool, str]:
         cost = round(shares * price, 2)
         if cost > self.cash:
@@ -270,6 +272,8 @@ class TheTank:
             "exit_price": None,
             "exit_time": None,
             "pnl": None,
+            "sponsored_by": sponsored_by,
+            "conviction_bids": conviction_bids or {},
         })
         self._portfolio.update_one({"_id": "main"}, {"$inc": {"cash": -cost}})
         self._snapshot("BUY")
@@ -360,7 +364,16 @@ class TheTank:
     def take_snapshot(self, event: str = "daily_report") -> None:
         self._snapshot(event)
 
-    def log_decision(self, ticker: str, signal_type: str, decision: str, conviction: int, rationale: str):
+    def log_decision(
+        self,
+        ticker: str,
+        signal_type: str,
+        decision: str,
+        conviction: int,
+        rationale: str,
+        sponsored_by: str = "apex_shark",
+        conviction_bids: Optional[dict] = None,
+    ):
         """Persist Apex Shark's decision reasoning to the decisions collection."""
         self._db.decisions.insert_one({
             "ticker": ticker,
@@ -369,6 +382,8 @@ class TheTank:
             "conviction": conviction,
             "rationale": rationale[:2000],
             "timestamp": _now(),
+            "sponsored_by": sponsored_by,
+            "conviction_bids": conviction_bids or {},
         })
 
     def summary(self) -> str:

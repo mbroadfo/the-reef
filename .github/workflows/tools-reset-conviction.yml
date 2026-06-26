@@ -1,0 +1,23 @@
+name: "Tools: Reset Conviction Points"
+# Runs at market open Mon-Fri. Resets each shark's daily conviction
+# budget to 10 points. Also triggerable manually.
+on:
+  schedule:
+    - cron: '30 13 * * 1-5'
+  workflow_dispatch: {}
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: pip install pymongo[srv] -q
+
+      - name: Reset conviction points
+        env:
+          MONGODB_URI: "mongodb+srv://mbroadfo_db_user:${{ secrets.MONGODB_PASSWORD }}@reef-m0.1sxeyjd.mongodb.net/?authSource=admin&appName=reef-m0"
+          MONGODB_DB: ${{ vars.MONGODB_DB || 'the_reef' }}
+        run: python tools/reset_conviction_points.py

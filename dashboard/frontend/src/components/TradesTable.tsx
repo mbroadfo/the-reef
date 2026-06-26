@@ -44,11 +44,12 @@ export default function TradesTable({ trades, compact = false, dashboard = false
           </thead>
           <tbody>
             {displayed.map((t) => {
-              const isBuy     = t.action === 'BUY'
-              const pnlColor  = t.pnl == null ? '#64748b' : t.pnl >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)'
-              const sharkName = normalizeSharkName(t.surfaced_by || 'Apex Shark')
-              const color     = getSharkColor(sharkName)
-              const conv      = t.conviction ?? 0
+              const isBuy      = t.action === 'BUY'
+              const pnlColor   = t.pnl == null ? '#64748b' : t.pnl >= 0 ? 'var(--reef-gain)' : 'var(--reef-loss)'
+              const sharkName  = normalizeSharkName(t.sponsored_by || t.surfaced_by || 'Apex Shark')
+              const color      = getSharkColor(sharkName)
+              const conv       = t.conviction ?? 0
+              const sponsorBid = t.sponsor_bid
               return (
                 <tr
                   key={t.id}
@@ -61,7 +62,14 @@ export default function TradesTable({ trades, compact = false, dashboard = false
                   <td className="px-2 py-1.5">
                     <div className="flex items-center gap-1.5">
                       <SharkAvatar name={sharkName} size="sm" />
-                      <span className="text-xs font-sans truncate" style={{ color, maxWidth: '80px' }}>{sharkName}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <span className="text-xs font-sans truncate" style={{ color, maxWidth: '80px', display: 'block' }}>{sharkName}</span>
+                        {sponsorBid != null && (
+                          <span style={{ fontSize: '9px', fontFamily: 'JetBrains Mono', fontWeight: 700, color: sponsorBid >= 0 ? '#22c55e' : '#ef4444' }}>
+                            {sponsorBid >= 0 ? '+' : ''}{sponsorBid} pts
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="px-2 py-1.5 font-mono font-bold text-white">{t.ticker}</td>

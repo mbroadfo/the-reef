@@ -69,6 +69,8 @@ export interface Trade {
   apex_rationale?: string
   apex_decision?: string
   apex_conviction?: number
+  sponsored_by?: string | null
+  sponsor_bid?: number | null
 }
 
 export interface TradesResponse {
@@ -132,6 +134,18 @@ export interface Nomination {
   created_at: string
   expires_in_hours: number
   fresh: boolean
+}
+
+export interface ConvictionShark {
+  shark_id: string
+  points_remaining: number
+  points_spent: number
+  last_bid: { ticker: string; bid: number; direction: string } | null
+}
+
+export interface ConvictionData {
+  date: string
+  sharks: ConvictionShark[]
 }
 
 export interface AlphaSeries {

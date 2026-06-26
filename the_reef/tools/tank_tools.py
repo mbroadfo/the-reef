@@ -38,6 +38,8 @@ class BuyInput(BaseModel):
     stop_loss_pct: float = Field(default=7.0, description="Stop-loss percentage below entry (default 7%)")
     target_pct: float = Field(default=15.0, description="Target price percentage above entry (default 15%)")
     reason: str = Field(default="", description="Brief rationale for the trade")
+    sponsored_by: str = Field(default="apex_shark", description="Shark ID with the highest conviction bid — owns P&L attribution")
+    conviction_bids: dict = Field(default_factory=dict, description="Dict of shark_id -> bid amount from Get Conviction Bids")
 
 
 class SellInput(BaseModel):
@@ -85,6 +87,8 @@ class ExecuteBuyTool(BaseTool):
         stop_loss_pct: float = 7.0,
         target_pct: float = 15.0,
         reason: str = "",
+        sponsored_by: str = "apex_shark",
+        conviction_bids: dict = {},
     ) -> str:
         tank = get_tank()
         price = get_price(ticker)
@@ -114,6 +118,8 @@ class ExecuteBuyTool(BaseTool):
             stop_loss=stop_loss,
             target_price=target,
             reason=reason,
+            sponsored_by=sponsored_by,
+            conviction_bids=conviction_bids,
         )
         if ok:
             tank.log_decision(
@@ -122,6 +128,8 @@ class ExecuteBuyTool(BaseTool):
                 decision="BUY",
                 conviction=conviction,
                 rationale=f"Surfaced by {surfaced_by}. Vetted by {vetted_by}. {reason}",
+                sponsored_by=sponsored_by,
+                conviction_bids=conviction_bids,
             )
         return msg
 

@@ -1,4 +1,4 @@
-import type { Portfolio, Position, TradesResponse, Shark, Decision, Trade, Sentiment, Sector, MarketData, Nomination, AlphaData } from './types'
+import type { Portfolio, Position, TradesResponse, Shark, Decision, Trade, Sentiment, Sector, MarketData, Nomination, AlphaData, ConvictionData } from './types'
 
 const BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').replace(/\/$/, '')
 
@@ -40,3 +40,6 @@ export const fetchNominations = (): Promise<Nomination[]> =>
 
 export const fetchAlpha = (): Promise<AlphaData> =>
   get<AlphaData>('/api/alpha')
+
+export const fetchConviction = (): Promise<ConvictionData> =>
+  get<ConvictionData>('/api/conviction')

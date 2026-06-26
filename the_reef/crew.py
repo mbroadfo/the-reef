@@ -16,8 +16,13 @@ from .tools.tank_tools import (
     NominateTickerTool, set_tank,
 )
 from .tools.shark_history_tool import GetSharkHistoryTool
+from .tools.conviction_tool import ConvictionBidTool, GetConvictionBidsTool
 from .brokerage.the_tank import TheTank
 from .scanner.monitor import ScanSignal
+
+
+def _bid_tool(shark_id: str) -> ConvictionBidTool:
+    return ConvictionBidTool(shark_id=shark_id)
 
 
 _market_tools = [GetPriceTool(), GetHistoryTool(), SerperDevTool()]
@@ -25,6 +30,7 @@ _nominate_tool = [NominateTickerTool()]
 _apex_tools = [
     GetPortfolioTool(), ExecuteBuyTool(), ExecuteSellTool(),
     CheckStopLossesTool(), GetSharkHistoryTool(), NominateTickerTool(),
+    GetConvictionBidsTool(),
 ]
 
 
@@ -41,7 +47,7 @@ class TheReefCrew:
     def hunter_shark(self) -> Agent:
         return Agent(
             config=self.agents_config["hunter_shark"],
-            tools=_market_tools,
+            tools=_market_tools + [_bid_tool("hunter_shark")],
             verbose=True,
         )
 
@@ -49,7 +55,7 @@ class TheReefCrew:
     def research_shark(self) -> Agent:
         return Agent(
             config=self.agents_config["research_shark"],
-            tools=_market_tools,
+            tools=_market_tools + [_bid_tool("research_shark")],
             verbose=True,
         )
 
@@ -57,7 +63,7 @@ class TheReefCrew:
     def wildcard_shark(self) -> Agent:
         return Agent(
             config=self.agents_config["wildcard_shark"],
-            tools=_market_tools + [SerperDevTool()] + _nominate_tool,
+            tools=_market_tools + [SerperDevTool()] + _nominate_tool + [_bid_tool("wildcard_shark")],
             verbose=True,
         )
 
@@ -67,7 +73,7 @@ class TheReefCrew:
     def macro_shark(self) -> Agent:
         return Agent(
             config=self.agents_config["macro_shark"],
-            tools=[SerperDevTool()] + _nominate_tool,
+            tools=[SerperDevTool()] + _nominate_tool + [_bid_tool("macro_shark")],
             verbose=True,
         )
 
@@ -75,7 +81,7 @@ class TheReefCrew:
     def sentiment_shark(self) -> Agent:
         return Agent(
             config=self.agents_config["sentiment_shark"],
-            tools=[SerperDevTool()] + _nominate_tool,
+            tools=[SerperDevTool()] + _nominate_tool + [_bid_tool("sentiment_shark")],
             verbose=True,
         )
 
@@ -83,7 +89,7 @@ class TheReefCrew:
     def contrarian_shark(self) -> Agent:
         return Agent(
             config=self.agents_config["contrarian_shark"],
-            tools=[SerperDevTool()],
+            tools=[SerperDevTool(), _bid_tool("contrarian_shark")],
             verbose=True,
         )
 
@@ -91,7 +97,7 @@ class TheReefCrew:
     def risk_shark(self) -> Agent:
         return Agent(
             config=self.agents_config["risk_shark"],
-            tools=[GetPortfolioTool()],
+            tools=[GetPortfolioTool(), _bid_tool("risk_shark")],
             verbose=True,
         )
 
