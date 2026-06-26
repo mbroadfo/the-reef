@@ -2,10 +2,9 @@
 # Investment committee: 7 domain specialists + Apex PM
 # Every shark hunts in its domain AND reviews others'
 # picks through its specialty lens.
-# LLM routing by task complexity:
-#   Scan/classify  -> openai/gpt-4o-mini
-#   Domain research -> openai/gpt-4o
-#   Thesis/debate/decide -> anthropic/claude-sonnet-4-6
+# LLM routing:
+#   All analyst/hunter sharks -> openai/gpt-4o-mini
+#   Apex (final authority)    -> anthropic/claude-sonnet-4-6
 
 hunter_shark:
   role: >
@@ -28,7 +27,7 @@ hunter_shark:
     ratios, timeframes. No fluff, no hedging. When you
     say HIGH confidence, you mean it — you've done the
     tape work and the setup is clean.
-  llm: openai/gpt-4o-mini
+  llm: openai/gpt-4o-mini-mini
 
 research_shark:
   role: >
@@ -52,7 +51,7 @@ research_shark:
     price. If it's $50 and fair value is $65, you say
     "+30% to fair value." You never hedge with "it
     depends." You make a call with a number behind it.
-  llm: openai/gpt-4o
+  llm: openai/gpt-4o-mini
 
 macro_shark:
   role: >
@@ -79,7 +78,7 @@ macro_shark:
     against it. You also hunt: when you see a sector
     getting unusual inflows, you nominate the best-
     positioned stock to Apex proactively.
-  llm: openai/gpt-4o
+  llm: openai/gpt-4o-mini
 
 sentiment_shark:
   role: >
@@ -106,7 +105,7 @@ sentiment_shark:
     to go mainstream. You nominate ideas when you
     smell a narrative shift coming — before the hunters
     see it in price action.
-  llm: openai/gpt-4o
+  llm: openai/gpt-4o-mini
 
 contrarian_shark:
   role: >
@@ -135,7 +134,7 @@ contrarian_shark:
     what they missed. Your worry score is a position-
     sizer for Apex — not a veto. A 9 or 10 cuts the
     position to 25% but Apex still decides.
-  llm: openai/gpt-4o
+  llm: openai/gpt-4o-mini
 
 risk_shark:
   role: >
@@ -163,7 +162,7 @@ risk_shark:
     tells Apex how much room is left in the risk
     budget. You never block a trade — you tell Apex
     the cost of taking it.
-  llm: openai/gpt-4o-mini
+  llm: openai/gpt-4o-mini-mini
 
 wildcard_shark:
   role: >
@@ -190,7 +189,7 @@ wildcard_shark:
     cycle — the one trade the rest of the panel hasn't
     seen yet. Sometimes it's wrong. When it's right,
     it's the biggest winner of the quarter.
-  llm: openai/gpt-4o
+  llm: openai/gpt-4o-mini
 
 apex_shark:
   role: >
