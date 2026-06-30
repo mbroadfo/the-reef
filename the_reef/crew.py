@@ -1,8 +1,11 @@
 """The Reef — CrewAI orchestration layer.
 
-Sequential pipeline: Hunter → Research → Macro → Sentiment →
-Contrarian → Risk → Wildcard → Apex Shark.
-Apex Shark has The Tank tools to check portfolio state and execute paper trades.
+Sequential pipeline: Hunter → Hunter Bid → Research → Research Bid →
+Macro → Macro Bid → Sentiment → Sentiment Bid →
+Contrarian → Contrarian Bid → Risk → Risk Bid →
+Wildcard → Wildcard Bid → Apex Shark.
+Each analysis task is followed immediately by a dedicated bid task so
+GPT-4o-mini has a single job: call the conviction tool.
 """
 from __future__ import annotations
 
@@ -118,28 +121,56 @@ class TheReefCrew:
         return Task(config=self.tasks_config["hunter_research"])
 
     @task
+    def hunter_bid(self) -> Task:
+        return Task(config=self.tasks_config["hunter_bid"])
+
+    @task
     def research_analysis(self) -> Task:
         return Task(config=self.tasks_config["research_analysis"])
+
+    @task
+    def research_bid(self) -> Task:
+        return Task(config=self.tasks_config["research_bid"])
 
     @task
     def macro_analysis(self) -> Task:
         return Task(config=self.tasks_config["macro_analysis"])
 
     @task
+    def macro_bid(self) -> Task:
+        return Task(config=self.tasks_config["macro_bid"])
+
+    @task
     def sentiment_analysis(self) -> Task:
         return Task(config=self.tasks_config["sentiment_analysis"])
+
+    @task
+    def sentiment_bid(self) -> Task:
+        return Task(config=self.tasks_config["sentiment_bid"])
 
     @task
     def contrarian_challenge(self) -> Task:
         return Task(config=self.tasks_config["contrarian_challenge"])
 
     @task
+    def contrarian_bid(self) -> Task:
+        return Task(config=self.tasks_config["contrarian_bid"])
+
+    @task
     def risk_assessment(self) -> Task:
         return Task(config=self.tasks_config["risk_assessment"])
 
     @task
+    def risk_bid(self) -> Task:
+        return Task(config=self.tasks_config["risk_bid"])
+
+    @task
     def wildcard_nomination(self) -> Task:
         return Task(config=self.tasks_config["wildcard_nomination"])
+
+    @task
+    def wildcard_bid(self) -> Task:
+        return Task(config=self.tasks_config["wildcard_bid"])
 
     @task
     def apex_decision(self) -> Task:

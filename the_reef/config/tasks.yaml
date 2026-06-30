@@ -1,6 +1,8 @@
 # The Reef — Task Definitions
-# Sequential pipeline: hunt -> research -> macro ->
-# sentiment -> contrarian -> risk -> wildcard -> apex
+# Sequential pipeline: hunt -> hunt_bid -> research -> research_bid ->
+# macro -> macro_bid -> sentiment -> sentiment_bid ->
+# contrarian -> contrarian_bid -> risk -> risk_bid ->
+# wildcard -> wildcard_bid -> apex
 # hunter_research.agent is overridden dynamically
 # in crew.py based on signal_type routing.
 
@@ -23,10 +25,6 @@ hunter_research:
 
     Also: does this signal suggest any related
     tickers worth nominating beyond {ticker}?
-
-    7. REQUIRED — call "Submit Conviction Bid" with
-       your bid (1-10 positive=long, negative=oppose)
-       and a one-sentence rationale. Do not skip this.
   expected_output: >
     Structured hunter report:
     - Signal summary (what triggered, key metrics)
@@ -36,8 +34,21 @@ hunter_research:
     - Confidence: HIGH / MEDIUM / LOW
     - Related ticker nominations (if any)
     - Red flags or caveats
-    - REQUIRED: Conviction bid submitted — [ticker] [+/-X pts]
   agent: hunter_shark
+
+hunter_bid:
+  description: >
+    Your {ticker} analysis is complete.
+    One action only: call "Submit Conviction Bid".
+    Positive bid (1-10) = you are long on {ticker}.
+    Negative bid (-1 to -10) = you oppose this trade.
+    Magnitude = your confidence level.
+    Rationale: one sentence based on your analysis.
+  expected_output: >
+    Tool confirmation: "[shark_id] bid [+/-X] pts on [ticker]"
+  agent: hunter_shark
+  context:
+    - hunter_research
 
 research_analysis:
   description: >
@@ -58,20 +69,28 @@ research_analysis:
 
     End with: CHEAP (>15% upside) / FAIR (0-15%) /
     EXPENSIVE (negative upside to fair value)
-
-    6. REQUIRED — call "Submit Conviction Bid" with
-       your bid (1-10 positive=fundamental case is
-       strong, negative=fundamentals oppose this trade)
-       and a one-sentence rationale. Do not skip this.
   expected_output: >
     Five specific data points as listed.
     Earnings catalyst: YES [date + event] or NO.
     Valuation verdict: CHEAP / FAIR / EXPENSIVE.
     One-sentence bottom line on fundamental risk.
-    REQUIRED: Conviction bid submitted — [ticker] [+/-X pts]
   agent: research_shark
   context:
     - hunter_research
+
+research_bid:
+  description: >
+    Your {ticker} fundamental analysis is complete.
+    One action only: call "Submit Conviction Bid".
+    CHEAP → high positive bid, FAIR → moderate positive,
+    EXPENSIVE → negative bid.
+    Magnitude = your valuation conviction.
+    Rationale: one sentence on the fundamental case.
+  expected_output: >
+    Tool confirmation: "[shark_id] bid [+/-X] pts on [ticker]"
+  agent: research_shark
+  context:
+    - research_analysis
 
 macro_analysis:
   description: >
@@ -93,21 +112,30 @@ macro_analysis:
     If yes, call "Nominate Ticker" with the ticker,
     your 2-line thesis, source="macro_shark", and
     entry range. Then report the nomination here.
-
-    5. REQUIRED — call "Submit Conviction Bid" with
-       your bid (1-10 positive=GO, negative=AVOID)
-       and a one-sentence macro rationale.
-       Do not skip this step.
   expected_output: >
     Four specific answers as listed.
     Macro verdict: GO / CAUTION / AVOID + reason.
     Unsolicited nomination (optional): ticker +
     2-line thesis if a macro opportunity is visible.
     Confirm: "Nominated [TICKER]" or "No nomination."
-    REQUIRED: Conviction bid submitted — [ticker] [+/-X pts]
   agent: macro_shark
   context:
     - hunter_research
+
+macro_bid:
+  description: >
+    Your {ticker} macro assessment is complete.
+    One action only: call "Submit Conviction Bid".
+    Map your verdict directly to your bid:
+    GO → positive bid, CAUTION → bid near 0 (+1 to -1),
+    AVOID → negative bid.
+    Magnitude = conviction in the macro call.
+    Rationale: one sentence on macro context.
+  expected_output: >
+    Tool confirmation: "[shark_id] bid [+/-X] pts on [ticker]"
+  agent: macro_shark
+  context:
+    - macro_analysis
 
 sentiment_analysis:
   description: >
@@ -128,21 +156,29 @@ sentiment_analysis:
     "Nominate Ticker" with the ticker, your 2-line
     thesis, source="sentiment_shark", and entry range.
     Then report the nomination here.
-
-    5. REQUIRED — call "Submit Conviction Bid" with
-       your bid (1-10 positive=bullish, negative=bearish)
-       and a one-sentence narrative rationale.
-       Do not skip this step.
   expected_output: >
     Four specific answers as listed.
     Sentiment score: BULLISH / NEUTRAL / BEARISH.
     Unsolicited nomination (optional): ticker +
     2-line thesis if a narrative shift is visible.
     Confirm: "Nominated [TICKER]" or "No nomination."
-    REQUIRED: Conviction bid submitted — [ticker] [+/-X pts]
   agent: sentiment_shark
   context:
     - hunter_research
+
+sentiment_bid:
+  description: >
+    Your {ticker} sentiment analysis is complete.
+    One action only: call "Submit Conviction Bid".
+    BULLISH → positive bid, NEUTRAL → bid near 0,
+    BEARISH → negative bid.
+    Magnitude = strength of the narrative signal.
+    Rationale: one sentence on narrative direction.
+  expected_output: >
+    Tool confirmation: "[shark_id] bid [+/-X] pts on [ticker]"
+  agent: sentiment_shark
+  context:
+    - sentiment_analysis
 
 contrarian_challenge:
   description: >
@@ -168,27 +204,33 @@ contrarian_challenge:
     YOU DO NOT HAVE VETO POWER.
     Only Apex makes the final call.
     Make sure Apex has the full picture.
-
-    6. REQUIRED — call "Submit Conviction Bid".
-       If worry score is 7+, submit a NEGATIVE bid
-       equal to your worry score (e.g. worry=8 → bid=-8)
-       — you are staking points on this trade failing.
-       If worry score is 1-4, bid positive if you see
-       value the bulls missed. If 5-6, bid a small
-       negative to signal caution. Do not skip this step.
   expected_output: >
     Five specific answers as listed.
     Worry score: X/10 + one-sentence justification.
     Sizing flag: NORMAL / SIZE-DOWN-25 /
     SIZE-DOWN-50 / SIZE-DOWN-75.
     Final: "Decision is Apex's."
-    REQUIRED: Conviction bid submitted — [ticker] [+/-X pts]
   agent: contrarian_shark
   context:
     - hunter_research
     - research_analysis
     - macro_analysis
     - sentiment_analysis
+
+contrarian_bid:
+  description: >
+    Your {ticker} stress-test is complete.
+    One action only: call "Submit Conviction Bid".
+    Map your worry score to your bid:
+    worry 1-4 → small positive bid if you see upside
+    worry 5-6 → small negative bid (-1 to -3)
+    worry 7-10 → negative bid equal to your worry score
+    Rationale: one sentence on the key risk you found.
+  expected_output: >
+    Tool confirmation: "[shark_id] bid [+/-X] pts on [ticker]"
+  agent: contrarian_shark
+  context:
+    - contrarian_challenge
 
 risk_assessment:
   description: >
@@ -215,13 +257,6 @@ risk_assessment:
 
     YOU DO NOT HAVE VETO POWER.
     Only Apex makes the final call.
-
-    5. REQUIRED — call "Submit Conviction Bid".
-       Bid positive (1-5) if heat is low and you
-       support the position. Bid negative if heat is
-       7+ and adding creates dangerous concentration.
-       Bid magnitude = your confidence in the heat
-       assessment. Do not skip this step.
   expected_output: >
     Four specific answers as listed.
     Heat score: X/10 + one-sentence justification.
@@ -229,11 +264,24 @@ risk_assessment:
     SIZE-DOWN-50 / SIZE-DOWN-75.
     Stop audit: ALL VALID or list needing adjustment.
     Final: "Decision is Apex's."
-    REQUIRED: Conviction bid submitted — [ticker] [+/-X pts]
   agent: risk_shark
   context:
     - hunter_research
     - contrarian_challenge
+
+risk_bid:
+  description: >
+    Your {ticker} heat assessment is complete.
+    One action only: call "Submit Conviction Bid".
+    Heat 1-6 → positive bid (1-5) supporting the trade.
+    Heat 7-10 → negative bid equal to your heat score.
+    Magnitude = confidence in the heat assessment.
+    Rationale: one sentence on portfolio impact.
+  expected_output: >
+    Tool confirmation: "[shark_id] bid [+/-X] pts on [ticker]"
+  agent: risk_shark
+  context:
+    - risk_assessment
 
 wildcard_nomination:
   description: >
@@ -260,38 +308,57 @@ wildcard_nomination:
     source="wildcard_shark", and entry range.
     If you have no strong idea, say so and skip
     the tool call — do not nominate weak ideas.
-
-    PART 3 — REQUIRED: call "Submit Conviction Bid"
-    with your bid on {ticker} (positive=long,
-    negative=oppose) based on your wildcard lens.
-    Do not skip this step.
   expected_output: >
     Part 1: Wildcard angle on {ticker} or "None."
     Part 2: Unsolicited nomination with ticker,
     thesis, levels, confidence. Or "No strong
     unsolicited idea this cycle."
     Confirm: "Nominated [TICKER]" or "No nomination."
-    REQUIRED: Conviction bid submitted — [ticker] [+/-X pts]
   agent: wildcard_shark
   context:
     - hunter_research
     - macro_analysis
     - sentiment_analysis
 
+wildcard_bid:
+  description: >
+    Your {ticker} wildcard analysis is complete.
+    One action only: call "Submit Conviction Bid".
+    Positive bid = special situation supports the long.
+    Negative bid = wildcard risks outweigh the opportunity.
+    Magnitude = strength of the special situation signal.
+    Rationale: one sentence from your wildcard lens.
+  expected_output: >
+    Tool confirmation: "[shark_id] bid [+/-X] pts on [ticker]"
+  agent: wildcard_shark
+  context:
+    - wildcard_nomination
+
 apex_decision:
   description: >
-    You are Apex Shark. Full panel analysis on
-    {ticker} at ${current_price}.
+    You are Apex Shark. The full panel has delivered
+    on {ticker} at ${current_price}.
     Signal: {signal_type} (value: {signal_value}).
     You are the ONLY shark with decision authority.
 
-    STEP 0: Use "Get Shark Performance History" to
-    calibrate panel weights from historical win rates.
+    STEP 1: Use "Get Shark Performance History" to
+    calibrate how much weight each shark deserves
+    based on their historical win rate.
 
-    STEP 1: Use "Get Portfolio State" — check cash
-    and open positions.
+    STEP 2: Use "Get Portfolio State" — check cash
+    and open positions before committing capital.
 
-    STEP 2: Compute panel score (0-9):
+    STEP 3 — EVALUATE THE BIDS (primary input):
+    Use "Get Conviction Bids" for {ticker}.
+    Each shark has staked real points on their view.
+    Read the bids alongside their analysis and decide:
+    - Which bids are backed by solid reasoning?
+    - Which bids contradict the shark's own report?
+    - Is the panel split or aligned?
+    You may adopt one bid, multiple bids, or none.
+    Name which sharks you are siding with and why.
+
+    STEP 4: Compute panel score from analysis (0-9):
       Hunter: HIGH=3, MED=2, LOW=1
       Research: CHEAP=3, FAIR=2, EXPENSIVE=0
       Macro: GO=3, CAUTION=1, AVOID=0
@@ -300,37 +367,37 @@ apex_decision:
         worry 5-6: -1
         worry 7-8: -2
         worry 9-10: -3
-
-    STEP 3: Base size from score:
-      7-9: full, 5-6: 75%, 3-4: 50%,
-      1-2: 25%, 0: PASS (your call)
-
     Apply modifiers:
       Risk heat 7-8: -25%
       Risk heat 9-10: -50%
       Contrarian worry 9-10: additional -25%
 
-    STEP 3.5: Use "Get Conviction Bids" for {ticker}.
-    Identify the sponsor: shark with the highest |bid|.
-    Pass sponsored_by=[shark_id] and conviction_bids
-    as the full dict to Execute Paper Buy. If no bids
-    exist, use sponsored_by='apex_shark' as fallback.
+    STEP 5: Base position size from score:
+      7-9: full, 5-6: 75%, 3-4: 50%,
+      1-2: 25%, 0: PASS (your call)
 
-    STEP 4: Execute via "Execute Paper Buy" if buying.
-    Include sponsored_by and conviction_bids fields.
-    STEP 5: Run "Check Stop Losses" on all positions.
-    STEP 6: Review unsolicited nominations from Macro,
+    STEP 6: Execute via "Execute Paper Buy" if buying.
+    Set sponsored_by to the shark whose bid most
+    aligned with your decision. Pass conviction_bids
+    as the full dict. If no bids exist, use
+    sponsored_by='apex_shark' as fallback.
+
+    STEP 7: Run "Check Stop Losses" on all positions.
+
+    STEP 8: Review unsolicited nominations from Macro,
     Sentiment, Wildcard. If any weren't already
     persisted by their shark, call "Nominate Ticker"
     with source="apex_shark" for the best one.
-    STEP 7: State full reasoning.
+
+    STEP 9: State full reasoning.
   expected_output: >
     Decision: BUY [X shares @ ~$Y] | PASS
     Panel score: X/9
     (breakdown: Hunter=X Research=X Macro=X Mod=X)
     Final size: X% of standard
-    Conviction: X/10
-    Weighted most: [shark] because [reason]
+    Bids adopted: [sharks Apex agrees with + why]
+    Bids overruled: [sharks Apex disagrees with + why]
+    Sponsor: [shark_id] — [one sentence why]
     Stop-loss: $X | Target: $X
     Positions reviewed: [stops triggered if any]
     Watching: [unsolicited nominations]
