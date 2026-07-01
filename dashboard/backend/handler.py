@@ -327,22 +327,33 @@ def _norm_names(s: str) -> str:
 
 def route_sharks(db) -> dict:
     scores: dict[str, list[float]] = defaultdict(list)
+    open_sponsors: set[str] = set()
 
+    # Closed trades — P&L known, use sponsored_by for conviction attribution
     for trade in db.trades.find({"action": "SELL", "pnl": {"$ne": None}}):
         pnl = trade.get("pnl") or 0.0
-        surfaced = trade.get("surfaced_by", "")
-        if surfaced:
-            surfaced = _LEGACY_SHARK_NAMES.get(surfaced, surfaced)
-            scores[surfaced].append(pnl)
+        sponsor = trade.get("sponsored_by") or trade.get("surfaced_by", "")
+        if sponsor:
+            sponsor = _LEGACY_SHARK_NAMES.get(sponsor, sponsor)
+            scores[sponsor].append(pnl)
+
+    # Open positions — no P&L yet; mark sponsor as active so they don't show "Hunting"
+    for trade in db.trades.find({"action": "BUY"}):
+        sponsor = trade.get("sponsored_by") or trade.get("surfaced_by", "")
+        if sponsor:
+            sponsor = _LEGACY_SHARK_NAMES.get(sponsor, sponsor)
+            open_sponsors.add(sponsor)
+            if sponsor not in scores:
+                scores[sponsor] = []
 
     result = []
     for shark, pnls in scores.items():
         wins = sum(1 for p in pnls if p > 0)
         result.append({
             "name": shark,
-            "trades": len(pnls),
+            "trades": len(pnls) + (1 if shark in open_sponsors else 0),
             "total_pnl": round(sum(pnls), 2),
-            "avg_pnl": round(sum(pnls) / len(pnls), 2),
+            "avg_pnl": round(sum(pnls) / len(pnls), 2) if pnls else 0.0,
             "win_rate": round(wins / len(pnls) * 100, 1) if pnls else 0.0,
         })
 
