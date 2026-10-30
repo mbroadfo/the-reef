@@ -21,6 +21,6 @@ jobs:
 
       - name: Run audit
         env:
-          MONGODB_URI: "mongodb+srv://mbroadfo_db_user:${{ secrets.MONGODB_PASSWORD }}@reef-m0.1sxeyjd.mongodb.net/?authSource=admin&appName=reef-m0"
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
           MONGODB_DB: ${{ github.event.inputs.db || 'the_reef' }}
         run: python tools/db_audit.py

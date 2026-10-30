@@ -24,6 +24,6 @@ jobs:
 
       - name: Run seed script
         env:
-          MONGODB_URI: "mongodb+srv://mbroadfo_db_user:${{ secrets.MONGODB_PASSWORD }}@reef-m0.1sxeyjd.mongodb.net/?authSource=admin&appName=reef-m0"
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
           MONGODB_DB: the_reef
         run: python tools/seed_history.py
