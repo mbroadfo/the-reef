@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { usePortfolio } from '../context/PortfolioContext'
+import { newestSnapshotMs } from '../utils/snapshots'
 
 const FONT_SANS = "'Space Grotesk', system-ui, sans-serif"
 
@@ -23,10 +24,9 @@ export default function PaperBanner() {
     return () => clearInterval(id)
   }, [])
 
-  const snapshots = portfolio?.snapshots
-  const last = snapshots && snapshots.length > 0 ? snapshots[snapshots.length - 1].timestamp : null
-  const lastMs = last ? new Date(last).getTime() : NaN
-  const known = Number.isFinite(lastMs)
+  const newest = newestSnapshotMs(portfolio?.snapshots)
+  const known = newest !== null
+  const lastMs = newest ?? NaN
   const ageMs = known ? now - lastMs : 0
   const stale = known && ageMs > STALE_AFTER_HOURS * 3_600_000
 
@@ -37,26 +37,29 @@ export default function PaperBanner() {
       }) + ' ET'
     : null
 
+  const label = !known
+    ? 'Portfolio snapshot time unknown'
+    : `${stale ? 'STALE DATA: ' : ''}Portfolio snapshot as of ${asOf} (${formatAge(ageMs)})`
+
   return (
     <div
       role="status"
       style={{
         display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px',
-        padding: '5px 16px',
-        background: stale ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.12)',
-        borderBottom: `1px solid ${stale ? 'rgba(239,68,68,0.45)' : 'rgba(245,158,11,0.4)'}`,
-        fontFamily: FONT_SANS, fontSize: '12px', color: '#e2e8f0',
+        padding: '6px 16px',
+        // Opaque base so contrast does not depend on what is behind the banner.
+        background: `linear-gradient(${stale || !known ? 'rgba(239,68,68,0.18)' : 'rgba(245,158,11,0.14)'}, ${stale || !known ? 'rgba(239,68,68,0.18)' : 'rgba(245,158,11,0.14)'}), var(--reef-bg)`,
+        borderBottom: `1px solid ${stale || !known ? 'rgba(239,68,68,0.5)' : 'rgba(245,158,11,0.45)'}`,
+        fontFamily: FONT_SANS, fontSize: '12px', color: '#e2e8f0', lineHeight: 1.35,
       }}
     >
-      <span style={{ fontWeight: 800, letterSpacing: '0.12em', color: '#f59e0b' }}>PAPER TRADING</span>
+      <span style={{ fontWeight: 800, letterSpacing: '0.12em', color: '#fbbf24', whiteSpace: 'nowrap' }}>PAPER TRADING</span>
       <span style={{ color: '#cbd5e1' }}>Simulated. No real orders are placed.</span>
       <span
-        title="Time of the latest stored portfolio snapshot. Individual position prices can be older, and a position whose price source fails keeps its last stored price."
-        style={{ marginLeft: 'auto', color: stale ? '#fca5a5' : '#cbd5e1', fontWeight: stale ? 700 : 400 }}
+        title="Time of the newest stored portfolio snapshot. This is not a live feed: position prices can be older than the snapshot, and a position whose price source fails keeps its last stored price."
+        style={{ marginLeft: 'auto', color: stale || !known ? '#fca5a5' : '#cbd5e1', fontWeight: stale || !known ? 700 : 400 }}
       >
-        {known
-          ? `${stale ? 'STALE DATA — ' : ''}Last snapshot ${asOf} (${formatAge(ageMs)})`
-          : 'Data time unknown'}
+        {label}. Security prices are not live.
       </span>
     </div>
   )
