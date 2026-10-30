@@ -17,6 +17,6 @@ jobs:
         run: pip install pymongo[srv] dnspython
       - name: Run backfill
         env:
-          MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
           DB_NAME: ${{ inputs.db }}
         run: python tools/backfill_decisions.py

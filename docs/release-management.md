@@ -47,3 +47,9 @@ Environment secrets and variables for `production` (move them out of repository 
 ## Rollback
 
 Deploy workflows rebuild from `master`; roll back by reverting on `master` through a PR and dispatching the deploy again.
+
+## Database connection details
+
+No Atlas host, user name, or connection string is stored in the repository. Workflows read `secrets.MONGODB_URI` from their environment: the `dev` environment for tool and (disabled) trading workflows, the `production` environment for the Lambda's SSM parameter. The `CI: Repository Hygiene` check fails any PR that adds a connection string or Atlas host to tracked files. Database names are passed separately (`MONGODB_DB`, workflow inputs).
+
+Earlier commits still contain the old host and user name (a public history cannot be rewritten safely). They are identifiers, not credentials; the password was always a secret.

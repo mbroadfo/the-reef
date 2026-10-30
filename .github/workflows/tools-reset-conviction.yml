@@ -18,6 +18,6 @@ jobs:
 
       - name: Reset conviction points
         env:
-          MONGODB_URI: "mongodb+srv://mbroadfo_db_user:${{ secrets.MONGODB_PASSWORD }}@reef-m0.1sxeyjd.mongodb.net/?authSource=admin&appName=reef-m0"
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
           MONGODB_DB: ${{ vars.MONGODB_DB || 'the_reef' }}
         run: python tools/reset_conviction_points.py

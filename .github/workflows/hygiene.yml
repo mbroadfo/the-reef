@@ -1,0 +1,22 @@
+name: "CI: Repository Hygiene"
+# Fails a PR that adds an Atlas connection string, host or user name to tracked files.
+# Connection details belong in GitHub Secrets or environment configuration.
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no-hardcoded-connection-details:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan tracked files
+        run: |
+          if git grep -nIE 'mongodb(\+srv)?://[^[:space:]"'"'"']*@|[A-Za-z0-9-]+\.[a-z0-9]+\.mongodb\.net' -- . ':!.github/workflows/hygiene.yml' ':!docs'; then
+            echo "Hardcoded MongoDB connection details found; use a secret." >&2
+            exit 1
+          fi
