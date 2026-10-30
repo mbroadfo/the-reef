@@ -1,0 +1,16 @@
+name: "Release Gate Test"
+# Exercises the `production` environment approval gate without deploying anything.
+# Expected: run waits for the required reviewer; when started from a non-master ref, the job is skipped.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    if: github.ref == 'refs/heads/master'
+    environment: production
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "production gate passed on ${GITHUB_REF} at ${GITHUB_SHA}; nothing was deployed"

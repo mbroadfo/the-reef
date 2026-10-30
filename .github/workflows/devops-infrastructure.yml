@@ -1,15 +1,24 @@
 name: "DevOps: Infrastructure"
 # Required GitHub Secrets:
-#   TERRAFORM_AWS_ACCESS_KEY_ID / TERRAFORM_AWS_SECRET_ACCESS_KEY — Terraform
+#   TERRAFORM_AWS_ACCESS_KEY_ID / TERRAFORM_AWS_SECRET_ACCESS_KEY — Terraform (apply)
+#   TERRAFORM_PLAN_AWS_ACCESS_KEY_ID / TERRAFORM_PLAN_AWS_SECRET_ACCESS_KEY — optional read-only
+#     credentials for the plan job; the plan job falls back to the Terraform pair when unset
 #   DEPLOY_AWS_ACCESS_KEY_ID / DEPLOY_AWS_SECRET_ACCESS_KEY       — SSM secrets
 #   REEF_S3_BUCKET    — passed as TF_VAR_bucket_name
 #   MONGODB_PASSWORD  — used to construct the SSM MongoDB URI
+#
+# Deployment is manual and gated (docs/release-management.md): dispatch only, master only.
+#   plan  ungated, prints the plan, publishes its SHA-256 as a job output
+#   infra waits for a `production` reviewer, re-plans, FAILS if the plan differs from the one
+#         that was reviewed, then applies that saved plan file (never a fresh -auto-approve)
+#   secrets waits for a `production` reviewer
+# AWS credentials are set only on the steps that call AWS, never on the whole job, so
+# pip, setup actions and zip steps never see them.
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'dashboard/infra/**'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: devops-infrastructure
@@ -20,24 +29,21 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
-  infra:
+  plan:
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     outputs:
-      api_url:    ${{ steps.out.outputs.api_url }}
-      cf_dist_id: ${{ steps.out.outputs.cf_dist_id }}
-    env:
-      AWS_ACCESS_KEY_ID:     ${{ secrets.TERRAFORM_AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY }}
+      plan_sha: ${{ steps.plan.outputs.plan_sha }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Lambda package
+      - name: Build Lambda package (deterministic)
         working-directory: dashboard/backend
         run: |
           pip install -r requirements.txt -t package/ -q
           cp handler.py package/
-          cd package && zip -r ../lambda.zip . -x "*.pyc" -x "*__pycache__*"
-          rm -rf ../package/
+          python package_lambda.py package lambda.zip
+          rm -rf package/
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -46,38 +52,96 @@ jobs:
 
       - name: Terraform Init
         working-directory: dashboard/infra
-        run: |
-          terraform init -reconfigure -input=false \
-            -backend-config="bucket=reef-tf-state" \
-            -backend-config="key=reef-dashboard/terraform.tfstate" \
-            -backend-config="region=us-west-2"
-
-      - name: Debug state
-        working-directory: dashboard/infra
-        run: |
-          aws sts get-caller-identity
-          echo "--- S3 bucket access ---"
-          aws s3 ls s3://reef-tf-state/ --region us-west-2
-          echo "--- .terraform backend config ---"
-          cat .terraform/terraform.tfstate 2>/dev/null || echo "no .terraform/terraform.tfstate"
-          echo "--- terraform state list ---"
-          terraform state list || echo "(empty)"
-
-      - name: Terraform Apply
-        working-directory: dashboard/infra
-        run: terraform apply -auto-approve
         env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.TERRAFORM_PLAN_AWS_ACCESS_KEY_ID || secrets.TERRAFORM_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_PLAN_AWS_SECRET_ACCESS_KEY || secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY }}
+        run: |
+          terraform init -reconfigure -input=false             -backend-config="bucket=reef-tf-state"             -backend-config="key=reef-dashboard/terraform.tfstate"             -backend-config="region=us-west-2"
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: dashboard/infra
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.TERRAFORM_PLAN_AWS_ACCESS_KEY_ID || secrets.TERRAFORM_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_PLAN_AWS_SECRET_ACCESS_KEY || secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY }}
           TF_VAR_bucket_name: ${{ secrets.REEF_S3_BUCKET }}
+        run: |
+          terraform plan -input=false -lock-timeout=60s -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+          cat plan.txt
+          echo "plan_sha=$(sha256sum plan.txt | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+  infra:
+    needs: plan
+    environment: production
+    runs-on: ubuntu-latest
+    outputs:
+      api_url:    ${{ steps.out.outputs.api_url }}
+      cf_dist_id: ${{ steps.out.outputs.cf_dist_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Lambda package (deterministic)
+        working-directory: dashboard/backend
+        run: |
+          pip install -r requirements.txt -t package/ -q
+          cp handler.py package/
+          python package_lambda.py package lambda.zip
+          rm -rf package/
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.9"
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: dashboard/infra
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.TERRAFORM_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY }}
+        run: |
+          terraform init -reconfigure -input=false             -backend-config="bucket=reef-tf-state"             -backend-config="key=reef-dashboard/terraform.tfstate"             -backend-config="region=us-west-2"
+
+      - name: Re-plan and verify it matches the reviewed plan
+        working-directory: dashboard/infra
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.TERRAFORM_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_bucket_name: ${{ secrets.REEF_S3_BUCKET }}
+          REVIEWED_SHA: ${{ needs.plan.outputs.plan_sha }}
+        run: |
+          terraform plan -input=false -lock-timeout=60s -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+          actual="$(sha256sum plan.txt | cut -d' ' -f1)"
+          if [ -z "$REVIEWED_SHA" ] || [ "$actual" != "$REVIEWED_SHA" ]; then
+            echo "::error::The plan changed since it was reviewed (reviewed ${REVIEWED_SHA:-none}, now $actual). Nothing was applied. Review the new plan from a fresh run."
+            cat plan.txt
+            exit 1
+          fi
+          echo "Plan matches the reviewed plan ($actual)."
+
+      - name: Terraform Apply (the verified plan file)
+        working-directory: dashboard/infra
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.TERRAFORM_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY }}
+        run: terraform apply -input=false tfplan
 
       - name: Capture outputs
         id: out
         working-directory: dashboard/infra
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.TERRAFORM_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY }}
         run: |
           echo "api_url=$(terraform output -raw api_url)"                             >> "$GITHUB_OUTPUT"
           echo "cf_dist_id=$(terraform output -raw cloudfront_distribution_id)"       >> "$GITHUB_OUTPUT"
 
       - name: Print ACM DNS validation CNAME
         working-directory: dashboard/infra
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.TERRAFORM_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY }}
         run: |
           echo "=== ACM Certificate DNS Validation ==="
           echo "  Name:  $(terraform output -raw acm_validation_cname_name)"
@@ -85,8 +149,9 @@ jobs:
           echo "======================================="
 
   secrets:
-    runs-on: ubuntu-latest
     needs: infra
+    environment: production
+    runs-on: ubuntu-latest
     env:
       AWS_ACCESS_KEY_ID:     ${{ secrets.DEPLOY_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.DEPLOY_AWS_SECRET_ACCESS_KEY }}

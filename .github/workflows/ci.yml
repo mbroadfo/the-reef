@@ -1,0 +1,60 @@
+name: "CI: Pull Request Checks"
+# Required status checks for master (see docs/release-management.md): frontend, backend, terraform.
+# No secrets, no AWS or Atlas access, no LLM keys. Fork PRs run with a read-only token.
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: dashboard/frontend/package-lock.json
+      - name: Typecheck and build
+        working-directory: dashboard/frontend
+        run: npm ci && npm run build
+        env:
+          VITE_API_URL: https://example.invalid/
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile dashboard handler and Reef package
+        run: |
+          python -m py_compile dashboard/backend/handler.py dashboard/backend/package_lambda.py
+          python -m compileall -q the_reef tools
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.9"
+          terraform_wrapper: false
+      - name: Placeholder Lambda package (the config hashes it; real build happens at deploy)
+        run: |
+          cd dashboard/backend && zip -q lambda.zip handler.py
+      - name: Format and validate (no backend, no credentials)
+        working-directory: dashboard/infra
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate

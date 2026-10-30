@@ -5,11 +5,9 @@ name: "DevOps: Frontend"
 # Required GitHub Variables (set by DevOps: Infrastructure workflow):
 #   VITE_API_URL       — API Gateway base URL
 #   CLOUDFRONT_DIST_ID — CloudFront distribution ID
+# Deployment is manual and gated (docs/release-management.md): dispatch only, master only,
+# and the job waits for a reviewer on the `production` environment.
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'dashboard/frontend/**'
   workflow_dispatch:
 
 concurrency:
@@ -22,10 +20,9 @@ env:
 
 jobs:
   frontend:
+    if: github.ref == 'refs/heads/master'
+    environment: production
     runs-on: ubuntu-latest
-    env:
-      AWS_ACCESS_KEY_ID:     ${{ secrets.DEPLOY_AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.DEPLOY_AWS_SECRET_ACCESS_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,12 +39,18 @@ jobs:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
 
       - name: Sync to S3
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.DEPLOY_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DEPLOY_AWS_SECRET_ACCESS_KEY }}
         run: |
           aws s3 sync dashboard/frontend/dist/ \
             s3://${{ secrets.REEF_S3_BUCKET }}/ \
             --delete --cache-control "public,max-age=300"
 
       - name: Invalidate CloudFront
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.DEPLOY_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DEPLOY_AWS_SECRET_ACCESS_KEY }}
         run: |
           aws cloudfront create-invalidation \
             --distribution-id ${{ vars.CLOUDFRONT_DIST_ID }} \
