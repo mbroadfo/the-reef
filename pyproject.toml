@@ -11,6 +11,7 @@ dependencies = [
     "anthropic>=0.105.2",
     "crewai>=1.14.6",
     "crewai-tools>=1.14.6",
+    "exchange-calendars>=4.13",
     "openai>=2.38.0",
     "pydantic>=2.12.5",
     "pymongo>=4.17.0",
@@ -19,3 +20,11 @@ dependencies = [
     "schedule>=1.2.2",
     "yfinance>=1.4.1",
 ]
+
+[dependency-groups]
+test = ["pytest>=8", "exchange-calendars>=4.13"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers"
