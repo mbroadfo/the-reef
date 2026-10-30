@@ -38,7 +38,7 @@ jobs:
           python-version: '3.12'
       - name: Compile dashboard handler and Reef package
         run: |
-          python -m py_compile dashboard/backend/handler.py
+          python -m py_compile dashboard/backend/handler.py dashboard/backend/package_lambda.py
           python -m compileall -q the_reef tools
 
   terraform:

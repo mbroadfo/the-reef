@@ -7,12 +7,13 @@ Production changes (dashboard frontend, Lambda backend, Terraform) are deployed 
 1. `master` accepts changes through pull requests only, after the required checks pass.
 2. Deploy workflows (`DevOps: Frontend`, `DevOps: Backend`, `DevOps: Infrastructure`) have **no push trigger**. They run by `workflow_dispatch`, only from `master`.
 3. Every deploying job uses the `production` environment, which requires a named reviewer's approval before the job starts.
-4. Infrastructure: `plan` runs first and prints the Terraform plan; `apply` and the SSM secrets step wait for approval. Read the plan in the `plan` job's log before approving. A plan file is intentionally not passed between jobs, because artifacts on a public repository are readable by any signed-in GitHub user.
-5. Trading and LLM workflows are `workflow_dispatch` only until a separate activation decision. Provider keys live only in a gated `llm` environment.
+4. Infrastructure: `plan` runs first (ungated) and prints the Terraform plan plus its SHA-256. `infra` waits for approval, builds the same deterministic Lambda zip, re-plans, **fails if the new plan's hash differs from the reviewed one**, and applies that saved plan file. There is no `-auto-approve` of a fresh plan. A plan file is not handed between jobs because artifacts on a public repository are readable by any signed-in GitHub user; the hash is the handoff. If provider or dependency versions drift between the two runs the job fails safe and you re-run.
+5. AWS credentials are set on the steps that call AWS, not on whole jobs, so `pip`, `npm` and third-party actions never see them. The plan job uses `TERRAFORM_PLAN_AWS_*` when those secrets exist (create a read-only IAM user for it) and otherwise falls back to `TERRAFORM_AWS_*`.
+6. Trading and LLM workflows are `workflow_dispatch` only until a separate activation decision. Provider keys live only in a gated `llm` environment.
 
-## One-time repository settings (apply after this change is reviewed and merged)
+## Repository settings (not stored in the repo; applied 2026-10-30, listed here so they can be re-created)
 
-Settings are not stored in the repository, so a reviewer cannot see them in the diff. Apply them in this order and tick each off.
+Settings are not part of any diff. They were applied through the GitHub API as described below; re-apply them if the repository is recreated.
 
 ```bash
 # 1. Environment with a required reviewer (replace USER_ID with the numeric GitHub user id of the reviewer)
@@ -28,9 +29,9 @@ gh api -X POST repos/{owner}/{repo}/environments/production/deployment-branch-po
 
 Branch ruleset (Settings > Rules > Rulesets), target `master`:
 - Restrict deletions; block force pushes.
-- Require a pull request before merging (approvals: 0 for a solo maintainer, but keep the PR requirement).
+- Require a pull request before merging. Approvals: 0, because there is one maintainer. Do not enable mandatory second-person review.
+- Repository admins can bypass on pull requests only (escape hatch); direct pushes stay blocked.
 - Require status checks to pass: `frontend`, `backend`, `terraform`. These names exist only after `ci.yml` has run once on a PR.
-- Do not add a bypass actor unless intended.
 
 Environment secrets and variables for `production` (move them out of repository scope when convenient): `DEPLOY_AWS_*`, `TERRAFORM_AWS_*`, `REEF_S3_BUCKET`, `MONGODB_URI` (production Atlas connection string, used to write the Lambda's SSM parameter).
 
