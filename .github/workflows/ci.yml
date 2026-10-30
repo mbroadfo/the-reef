@@ -1,5 +1,6 @@
 name: "CI: Pull Request Checks"
 # Required status checks for master (see docs/release-management.md): frontend, backend, terraform.
+# `tests` runs pytest; add it to the ruleset's required checks once it has reported green.
 # No secrets, no AWS or Atlas access, no LLM keys. Fork PRs run with a read-only token.
 on:
   pull_request:
@@ -40,6 +41,20 @@ jobs:
         run: |
           python -m py_compile dashboard/backend/handler.py dashboard/backend/package_lambda.py
           python -m compileall -q the_reef tools
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Lockfile matches pyproject
+        run: uv lock --check
+      - name: Install test dependencies only (no LLM SDKs, no database drivers)
+        run: uv sync --frozen --only-group test --no-install-project
+      - name: pytest (fixtures and mocks only, no network, no Atlas, no LLM)
+        run: uv run --frozen --no-sync pytest
 
   terraform:
     runs-on: ubuntu-latest
