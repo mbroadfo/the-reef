@@ -33,7 +33,7 @@ from the_reef.ledger.events import EventDraft, Side
 from the_reef.ledger.ledger import AppendResult, Ledger
 from the_reef.ledger.state import EpochState, OrderRecord, valuation
 from the_reef.ledger.views import fund_view
-from the_reef.market.bars import BarSource, last_closes
+from the_reef.market.bars import BarSource
 from the_reef.market.calendar import MarketCalendar
 from the_reef.market.instruments import CorporateActionSource, InstrumentMaster, Intent
 from the_reef.market.quotes import MarkStatus, mark_close
@@ -143,9 +143,24 @@ def _prior_nav(ep: EpochState, before_day: date) -> Decimal:
     return ep.marks[max(earlier)] if earlier else ep.initial_cash
 
 
-def _risk_view(ep: EpochState, deps: EngineDeps, as_of: datetime, session_day: date) -> PortfolioView:
+def _risk_view(ep: EpochState, deps: EngineDeps, as_of: datetime, session_day: date, *, marked_day: str | None) -> PortfolioView:
+    """Fund risk view from the ledger's validated session marks, never from whatever bar is latest.
+
+    ``marked_day`` is the session whose close must back the marks: today's at the decision, the
+    previous session's at the open. If the last SESSION_MARKED is any other day, or declared a
+    holding unmarked, that holding is carried untrusted (None) and new exposure is blocked.
+    Holdings with no mark at all are only fills from this very open; they stay at cost.
+    """
     symbols = sorted({s for sl in ep.sleeves.values() for s in sl.positions})
-    marks = last_closes(deps.bars, symbols, as_of)
+    current = ep.last_marked == marked_day if ep.last_marked is not None else True
+    marks: dict[str, Decimal | None] = {}
+    for sym in symbols:
+        if sym in ep.last_unmarked or (ep.last_marked is not None and not current):
+            marks[sym] = None
+        elif sym in ep.last_mark_prices:
+            marks[sym] = ep.last_mark_prices[sym]
+        else:
+            marks[sym] = next(p.avg_cost for sl in ep.sleeves.values() for s, p in sl.positions.items() if s == sym)
     sectors = {s: _sector(deps, s, as_of) for s in symbols}
     return fund_view(ep, marks, sectors, prior_close_nav=_prior_nav(ep, session_day), high_water_mark=ep.high_water_mark)
 
@@ -252,7 +267,7 @@ def _resolve_one(ledger: Ledger, deps: EngineDeps, o: OrderRecord, day: date, re
                         o.stop_price, o.sector, o.requested_shares)
     queued = QueuedOrder(order, o.symbol, day, session.open)
     open_print = deps.bars.official_open(o.symbol, session)
-    view = _risk_view(ep, deps, session.open, day)
+    view = _risk_view(ep, deps, session.open, day, marked_day=ep.last_marked)  # advance() guarantees it is the previous session
     d = fill_at_open(deps.ports, queued, open_print, view, ep.sleeves[o.sleeve_id].cash)
     if not d.accepted or open_print is None or open_print.price is None:
         code = _reject_code(d)
@@ -273,6 +288,9 @@ def _run_stops(ledger: Ledger, deps: EngineDeps, day: date, as_of: datetime, rep
     session = deps.calendar.session(day)
     assert session is not None
     ep = ledger.state.epoch(deps.epoch_id)
+    # An open gap and an intraday touch carry different event times; the ledger is append-only in
+    # time, so collect every execution first and write them in (time, sleeve, symbol) order.
+    due = []
     for sid, sl in sorted(ep.sleeves.items()):
         for sym, pos in sorted(sl.positions.items()):
             if pos.stop_price is None:
@@ -287,9 +305,11 @@ def _run_stops(ledger: Ledger, deps: EngineDeps, day: date, as_of: datetime, rep
                 price, at, kind = pos.stop_price, session.close, NoteKind.STOP_TOUCH
             else:
                 continue
-            _emit(ledger, ev.fill(deps.epoch_id, at, sleeve_id=sid, order_id=f"stop:{sym}:{day.isoformat()}", symbol=sym,
-                                  side=Side.SELL, shares=pos.shares, price=price, session_day=day), report)
-            report.add(kind, sid, sym, f"SELL {pos.shares} @ {price} (stop {pos.stop_price}, open {bar.open}, low {bar.low})")
+            due.append((at, sid, sym, pos, price, kind, bar))
+    for at, sid, sym, pos, price, kind, bar in sorted(due, key=lambda d: d[:3]):
+        _emit(ledger, ev.fill(deps.epoch_id, at, sleeve_id=sid, order_id=f"stop:{sym}:{day.isoformat()}", symbol=sym,
+                              side=Side.SELL, shares=pos.shares, price=price, session_day=day), report)
+        report.add(kind, sid, sym, f"SELL {pos.shares} @ {price} (stop {pos.stop_price}, open {bar.open}, low {bar.low})")
 
 
 def _mark(ledger: Ledger, deps: EngineDeps, day: date, report: AdvanceReport) -> None:
@@ -360,7 +380,7 @@ def _queue(ledger: Ledger, deps: EngineDeps, spec: SleeveSpec, prop: Proposal, s
         return refuse(_reject_code(gate), gate.detail)
     if prop.intent.adds_exposure:
         assert prop.stop_price is not None
-        view = _risk_view(ep, deps, decide_at, day)
+        view = _risk_view(ep, deps, decide_at, day, marked_day=day.isoformat())
         risk = evaluate_entry(symbol=prop.symbol, sector=sector, ref_price=prop.ref_price, stop_price=prop.stop_price,
                               sleeve_cash=ep.sleeves[spec.sleeve_id].cash, portfolio=view, limits=deps.limits,
                               requested_shares=shares)

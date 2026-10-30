@@ -88,11 +88,14 @@ class EpochState:
     orders: Mapping[str, OrderRecord] = field(default_factory=dict)  # key: sleeve_id:order_id
     marks: Mapping[str, Decimal] = field(default_factory=dict)  # session ISO date -> verified fund NAV
     last_completed: str = ""  # ISO date of the last fully finished session
+    last_mark_prices: Mapping[str, Decimal] = field(default_factory=dict)  # official closes of the last marked session
+    last_unmarked: frozenset[str] = frozenset()  # held names that session could not mark
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "sleeves", MappingProxyType(dict(self.sleeves)))
         object.__setattr__(self, "orders", MappingProxyType(dict(self.orders)))
         object.__setattr__(self, "marks", MappingProxyType(dict(self.marks)))
+        object.__setattr__(self, "last_mark_prices", MappingProxyType(dict(self.last_mark_prices)))
 
     def pending_orders(self) -> list[OrderRecord]:
         return [o for _, o in sorted(self.orders.items()) if o.status is OrderStatus.QUEUED]
@@ -142,6 +145,8 @@ class LedgerState:
             eid: {
                 "initial": str(e.initial_cash), "unallocated": str(e.unallocated), "closed": e.closed,
                 "marks": {d: str(v) for d, v in sorted(e.marks.items())}, "completed": e.last_completed,
+                "last_marks": {k: str(v) for k, v in sorted(e.last_mark_prices.items())},
+                "last_unmarked": sorted(e.last_unmarked),
                 "orders": {k: [o.status.value, o.symbol, o.intent, o.requested_shares, o.fill_session]
                            for k, o in sorted(e.orders.items())},
                 "sleeves": {
@@ -421,7 +426,7 @@ def _apply_mark(ep: EpochState, draft: EventDraft) -> EpochState:
     stated = {k: D(str(v)) for k, v in dict(p.get("sleeve_nav", {})).items()}  # type: ignore[call-overload]
     if stated != sleeve_nav:
         raise LedgerError("stated sleeve NAVs do not match the books")
-    return replace(ep, marks={**ep.marks, day: total})
+    return replace(ep, marks={**ep.marks, day: total}, last_mark_prices=marks, last_unmarked=frozenset(unmarked))
 
 
 def replay(events: list[LedgerEvent]) -> LedgerState:

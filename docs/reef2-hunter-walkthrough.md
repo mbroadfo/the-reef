@@ -81,7 +81,7 @@ The sleeve's return is against the $4,000 it was funded with, never against the 
 
 ## 5. Deterministic replay and recovery
 
-- Events in the ledger: 288; head hash `7009141fcd935227...`; state digest `3f7ab70712be2616...`.
+- Events in the ledger: 288; head hash `7009141fcd935227...`; state digest `ddc7ab72666685ee...`.
 - Replaying every event from the start gives the same state digest: **True** and the same head hash: **True**.
 - A second, independent run of the whole simulation produces an identical ledger (same head hash): **True**.
 - Loading the stored events against the preserved checkpoint (seq 288) succeeds: **True**.
