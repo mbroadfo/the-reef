@@ -13,6 +13,7 @@ from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from datetime import datetime
 from decimal import ROUND_HALF_EVEN, Decimal
+from enum import Enum
 from typing import Mapping
 
 from the_reef.market.instruments import settlement_event_id
@@ -56,6 +57,27 @@ class SleeveState:
         return p.shares if p else 0
 
 
+class OrderStatus(str, Enum):
+    QUEUED = "QUEUED"
+    FILLED = "FILLED"
+    REJECTED = "REJECTED"
+
+
+@dataclass(frozen=True)
+class OrderRecord:
+    sleeve_id: str
+    order_id: str
+    symbol: str
+    intent: str
+    requested_shares: int | None
+    stop_price: Decimal | None
+    fill_session: str  # ISO date; empty for decision-stage rejections
+    ref_price: Decimal | None
+    sector: str | None
+    status: OrderStatus
+    decided_at: str = ""
+
+
 @dataclass(frozen=True)
 class EpochState:
     epoch_id: str
@@ -63,9 +85,28 @@ class EpochState:
     unallocated: Decimal
     sleeves: Mapping[str, SleeveState] = field(default_factory=dict)
     closed: bool = False
+    orders: Mapping[str, OrderRecord] = field(default_factory=dict)  # key: sleeve_id:order_id
+    marks: Mapping[str, Decimal] = field(default_factory=dict)  # session ISO date -> verified fund NAV
+    last_completed: str = ""  # ISO date of the last fully finished session
+    last_mark_prices: Mapping[str, Decimal] = field(default_factory=dict)  # official closes of the last marked session
+    last_unmarked: frozenset[str] = frozenset()  # held names that session could not mark
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "sleeves", MappingProxyType(dict(self.sleeves)))
+        object.__setattr__(self, "orders", MappingProxyType(dict(self.orders)))
+        object.__setattr__(self, "marks", MappingProxyType(dict(self.marks)))
+        object.__setattr__(self, "last_mark_prices", MappingProxyType(dict(self.last_mark_prices)))
+
+    def pending_orders(self) -> list[OrderRecord]:
+        return [o for _, o in sorted(self.orders.items()) if o.status is OrderStatus.QUEUED]
+
+    @property
+    def last_marked(self) -> str | None:
+        return max(self.marks) if self.marks else None
+
+    @property
+    def high_water_mark(self) -> Decimal:
+        return max([self.initial_cash, *self.marks.values()])
 
     @property
     def realized_pnl(self) -> Decimal:
@@ -103,6 +144,11 @@ class LedgerState:
         body = {
             eid: {
                 "initial": str(e.initial_cash), "unallocated": str(e.unallocated), "closed": e.closed,
+                "marks": {d: str(v) for d, v in sorted(e.marks.items())}, "completed": e.last_completed,
+                "last_marks": {k: str(v) for k, v in sorted(e.last_mark_prices.items())},
+                "last_unmarked": sorted(e.last_unmarked),
+                "orders": {k: [o.status.value, o.symbol, o.intent, o.requested_shares, o.fill_session]
+                           for k, o in sorted(e.orders.items())},
                 "sleeves": {
                     sid: {
                         "cash": str(s.cash), "realized": str(s.realized_pnl),
@@ -215,8 +261,51 @@ def _apply_in_epoch(ep: EpochState, draft: EventDraft) -> EpochState:
             raise LedgerError(f"sleeve {sid} exists")
         return _put(ep, sid, SleeveState())
 
+    if kind is EventKind.SESSION_MARKED:
+        return _apply_mark(ep, draft)
+    if kind is EventKind.SESSION_CLOSED:
+        day = _str(p, "session_day")
+        if day != ep.last_marked:
+            raise LedgerError(f"session {day} cannot close before it is marked (last marked {ep.last_marked})")
+        if day <= ep.last_completed:
+            raise LedgerError(f"session {day} is already closed")
+        return replace(ep, last_completed=day)
+
     sid = _str(p, "sleeve_id")
     sl = _sleeve(ep, sid)
+
+    if kind is EventKind.ORDER_QUEUED:
+        oid = _str(p, "order_id")
+        key = f"{sid}:{oid}"
+        if key in ep.orders:
+            raise LedgerError(f"order {key} already exists")
+        intent = _str(p, "intent")
+        if intent not in ("open", "add", "reduce", "close"):
+            raise LedgerError(f"bad order intent {intent!r}")
+        req = p.get("requested_shares")
+        if req is not None and (isinstance(req, bool) or not isinstance(req, int) or req <= 0):
+            raise LedgerError("requested_shares must be a positive integer or null")
+        stop = None if p.get("stop_price") is None else _dec(p, "stop_price")
+        rec = OrderRecord(sid, oid, _str(p, "symbol"), intent, req, stop, _str(p, "fill_session"),
+                          _dec(p, "ref_price"), p.get("sector") if isinstance(p.get("sector"), str) else None,  # type: ignore[arg-type]
+                          OrderStatus.QUEUED, str(p.get("decided_at", "")))
+        return replace(ep, orders={**ep.orders, key: rec})
+
+    if kind is EventKind.ORDER_REJECTED:
+        oid = _str(p, "order_id")
+        key = f"{sid}:{oid}"
+        stage = _str(p, "stage")
+        existing = ep.orders.get(key)
+        if stage == "FILL":
+            if existing is None or existing.status is not OrderStatus.QUEUED:
+                raise LedgerError(f"order {key} is not pending; it cannot be rejected at fill")
+            return replace(ep, orders={**ep.orders, key: replace(existing, status=OrderStatus.REJECTED)})
+        if stage == "DECISION":
+            if existing is not None:
+                raise LedgerError(f"order {key} already exists")
+            rec = OrderRecord(sid, oid, str(p.get("symbol", "")), "", None, None, "", None, None, OrderStatus.REJECTED)
+            return replace(ep, orders={**ep.orders, key: rec})
+        raise LedgerError(f"bad rejection stage {stage!r}")
 
     if kind is EventKind.SLEEVE_FUNDED:
         amount = _dec(p, "amount")
@@ -238,6 +327,15 @@ def _apply_in_epoch(ep: EpochState, draft: EventDraft) -> EpochState:
             raise LedgerError("fill needs positive whole shares and price")
         pos = sl.positions.get(symbol)
         positions = dict(sl.positions)
+        orders = ep.orders
+        okey = f"{sid}:{p['order_id']}" if "order_id" in p else ""
+        if okey in ep.orders:
+            rec = ep.orders[okey]
+            if rec.status is not OrderStatus.QUEUED:
+                raise LedgerError(f"order {okey} is {rec.status.value}; it cannot fill")
+            if rec.symbol != symbol or (rec.requested_shares is not None and shares > rec.requested_shares):
+                raise LedgerError(f"fill does not match queued order {okey}")
+            orders = {**ep.orders, okey: replace(rec, status=OrderStatus.FILLED)}
         if side is Side.BUY:
             cost = price * shares
             if cost > sl.cash:
@@ -246,7 +344,7 @@ def _apply_in_epoch(ep: EpochState, draft: EventDraft) -> EpochState:
             if stop is not None and stop >= price:
                 raise LedgerError("stop must be below the fill price")
             positions[symbol] = Position((pos.shares if pos else 0) + shares, (pos.cost if pos else ZERO) + cost, stop)
-            return _put(ep, sid, replace(sl, cash=sl.cash - cost, positions=positions))
+            return _put(ep, sid, replace(sl, cash=sl.cash - cost, positions=positions), orders=orders)
         if pos is None or shares > pos.shares:
             raise LedgerError(f"sell of {shares} exceeds {pos.shares if pos else 0} held (no shorting)")
         removed = pos.cost if shares == pos.shares else (pos.cost * shares / pos.shares).quantize(_COST_QUANT, ROUND_HALF_EVEN)
@@ -256,7 +354,7 @@ def _apply_in_epoch(ep: EpochState, draft: EventDraft) -> EpochState:
         else:
             positions[symbol] = Position(pos.shares - shares, pos.cost - removed, pos.stop_price)
         return _put(ep, sid, replace(sl, cash=sl.cash + proceeds, positions=positions,
-                                     realized_pnl=sl.realized_pnl + proceeds - removed))
+                                     realized_pnl=sl.realized_pnl + proceeds - removed), orders=orders)
 
     if kind is EventKind.STOP_UPDATED:
         pos = sl.positions.get(symbol)
@@ -285,6 +383,50 @@ def _apply_in_epoch(ep: EpochState, draft: EventDraft) -> EpochState:
                                      realized_pnl=sl.realized_pnl + cash - pos.cost))
 
     raise LedgerError(f"unhandled event kind {kind}")
+
+
+def valuation(ep: EpochState, marks: Mapping[str, Decimal], unmarked: set[str] | frozenset[str]) -> tuple[Decimal, dict[str, Decimal]]:
+    """Fund NAV and per-sleeve NAV. An unmarked holding is carried at cost and the caller must
+    treat the book as untrusted (E-6). Every held symbol must be marked or declared unmarked."""
+    total = ep.unallocated
+    sleeve_nav: dict[str, Decimal] = {}
+    for sid, sl in ep.sleeves.items():
+        nav = sl.cash
+        for sym, pos in sl.positions.items():
+            if sym in marks:
+                nav += marks[sym] * pos.shares
+            elif sym in unmarked:
+                nav += pos.cost
+            else:
+                raise LedgerError(f"held symbol {sym} is neither marked nor declared unmarked")
+        sleeve_nav[sid] = nav
+        total += nav
+    return total, sleeve_nav
+
+
+def _apply_mark(ep: EpochState, draft: EventDraft) -> EpochState:
+    """Verify an end-of-session valuation against the books, then record the fund NAV.
+
+    Every held symbol must be either marked or declared unmarked (valued at cost, which makes the
+    book untrusted for the caller); the stated NAVs must equal the recomputation exactly.
+    """
+    p = draft.payload
+    day = _str(p, "session_day")
+    if ep.last_marked is not None and day <= ep.last_marked:
+        raise LedgerError(f"session {day} is not after the last marked session {ep.last_marked}")
+    if ep.last_marked is not None and ep.last_completed != ep.last_marked:
+        raise LedgerError(f"session {ep.last_marked} is not closed; it must finish before {day} is marked")
+    marks = {k: D(str(v)) for k, v in dict(p.get("marks", {})).items()}  # type: ignore[call-overload]
+    unmarked = set(p.get("unmarked", ()))  # type: ignore[call-overload]
+    if any(v <= 0 for v in marks.values()):
+        raise LedgerError("marks must be positive")
+    total, sleeve_nav = valuation(ep, marks, unmarked)
+    if D(str(p["nav"])) != total:
+        raise LedgerError(f"stated NAV {p['nav']} does not match the books {total}")
+    stated = {k: D(str(v)) for k, v in dict(p.get("sleeve_nav", {})).items()}  # type: ignore[call-overload]
+    if stated != sleeve_nav:
+        raise LedgerError("stated sleeve NAVs do not match the books")
+    return replace(ep, marks={**ep.marks, day: total}, last_mark_prices=marks, last_unmarked=frozenset(unmarked))
 
 
 def replay(events: list[LedgerEvent]) -> LedgerState:

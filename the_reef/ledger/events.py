@@ -32,6 +32,10 @@ class EventKind(str, Enum):
     FILL = "FILL"
     STOP_UPDATED = "STOP_UPDATED"
     CORPORATE_ACTION_SETTLED = "CORPORATE_ACTION_SETTLED"
+    ORDER_QUEUED = "ORDER_QUEUED"  # a decision waiting for its fill session's open
+    ORDER_REJECTED = "ORDER_REJECTED"  # refused at decision time or at fill time
+    SESSION_MARKED = "SESSION_MARKED"  # end-of-session valuation, verified against the books
+    SESSION_CLOSED = "SESSION_CLOSED"  # every step of the session is done; the next may start
 
 
 class Side(str, Enum):
@@ -180,3 +184,47 @@ def corporate_action_settled(
         "sleeve_id": sleeve_id, "symbol": symbol, "shares": shares, "cash": _d(cash),
         "action_id": action_id, "effective": effective.isoformat(),
     })
+
+
+def order_key(sleeve_id: str, order_id: str) -> str:
+    return f"{sleeve_id}:{order_id}"
+
+
+def order_queued(
+    epoch_id: str, at: datetime, *, sleeve_id: str, order_id: str, symbol: str, intent: str,
+    requested_shares: int | None, stop_price: Decimal | None, fill_session: date, ref_price: Decimal,
+    sector: str | None, rationale: str = "",
+) -> EventDraft:
+    return EventDraft(derive_id("order_queued", epoch_id, sleeve_id, order_id), epoch_id, EventKind.ORDER_QUEUED, at, {
+        "sleeve_id": sleeve_id, "order_id": order_id, "symbol": symbol, "intent": intent,
+        "requested_shares": requested_shares, "stop_price": None if stop_price is None else _d(stop_price),
+        "fill_session": fill_session.isoformat(), "ref_price": _d(ref_price), "sector": sector, "rationale": rationale,
+        "decided_at": at.isoformat(),
+    })
+
+
+def order_rejected(
+    epoch_id: str, at: datetime, *, sleeve_id: str, order_id: str, stage: str, code: str, detail: str = "",
+    symbol: str = "",
+) -> EventDraft:
+    """``stage`` is DECISION (never queued) or FILL (queued, then refused at the open)."""
+    return EventDraft(derive_id("order_rejected", epoch_id, sleeve_id, order_id, stage), epoch_id,
+                      EventKind.ORDER_REJECTED, at, {
+        "sleeve_id": sleeve_id, "order_id": order_id, "stage": stage, "code": code, "detail": detail, "symbol": symbol,
+    })
+
+
+def session_marked(
+    epoch_id: str, at: datetime, *, session_day: date, marks: Mapping[str, Decimal], unmarked: list[str],
+    nav: Decimal, sleeve_nav: Mapping[str, Decimal],
+) -> EventDraft:
+    return EventDraft(derive_id("session_marked", epoch_id, session_day.isoformat()), epoch_id,
+                      EventKind.SESSION_MARKED, at, {
+        "session_day": session_day.isoformat(), "marks": {k: _d(v) for k, v in sorted(marks.items())},
+        "unmarked": sorted(unmarked), "nav": _d(nav), "sleeve_nav": {k: _d(v) for k, v in sorted(sleeve_nav.items())},
+    })
+
+
+def session_closed(epoch_id: str, at: datetime, session_day: date) -> EventDraft:
+    return EventDraft(derive_id("session_closed", epoch_id, session_day.isoformat()), epoch_id,
+                      EventKind.SESSION_CLOSED, at, {"session_day": session_day.isoformat()})
