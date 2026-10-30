@@ -31,11 +31,11 @@ resource "aws_s3_bucket_policy" "spa" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Sid    = "AllowCloudFront"
-      Effect = "Allow"
+      Sid       = "AllowCloudFront"
+      Effect    = "Allow"
       Principal = { Service = "cloudfront.amazonaws.com" }
-      Action   = "s3:GetObject"
-      Resource = "${aws_s3_bucket.spa.arn}/*"
+      Action    = "s3:GetObject"
+      Resource  = "${aws_s3_bucket.spa.arn}/*"
       Condition = {
         StringEquals = {
           "AWS:SourceArn" = aws_cloudfront_distribution.spa.arn
@@ -70,13 +70,13 @@ resource "aws_cloudfront_distribution" "spa" {
 
   # Long-lived cache for Vite-hashed assets
   ordered_cache_behavior {
-    path_pattern     = "/assets/*"
-    allowed_methods  = ["GET", "HEAD"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-${aws_s3_bucket.spa.bucket}"
-    compress         = true
+    path_pattern           = "/assets/*"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-${aws_s3_bucket.spa.bucket}"
+    compress               = true
     viewer_protocol_policy = "redirect-to-https"
-    cache_policy_id  = aws_cloudfront_cache_policy.assets.id
+    cache_policy_id        = aws_cloudfront_cache_policy.assets.id
   }
 
   # SPA routing — 403/404 → index.html
@@ -136,8 +136,8 @@ resource "aws_cloudfront_cache_policy" "assets" {
   parameters_in_cache_key_and_forwarded_to_origin {
     enable_accept_encoding_brotli = true
     enable_accept_encoding_gzip   = true
-    cookies_config  { cookie_behavior        = "none" }
-    headers_config  { header_behavior        = "none" }
+    cookies_config { cookie_behavior = "none" }
+    headers_config { header_behavior = "none" }
     query_strings_config { query_string_behavior = "none" }
   }
 }

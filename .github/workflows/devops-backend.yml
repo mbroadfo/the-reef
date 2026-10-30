@@ -1,11 +1,9 @@
 name: "DevOps: Backend"
 # Required GitHub Secrets:
 #   DEPLOY_AWS_ACCESS_KEY_ID / DEPLOY_AWS_SECRET_ACCESS_KEY — Lambda deploy
+# Deployment is manual and gated (docs/release-management.md): dispatch only, master only,
+# and the job waits for a reviewer on the `production` environment.
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'dashboard/backend/**'
   workflow_dispatch:
 
 concurrency:
@@ -18,6 +16,8 @@ env:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/master'
+    environment: production
     runs-on: ubuntu-latest
     env:
       AWS_ACCESS_KEY_ID:     ${{ secrets.DEPLOY_AWS_ACCESS_KEY_ID }}

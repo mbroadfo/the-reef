@@ -4,11 +4,9 @@ name: "DevOps: Infrastructure"
 #   DEPLOY_AWS_ACCESS_KEY_ID / DEPLOY_AWS_SECRET_ACCESS_KEY       — SSM secrets
 #   REEF_S3_BUCKET    — passed as TF_VAR_bucket_name
 #   MONGODB_PASSWORD  — used to construct the SSM MongoDB URI
+# Deployment is manual and gated (docs/release-management.md): dispatch only, master only.
+# `plan` is ungated and prints the plan; `apply` and `secrets` wait for a `production` reviewer.
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'dashboard/infra/**'
   workflow_dispatch:
 
 concurrency:
@@ -20,7 +18,44 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
+  plan:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID:     ${{ secrets.TERRAFORM_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Lambda package
+        working-directory: dashboard/backend
+        run: |
+          pip install -r requirements.txt -t package/ -q
+          cp handler.py package/
+          cd package && zip -r ../lambda.zip . -x "*.pyc" -x "*__pycache__*"
+          rm -rf ../package/
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.9"
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: dashboard/infra
+        run: |
+          terraform init -reconfigure -input=false             -backend-config="bucket=reef-tf-state"             -backend-config="key=reef-dashboard/terraform.tfstate"             -backend-config="region=us-west-2"
+
+      # Read the plan in this job's log before approving `apply`. A plan file is not handed
+      # across jobs: artifacts on a public repo are readable by any signed-in GitHub user.
+      - name: Terraform Plan
+        working-directory: dashboard/infra
+        run: terraform plan -input=false -lock-timeout=60s
+        env:
+          TF_VAR_bucket_name: ${{ secrets.REEF_S3_BUCKET }}
+
   infra:
+    needs: plan
+    environment: production
     runs-on: ubuntu-latest
     outputs:
       api_url:    ${{ steps.out.outputs.api_url }}
@@ -85,8 +120,9 @@ jobs:
           echo "======================================="
 
   secrets:
-    runs-on: ubuntu-latest
     needs: infra
+    environment: production
+    runs-on: ubuntu-latest
     env:
       AWS_ACCESS_KEY_ID:     ${{ secrets.DEPLOY_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.DEPLOY_AWS_SECRET_ACCESS_KEY }}
