@@ -121,7 +121,7 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
                       {returnVal! > 0 ? '+' : ''}{returnVal!.toFixed(1)}%
                     </div>
                     <div style={{ fontSize: '9px', fontFamily: FONT_SANS, color: '#94a3b8', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      30D Return
+                      Total Return
                     </div>
                   </div>
                   <div style={{ width: '100%', marginTop: '8px' }}>
@@ -129,7 +129,7 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
                       <div style={{ width: `${confidence}%`, height: '100%', background: color, borderRadius: '2px', transition: 'width 300ms ease' }} />
                     </div>
                     <div style={{ fontSize: '10px', fontWeight: '600', fontFamily: FONT_SANS, color: '#94a3b8', textAlign: 'center', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      {confidence.toFixed(0)}% Confidence
+                      {confidence.toFixed(0)}% Win · {shark!.trades} {shark!.trades === 1 ? 'trade' : 'trades'}
                     </div>
                   </div>
                 </>
