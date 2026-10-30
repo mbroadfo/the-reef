@@ -43,7 +43,10 @@ jobs:
       - name: Terraform Init
         working-directory: dashboard/infra
         run: |
-          terraform init -reconfigure -input=false             -backend-config="bucket=reef-tf-state"             -backend-config="key=reef-dashboard/terraform.tfstate"             -backend-config="region=us-west-2"
+          terraform init -reconfigure -input=false \
+            -backend-config="bucket=reef-tf-state" \
+            -backend-config="key=reef-dashboard/terraform.tfstate" \
+            -backend-config="region=us-west-2"
 
       # Read the plan in this job's log before approving `apply`. A plan file is not handed
       # across jobs: artifacts on a public repo are readable by any signed-in GitHub user.
