@@ -5,7 +5,7 @@ name: "DevOps: Infrastructure"
 #     credentials for the plan job; the plan job falls back to the Terraform pair when unset
 #   DEPLOY_AWS_ACCESS_KEY_ID / DEPLOY_AWS_SECRET_ACCESS_KEY       — SSM secrets
 #   REEF_S3_BUCKET    — passed as TF_VAR_bucket_name
-#   MONGODB_PASSWORD  — used to construct the SSM MongoDB URI
+#   MONGODB_URI       — production Atlas connection string (secret of the `production` environment)
 #
 # Deployment is manual and gated (docs/release-management.md): dispatch only, master only.
 #   plan  ungated, prints the plan, publishes its SHA-256 as a job output
@@ -157,10 +157,15 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.DEPLOY_AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Write secrets to Parameter Store
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
         run: |
+          if [ -z "$MONGODB_URI" ]; then
+            echo "::error::MONGODB_URI is empty. Create it as a secret of the production environment. Nothing was written."
+            exit 1
+          fi
           aws ssm put-parameter \
             --name "/reef/prod/secrets" \
             --type "SecureString" \
-            --value '{"MONGODB_URI":"mongodb+srv://mbroadfo_db_user:${{ secrets.MONGODB_PASSWORD }}@reef-m0.1sxeyjd.mongodb.net/?authSource=admin&appName=reef-m0","MONGODB_DB":"the_reef"}' \
+            --value "$(jq -nc --arg uri "$MONGODB_URI" '{MONGODB_URI:$uri,MONGODB_DB:"the_reef"}')" \
             --overwrite
-
