@@ -10,10 +10,12 @@ Conservation, checked by ``check_invariants`` and the tests:
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from types import MappingProxyType
 from datetime import datetime
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Mapping
 
+from the_reef.market.instruments import settlement_event_id
 from the_reef.ledger.events import GENESIS_HASH, EventDraft, EventKind, LedgerEvent, Side, canonical, digest
 
 D = Decimal
@@ -46,6 +48,9 @@ class SleeveState:
     positions: Mapping[str, Position] = field(default_factory=dict)
     realized_pnl: Decimal = ZERO
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "positions", MappingProxyType(dict(self.positions)))
+
     def shares_of(self, symbol: str) -> int:
         p = self.positions.get(symbol)
         return p.shares if p else 0
@@ -58,6 +63,9 @@ class EpochState:
     unallocated: Decimal
     sleeves: Mapping[str, SleeveState] = field(default_factory=dict)
     closed: bool = False
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "sleeves", MappingProxyType(dict(self.sleeves)))
 
     @property
     def realized_pnl(self) -> Decimal:
@@ -79,6 +87,10 @@ class LedgerState:
     last_seq: int = 0
     last_at: datetime | None = None
     head_hash: str = ""
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "epochs", MappingProxyType(dict(self.epochs)))
+        object.__setattr__(self, "seen", MappingProxyType(dict(self.seen)))
 
     def epoch(self, epoch_id: str | None = None) -> EpochState:
         key = epoch_id or self.active_epoch
@@ -260,6 +272,8 @@ def _apply_in_epoch(ep: EpochState, draft: EventDraft) -> EpochState:
     if kind is EventKind.CORPORATE_ACTION_SETTLED:
         shares = _int(p, "shares")
         cash = _dec(p, "cash")
+        if draft.event_id != settlement_event_id(_str(p, "action_id"), sid, ep.epoch_id):
+            raise LedgerError("settlement event_id must be derived from epoch, sleeve and action")
         pos = sl.positions.get(symbol)
         if pos is None or pos.shares != shares:
             raise LedgerError(f"settlement of {shares} {symbol} does not match the {pos.shares if pos else 0} held")

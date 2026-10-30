@@ -249,6 +249,11 @@ class CashOut:
         return _digest(self.event_id, str(self.shares), str(self.cash))
 
 
+def settlement_event_id(action_id: str, holder: str, scope: str = "") -> str:
+    """Idempotency key of one holder's settlement of one action within ``scope`` (an accounting epoch)."""
+    return _digest("cash_out", action_id, scope, holder)
+
+
 def settlements_due(
     holdings: dict[str, int],
     actions: CorporateActionSource,
@@ -257,6 +262,7 @@ def settlements_due(
     holder: str,
     as_of: datetime,
     already_settled: Collection[str] = (),
+    scope: str = "",
 ) -> list[CashOut]:
     """Cash-out events for ``holder``'s names whose acquisition took effect on or before ``session_day``.
 
@@ -266,7 +272,8 @@ def settlements_due(
     Identity: ``event_id`` = digest(action_id, holder), stable across re-runs, restated source
     records and duplicate source rows. ``already_settled`` holds the event ids the ledger has
     recorded; those are skipped, so calling this every session is idempotent. Ids are scoped
-    per holder (sleeve): two sleeves holding the same name settle independently.
+    per holder (sleeve) and per ``scope`` (the accounting epoch): two sleeves, or two epochs,
+    holding the same name settle independently.
     """
     _require_aware(as_of, "as_of")
     out: dict[str, CashOut] = {}
@@ -280,7 +287,7 @@ def settlements_due(
                 and act.effective <= session_day
             ):
                 continue
-            event_id = _digest("cash_out", act.action_id, holder)
+            event_id = settlement_event_id(act.action_id, holder, scope)
             if event_id in already_settled or event_id in out:
                 continue
             out[event_id] = CashOut(

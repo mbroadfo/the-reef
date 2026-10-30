@@ -10,7 +10,14 @@ import pytest
 from tests.fixtures.market import SEM_DEAL, standard_actions
 from the_reef.ledger import events as ev
 from the_reef.ledger.events import LedgerEvent, Side
-from the_reef.ledger.ledger import AppendResult, InMemoryEventStore, Ledger
+from the_reef.ledger.ledger import (
+    AppendResult,
+    Checkpoint,
+    DiscrepancyKind,
+    InMemoryEventStore,
+    Ledger,
+    TruncationError,
+)
 from the_reef.ledger.state import ConflictError, LedgerError, check_invariants, replay
 from the_reef.ledger.views import fund_view, sleeve_cash
 from the_reef.market.instruments import StaticCorporateActions, settlements_due
@@ -298,20 +305,191 @@ def test_settlement_before_the_effective_date_does_nothing():
     assert led.state.epoch().sleeves["hunter"].positions["SEM"].shares == 100
 
 
-def test_a_settlement_with_the_wrong_share_count_or_changed_cash_is_refused():
+def test_a_settlement_with_the_wrong_share_count_or_a_foreign_id_is_refused():
     led = sem_book()
-    [due] = settlements_due({"SEM": 100}, standard_actions(), DAY, holder="hunter", as_of=at(10))
+    [due] = settlements_due({"SEM": 100}, standard_actions(), DAY, holder="hunter", as_of=at(10), scope=E1)
     wrong = ev.corporate_action_settled(E1, at(10), sleeve_id="hunter", symbol="SEM", shares=99, cash=D("1633.5"),
-                                        action_id=due.action_id, effective=due.effective, event_id="other-id")
+                                        action_id=due.action_id, effective=due.effective)
     with pytest.raises(LedgerError, match="does not match"):
         led.append(wrong)
+    forged = replace(ev.corporate_action_settled(E1, at(10), sleeve_id="hunter", symbol="SEM", shares=100,
+                                                 cash=due.cash, action_id=due.action_id, effective=due.effective),
+                     event_id="made-up-id")
+    with pytest.raises(LedgerError, match="derived from epoch, sleeve and action"):
+        led.append(forged)
     good = ev.corporate_action_settled(E1, at(10), sleeve_id="hunter", symbol="SEM", shares=100, cash=due.cash,
-                                       action_id=due.action_id, effective=due.effective, event_id=due.event_id)
+                                       action_id=due.action_id, effective=due.effective)
+    assert good.event_id == due.event_id
     led.append(good)
     changed = ev.corporate_action_settled(E1, at(11), sleeve_id="hunter", symbol="SEM", shares=100, cash=D(1700),
-                                          action_id=due.action_id, effective=due.effective, event_id=due.event_id)
+                                          action_id=due.action_id, effective=due.effective)
     with pytest.raises(ConflictError):
         led.append(changed)
+
+
+def _settled(epoch, sleeve, action):
+    return ev.corporate_action_settled(epoch, at(), sleeve_id=sleeve, symbol="SEM", shares=1, cash=D(1),
+                                       action_id=action, effective=DAY).event_id
+
+
+def test_settlement_identity_is_unique_per_epoch_sleeve_and_action():
+    base = _settled("e1", "s", "act")
+    assert base != _settled("e2", "s", "act")
+    assert base != _settled("e1", "t", "act")
+    assert base != _settled("e1", "s", "other")
+
+
+def test_the_same_action_and_sleeve_settle_independently_in_two_epochs():
+    led = sem_book()
+    assert led.settle_corporate_actions(["hunter"], standard_actions(), DAY, at(10)) == [AppendResult.APPENDED]
+    led.append(ev.epoch_closed(E1, at(11)))
+    led.append(ev.epoch_opened("epoch-2", at(12), D("10000")))
+    led.append(ev.sleeve_created("epoch-2", at(12), "hunter"))
+    led.append(ev.sleeve_funded("epoch-2", at(12), "hunter", D(2000), ref="alloc-0"))
+    led.append(ev.fill("epoch-2", at(13), sleeve_id="hunter", order_id="sem-h", symbol="SEM", side=Side.BUY,
+                       shares=100, price=D(15), session_day=DAY, stop_price=D(10)))  # same order id, new epoch
+    assert led.settle_corporate_actions(["hunter"], standard_actions(), DAY, at(14)) == [AppendResult.APPENDED]
+    assert led.settle_corporate_actions(["hunter"], standard_actions(), DAY, at(15)) == []
+    ids = [e.draft.event_id for e in led.store.read_all() if e.draft.kind.value == "CORPORATE_ACTION_SETTLED"]
+    assert len(ids) == 2 and len(set(ids)) == 2
+    assert led.state.epochs[E1].sleeves["hunter"].cash == D(500) + D(1650)
+    assert led.state.epochs["epoch-2"].sleeves["hunter"].cash == D(500) + D(1650)
+    check_invariants(led.state)
+
+
+# --- settled actions are history: later source changes are reported, not applied -----------------
+
+def test_a_restated_cash_price_after_settlement_is_a_discrepancy_not_a_rewrite():
+    led = sem_book()
+    led.settle_corporate_actions(["hunter", "value"], standard_actions(), DAY, at(10))
+    assert led.settlement_discrepancies(standard_actions(), at(11)) == []
+    before, n = led.state.digest(), len(led.store.read_all())
+    restated = replace(SEM_DEAL, known_at=at(20), cash_per_share=D("17.00"))
+    src = StaticCorporateActions([SEM_DEAL, restated])
+    assert led.settle_corporate_actions(["hunter", "value"], src, DAY, at(21)) == []  # nothing re-settles
+    found = led.settlement_discrepancies(src, at(21))
+    assert {(d.sleeve_id, d.kind) for d in found} == {
+        ("hunter", DiscrepancyKind.CASH_CHANGED), ("value", DiscrepancyKind.CASH_CHANGED)}
+    h = next(d for d in found if d.sleeve_id == "hunter")
+    assert (h.recorded_cash, h.current_cash, h.epoch_id, h.symbol) == (D(1650), D(1700), E1, "SEM")
+    assert led.state.digest() == before and len(led.store.read_all()) == n  # history untouched
+    assert led.settlement_discrepancies(src, at(15)) == []  # before the restatement was known
+
+
+def test_a_withdrawn_or_re_identified_action_is_a_discrepancy():
+    led = sem_book()
+    led.settle_corporate_actions(["hunter"], standard_actions(), DAY, at(10))
+    gone = led.settlement_discrepancies(StaticCorporateActions([]), at(11))
+    assert [d.kind for d in gone] == [DiscrepancyKind.ACTION_MISSING]
+    moved = StaticCorporateActions([replace(SEM_DEAL, effective=date(2026, 7, 2))])  # new effective = new id
+    assert [d.kind for d in led.settlement_discrepancies(moved, at(11))] == [DiscrepancyKind.ACTION_MISSING]
+
+
+# --- immutability of retained references ---------------------------------------------------------
+
+def test_mutating_the_dict_a_draft_was_built_from_cannot_change_the_event():
+    payload = {"sleeve_id": "x", "nested": {"a": [1, 2]}}
+    draft = ev.EventDraft("id-1", E1, ev.EventKind.SLEEVE_CREATED, at(), payload)
+    fingerprint = draft.fingerprint
+    payload["sleeve_id"] = "tampered"
+    payload["nested"]["a"].append(3)
+    assert draft.payload["sleeve_id"] == "x" and draft.payload["nested"]["a"] == (1, 2)
+    assert draft.fingerprint == fingerprint
+
+
+def test_a_payload_cannot_be_mutated_through_the_event():
+    draft = ev.EventDraft("id-1", E1, ev.EventKind.SLEEVE_CREATED, at(), {"sleeve_id": "x", "n": {"a": 1}})
+    with pytest.raises(TypeError):
+        draft.payload["sleeve_id"] = "y"  # type: ignore[index]
+    with pytest.raises(TypeError):
+        draft.payload["n"]["a"] = 2  # type: ignore[index]
+    with pytest.raises(TypeError):
+        del draft.payload["sleeve_id"]  # type: ignore[attr-defined]
+
+
+def test_appended_events_survive_attempts_to_alter_them_through_retained_references():
+    led = fresh()
+    d = ev.fill(E1, at(1), sleeve_id="hunter", order_id="o1", symbol="AAPL", side=Side.BUY, shares=10,
+                price=D(100), session_day=DAY)
+    led.append(d)
+    digest, head = led.state.digest(), led.state.head_hash
+    stored = led.store.read_all()[-1]
+    for victim in (d, stored.draft):
+        with pytest.raises(TypeError):
+            victim.payload["shares"] = 1000  # type: ignore[index]
+    with pytest.raises(AttributeError):
+        stored.draft.event_id = "x"  # type: ignore[misc]
+    with pytest.raises(TypeError):
+        led.state.epoch().sleeves["hunter"].positions["AAPL"] = None  # type: ignore[index]
+    with pytest.raises(TypeError):
+        led.state.epoch().sleeves["rogue"] = None  # type: ignore[index]
+    with pytest.raises(TypeError):
+        led.state.epochs[E1] = None  # type: ignore[index]
+    with pytest.raises(TypeError):
+        led.state.seen[d.event_id] = "forged"  # type: ignore[index]
+    assert Ledger(InMemoryEventStore(led.store.read_all())).state.digest() == digest == led.state.digest()
+    assert led.state.head_hash == head and all(e.verify() for e in led.store.read_all())
+
+
+# --- hash chain: what it can and cannot prove -----------------------------------------------------
+
+def test_tail_truncation_is_a_valid_chain_and_only_a_preserved_checkpoint_catches_it():
+    led = fresh()
+    buy(led, "hunter", "AAPL", 10, "100", "o1")
+    cp = led.checkpoint()
+    buy(led, "hunter", "AAPL", 5, "100", "o2", minute=2)
+    events = list(led.store.read_all())
+    truncated = events[:-1]
+    assert replay(truncated).last_seq == len(events) - 1  # the chain alone cannot tell
+    assert Ledger(InMemoryEventStore(truncated)).state.last_seq == len(events) - 1
+    full_cp = led.checkpoint()
+    with pytest.raises(TruncationError):
+        Ledger(InMemoryEventStore(truncated), expected=full_cp)
+    Ledger(InMemoryEventStore(truncated), expected=cp)  # the older checkpoint is still satisfied
+    assert cp.seq < full_cp.seq
+
+
+def test_a_store_longer_than_the_checkpoint_is_accepted():
+    led = fresh()
+    cp = led.checkpoint()
+    buy(led, "hunter", "AAPL", 10, "100", "o1")
+    assert Ledger(InMemoryEventStore(led.store.read_all()), expected=cp).state.last_seq == cp.seq + 1
+
+
+def test_a_consistently_rechained_rewrite_is_caught_by_the_checkpoint():
+    led = fresh()
+    buy(led, "hunter", "AAPL", 10, "100", "o1")
+    buy(led, "hunter", "AAPL", 5, "100", "o2", minute=2)
+    cp = led.checkpoint()
+    rewritten, prev = [], ev.GENESIS_HASH
+    for e in led.store.read_all():
+        draft = e.draft
+        if draft.event_id == ev.fill_id(E1, "hunter", "o1"):
+            draft = replace(draft, payload={**draft.payload, "price": "99"})
+        link = LedgerEvent.link(e.seq, prev, draft)
+        rewritten.append(link)
+        prev = link.hash
+    assert Ledger(InMemoryEventStore(rewritten)).state.last_seq == cp.seq  # chain-valid
+    with pytest.raises(TruncationError, match="differs"):
+        Ledger(InMemoryEventStore(rewritten), expected=cp)
+
+
+def test_an_empty_store_fails_any_nonzero_checkpoint_and_the_genesis_checkpoint_is_trivial():
+    led = fresh()
+    with pytest.raises(TruncationError):
+        Ledger(InMemoryEventStore(), expected=led.checkpoint())
+    Ledger(InMemoryEventStore(), expected=Ledger().checkpoint())
+    assert Ledger().checkpoint() == Checkpoint(0, ev.GENESIS_HASH)
+
+
+def test_checkpoints_advance_with_every_append_and_not_with_duplicates():
+    led = fresh()
+    before = led.checkpoint()
+    buy(led, "hunter", "AAPL", 1, "100", "o1")
+    after = led.checkpoint()
+    assert after.seq == before.seq + 1 and after.head_hash != before.head_hash
+    buy(led, "hunter", "AAPL", 1, "100", "o1")  # duplicate
+    assert led.checkpoint() == after
 
 
 # --- hand-off to the Risk Engine ----------------------------------------------------------------

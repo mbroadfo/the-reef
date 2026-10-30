@@ -16,7 +16,10 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from enum import Enum
+from types import MappingProxyType
 from typing import Any, Mapping
+
+from the_reef.market.instruments import settlement_event_id
 
 GENESIS_HASH = "0" * 64
 
@@ -34,6 +37,23 @@ class EventKind(str, Enum):
 class Side(str, Enum):
     BUY = "BUY"
     SELL = "SELL"
+
+
+def freeze(obj: Any) -> Any:
+    """Deep, defensive copy that cannot be mutated: dict -> read-only mapping, list -> tuple."""
+    if isinstance(obj, Mapping):
+        return MappingProxyType({str(k): freeze(v) for k, v in obj.items()})
+    if isinstance(obj, (list, tuple)):
+        return tuple(freeze(v) for v in obj)
+    return obj
+
+
+def thaw(obj: Any) -> Any:
+    if isinstance(obj, Mapping):
+        return {k: thaw(v) for k, v in obj.items()}
+    if isinstance(obj, tuple):
+        return [thaw(v) for v in obj]
+    return obj
 
 
 def canonical(obj: Any) -> str:
@@ -62,6 +82,8 @@ class EventDraft:
             raise ValueError("occurred_at must be timezone-aware")
         if not self.event_id:
             raise ValueError("event_id is required")
+        # Copy and freeze: a caller's retained dict (or a nested list) can no longer change an event.
+        object.__setattr__(self, "payload", freeze(self.payload))
 
     def content(self) -> dict[str, Any]:
         return {
@@ -69,7 +91,7 @@ class EventDraft:
             "epoch_id": self.epoch_id,
             "kind": self.kind.value,
             "occurred_at": self.occurred_at.astimezone(timezone.utc).isoformat(),
-            "payload": dict(self.payload),
+            "payload": thaw(self.payload),
         }
 
     @property
@@ -150,10 +172,11 @@ def stop_updated(epoch_id: str, at: datetime, sleeve_id: str, symbol: str, stop_
 
 def corporate_action_settled(
     epoch_id: str, at: datetime, *, sleeve_id: str, symbol: str, shares: int, cash: Decimal,
-    action_id: str, effective: date, event_id: str,
+    action_id: str, effective: date,
 ) -> EventDraft:
-    """``event_id`` is ``CashOut.event_id`` from ``market.instruments.settlements_due``."""
-    return EventDraft(event_id, epoch_id, EventKind.CORPORATE_ACTION_SETTLED, at, {
+    """Unique per epoch, sleeve and action: the id is derived here, never supplied, and the ledger
+    re-derives it on apply. It equals ``CashOut.event_id`` from ``settlements_due(scope=epoch_id)``."""
+    return EventDraft(settlement_event_id(action_id, sleeve_id, epoch_id), epoch_id, EventKind.CORPORATE_ACTION_SETTLED, at, {
         "sleeve_id": sleeve_id, "symbol": symbol, "shares": shares, "cash": _d(cash),
         "action_id": action_id, "effective": effective.isoformat(),
     })
