@@ -88,7 +88,7 @@ def test_e9_a_buy_of_an_acquired_and_delisted_stock_is_refused(ports):
     trade_time = datetime.fromisoformat("2026-07-02T14:20:29+00:00")
     assert classify(ports.calendar, trade_time).phase is TimePhase.REGULAR  # the market was open, SEM was not
 
-    direct = check_tradable("SEM", date(2026, 7, 2), ports.instruments, ports.actions, ports.calendar, intent=Intent.OPEN)
+    direct = check_tradable("SEM", date(2026, 7, 2), ports.instruments, ports.actions, ports.calendar, intent=Intent.OPEN, as_of=trade_time)
     assert not direct.ok and direct.code is TradabilityCode.ACQUIRED and direct.evidence == SEM_EVIDENCE
 
     gate = queue_order(ports, buy("SEM", trade_time))
@@ -98,13 +98,13 @@ def test_e9_a_buy_of_an_acquired_and_delisted_stock_is_refused(ports):
 
 def test_e9_while_the_deal_is_pending_new_positions_are_blocked_too(ports):
     day = date(2026, 6, 22)  # before the close; price pinned near the deal price
-    r = check_tradable("SEM", day, ports.instruments, ports.actions, ports.calendar, intent=Intent.OPEN)
+    r = check_tradable("SEM", day, ports.instruments, ports.actions, ports.calendar, intent=Intent.OPEN, as_of=ny(2026, 6, 22, 9, 0))
     assert not r.ok and r.code is TradabilityCode.PENDING_CASH_DEAL
 
 
 def test_e9_a_held_name_converts_to_cash_from_the_filing_not_a_quote():
     """A holder of SEM receives the filed $16.50 per share on the effective date (I-5)."""
-    [event] = settlements_due({"SEM": 100}, standard_actions(), date(2026, 7, 1))
+    [event] = settlements_due({"SEM": 100}, standard_actions(), date(2026, 7, 1), holder="sleeve-a", as_of=ny(2026, 7, 1, 9, 0))
     assert event.cash == D("1650.00") and event.effective == date(2026, 7, 1)
 
 
@@ -116,9 +116,28 @@ def test_e9_even_a_queued_order_is_refused_at_fill_if_the_name_is_gone(ports):
 
     queued = queue_order(ports, buy("AAPL", ny(2026, 7, 1, 16, 5))).queued
     assert queued is not None
-    gone = InstrumentRecord("AAPL", "NASDAQ", InstrumentStatus.DELISTED, date(1980, 12, 12), date(2026, 7, 1), None, "t", None)
+    gone = InstrumentRecord("AAPL", "NASDAQ", InstrumentStatus.DELISTED, date(1980, 12, 12), date(2026, 7, 1), None, "t", datetime(2020, 1, 1, tzinfo=timezone.utc))
     later = replace(ports, instruments=StaticInstrumentMaster([gone]))
     session = ports.calendar.session(queued.fill_session)
     open_print = Quote("AAPL", D("100"), session.open, "t", QuoteKind.OFFICIAL_OPEN)
     d = fill_at_open(later, queued, open_print, PortfolioView(D(10000), D(10000), D(10000), D(10000)), D(1666))
     assert not d.accepted and d.code is GateCode.INSTRUMENT_NOT_TRADABLE
+
+
+def test_e9_gate_uses_knowledge_at_decision_time_not_hindsight(ports):
+    """Point in time: the same order is judged on what was public when it was decided."""
+    from dataclasses import replace as _replace
+
+    from tests.fixtures.market import SEM_DEAL
+    from the_reef.market.instruments import StaticCorporateActions
+
+    decided = ny(2026, 6, 22, 16, 5)
+    known = queue_order(ports, buy("SEM", decided))
+    assert known.tradability is TradabilityCode.PENDING_CASH_DEAL
+
+    hindsight_free = _replace(
+        ports, actions=StaticCorporateActions([_replace(SEM_DEAL, known_at=ny(2026, 6, 30, 9, 0))])
+    )
+    assert queue_order(hindsight_free, buy("SEM", decided)).accepted  # deal not yet public that day
+    late = queue_order(hindsight_free, buy("SEM", ny(2026, 7, 1, 16, 5)))
+    assert not late.accepted and late.tradability is TradabilityCode.ACQUIRED

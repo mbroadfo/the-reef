@@ -157,7 +157,7 @@ def test_a_stale_print_from_the_previous_session_is_not_a_fill_price(ports):
 
 def test_instrument_that_became_untradable_after_queueing_is_refused_at_fill(ports):
     q = queue_order(ports, order(decided=ny(2026, 7, 2, 16, 5))).queued
-    halted = InstrumentRecord("AAPL", "NASDAQ", InstrumentStatus.HALTED, date(1980, 12, 12), None, "Technology", "t", None)
+    halted = InstrumentRecord("AAPL", "NASDAQ", InstrumentStatus.HALTED, date(1980, 12, 12), None, "Technology", "t", datetime(2020, 1, 1, tzinfo=timezone.utc))
     later = replace(ports, instruments=StaticInstrumentMaster([halted]))
     d = fill_at_open(later, q, open_print(ports, q.fill_session), book(), D(1666))
     assert not d.accepted and d.code is GateCode.INSTRUMENT_NOT_TRADABLE and d.tradability is TradabilityCode.HALTED

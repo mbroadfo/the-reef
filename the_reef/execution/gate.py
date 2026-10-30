@@ -132,7 +132,7 @@ def queue_order(ports: GatePorts, order: OrderIntent) -> GateDecision:
 
     trade = check_tradable(
         symbol, fill.day, ports.instruments, ports.actions, ports.calendar,
-        intent=order.intent, min_history_sessions=ports.limits.min_history_sessions,
+        intent=order.intent, as_of=order.decided_at, min_history_sessions=ports.limits.min_history_sessions,
     )
     if not trade.ok:
         return GateDecision(False, GateCode.INSTRUMENT_NOT_TRADABLE, trade.detail, tradability=trade.code)
@@ -163,7 +163,7 @@ def fill_at_open(
     order = queued.intent
     trade = check_tradable(
         queued.symbol, queued.fill_session, ports.instruments, ports.actions, ports.calendar,
-        intent=order.intent, min_history_sessions=ports.limits.min_history_sessions,
+        intent=order.intent, as_of=queued.fill_not_before, min_history_sessions=ports.limits.min_history_sessions,
     )
     if not trade.ok:
         return GateDecision(False, GateCode.INSTRUMENT_NOT_TRADABLE, trade.detail, queued, tradability=trade.code)

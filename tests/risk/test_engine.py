@@ -32,8 +32,10 @@ def pf(cash="10000", positions=(), nav=None, prior="10000", hwm="10000", trusted
     )
 
 
-def pos(symbol, shares, price, sector: str | None = "Technology"):
-    return PositionView(symbol, shares, D(str(price)), sector)
+def pos(symbol, shares, price, sector: str | None = "Technology", stop="default"):
+    """Held position; by default a tight stop (1% below the mark) so it carries little risk."""
+    stop_price = D(str(price)) * D("0.99") if stop == "default" else (None if stop is None else D(str(stop)))
+    return PositionView(symbol, shares, D(str(price)), sector, stop_price)
 
 
 def entry(portfolio, symbol="NEW", sector: str | None = "Healthcare", ref="42", stop="39", sleeve="1666.67", requested=None, limits=LIM):
@@ -229,4 +231,53 @@ def test_random_portfolios_never_breach_a_limit():
         assert p.value_of(sym) + cost <= LIM.max_position_pct * p.nav
         assert p.sector_value(key) + cost <= cap * p.nav
         assert d.shares * (ref - stop) <= LIM.risk_per_trade_pct * p.nav
+        assert p.stop_risk_of(sym) + d.shares * (ref - stop) <= LIM.risk_per_trade_pct * p.nav  # whole position
     assert approved > 100  # the sweep exercised real approvals, not only rejections
+
+
+# --- aggregate stop-risk: the 0.5% budget covers the whole position, not each order ---------
+# NAV 10,000 -> risk budget 50. Price 10 with a stop at 9 risks 1 per share; the 10% position cap
+# (1,000) would allow 100 shares, so the risk budget is the binding rule throughout.
+
+def held(shares, stop):
+    return pf(cash="9000", nav="10000", positions=[pos("AAPL", shares, 10, stop=stop)])
+
+
+def add(portfolio, symbol="AAPL"):
+    return entry(portfolio, symbol=symbol, sector="Technology", ref="10", stop="9", sleeve="9000")
+
+
+def test_add_gets_only_the_risk_budget_left_in_the_position():
+    d = add(held(30, 9))  # 30 shares already risk 30 of 50
+    assert d.approved and d.shares == 20  # not the 50 a fresh order would get
+
+
+def test_repeated_adds_never_exceed_the_position_risk_budget():
+    shares_held = 0
+    for _ in range(6):
+        book = held(shares_held, 9) if shares_held else pf(cash="10000")
+        d = add(book)
+        if not d.approved:
+            break
+        shares_held += min(d.shares, 20)  # fill in slices of at most 20 to force several adds
+    assert shares_held == 50 and shares_held * 1 <= 50
+
+
+def test_add_is_rejected_once_the_position_risk_budget_is_spent():
+    d = add(held(51, 9))
+    assert not d.approved and d.reasons == (RejectCode.RISK_BUDGET_EXHAUSTED,)
+
+
+def test_unknown_stop_on_a_held_name_blocks_adds():
+    d = add(held(30, None))
+    assert not d.approved and d.reasons == (RejectCode.RISK_BUDGET_EXHAUSTED,)
+
+
+def test_a_raised_stop_frees_risk_budget_for_an_add():
+    assert not add(held(60, 8)).approved  # risk 120: spent
+    assert add(held(30, D("9.5"))).shares == 35  # risk 15: 35 left
+
+
+def test_other_names_risk_does_not_use_this_names_budget():
+    book = pf(cash="9000", nav="10000", positions=[pos("MSFT", 30, 10, stop=1)])
+    assert add(book, symbol="NEW").shares == 50

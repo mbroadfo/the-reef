@@ -40,6 +40,17 @@ SEM_EVIDENCE = (
     "SEC Form 25-NSE 0000876661-26-000585",
 )
 
+UTC = timezone.utc
+SEM_ACTIVE = InstrumentRecord(  # what was knowable before the deal closed
+    symbol="SEM",
+    exchange="NYSE",
+    status=InstrumentStatus.ACTIVE,
+    first_trade_date=date(2005, 4, 1),
+    last_trade_date=None,
+    sector="Healthcare",
+    source="fixture",
+    as_of=datetime(2020, 1, 1, tzinfo=UTC),
+)
 SEM = InstrumentRecord(
     symbol="SEM",
     exchange="NYSE",
@@ -48,7 +59,7 @@ SEM = InstrumentRecord(
     last_trade_date=date(2026, 6, 30),
     sector="Healthcare",
     source="fixture",
-    as_of=datetime(2026, 7, 1, tzinfo=timezone.utc),
+    as_of=datetime(2026, 7, 1, tzinfo=UTC),
 )
 # The announcement date is not verified here; tests only need it before 2026-06-22.
 SEM_DEAL = CorporateAction(
@@ -56,24 +67,27 @@ SEM_DEAL = CorporateAction(
     kind=CorporateActionKind.CASH_ACQUISITION,
     announced=date(2025, 12, 1),
     effective=date(2026, 7, 1),
+    known_at=datetime(2025, 12, 1, tzinfo=UTC),  # placeholder, same as `announced`
     cash_per_share=Decimal("16.50"),
     evidence=SEM_EVIDENCE,
 )
 
 
 def _active(symbol: str, first: date, sector: str | None = "Technology") -> InstrumentRecord:
-    return InstrumentRecord(symbol, "NASDAQ", InstrumentStatus.ACTIVE, first, None, sector, "fixture", None)
+    return InstrumentRecord(symbol, "NASDAQ", InstrumentStatus.ACTIVE, first, None, sector, "fixture",
+                            datetime.combine(max(first, date(2020, 1, 1)), datetime.min.time(), tzinfo=UTC))
 
 
 def standard_master() -> StaticInstrumentMaster:
     return StaticInstrumentMaster(
         [
+            SEM_ACTIVE,
             SEM,
             _active("AAPL", date(1980, 12, 12)),
             _active("FIZZ", date(1991, 9, 13), "Consumer"),
             _active("SPCX", date(2026, 6, 12)),  # a fresh listing, for minimum-history tests
-            InstrumentRecord("HALT", "NYSE", InstrumentStatus.HALTED, date(2010, 1, 4), None, "Industrials", "fixture", None),
-            InstrumentRecord("GONE", "NYSE", InstrumentStatus.DELISTED, date(2010, 1, 4), date(2026, 3, 2), None, "fixture", None),
+            InstrumentRecord("HALT", "NYSE", InstrumentStatus.HALTED, date(2010, 1, 4), None, "Industrials", "fixture", datetime(2020, 1, 1, tzinfo=UTC)),
+            InstrumentRecord("GONE", "NYSE", InstrumentStatus.DELISTED, date(2010, 1, 4), date(2026, 3, 2), None, "fixture", datetime(2026, 3, 3, tzinfo=UTC)),
             _active("NOSEC", date(2015, 1, 5), None),
         ]
     )

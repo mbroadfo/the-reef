@@ -32,6 +32,7 @@ class RejectCode(str, Enum):
     NO_CASH = "NO_CASH"
     SIZE_ZERO = "SIZE_ZERO"
     NOT_HELD = "NOT_HELD"
+    RISK_BUDGET_EXHAUSTED = "RISK_BUDGET_EXHAUSTED"
 
 
 class Rule(str, Enum):
@@ -51,10 +52,19 @@ class PositionView:
     shares: int
     price: Decimal  # valid mark
     sector: str | None = None
+    stop_price: Decimal | None = None  # the position's invalidation price; None = unknown
 
     @property
     def value(self) -> Decimal:
         return self.price * self.shares
+
+    @property
+    def stop_risk(self) -> Decimal:
+        """Loss if the stop is hit from the current mark. An unknown stop is counted as a total
+        loss (conservative), so a position without a recorded stop cannot be added to."""
+        if self.stop_price is None:
+            return self.value
+        return max(self.price - self.stop_price, D("0")) * self.shares
 
 
 @dataclass(frozen=True)
@@ -75,6 +85,10 @@ class PortfolioView:
 
     def shares_of(self, symbol: str) -> int:
         return sum(p.shares for p in self.positions if p.symbol == symbol)
+
+    def stop_risk_of(self, symbol: str) -> Decimal:
+        """Stop-risk already carried in ``symbol`` across all its lots."""
+        return sum((p.stop_risk for p in self.positions if p.symbol == symbol), D("0"))
 
     def sector_value(self, sector: str | None) -> Decimal:
         key = sector or UNKNOWN_SECTOR
@@ -150,14 +164,20 @@ def size_order(
     stop_price: Decimal,
     sleeve_cash: Decimal,
     limits: RiskLimits,
+    existing_risk: Decimal = D("0"),
 ) -> Sizing | None:
-    """shares = floor(min(risk_pct*NAV/(ref-stop), cap_pct*NAV/ref, sleeve_cash/ref)).
+    """shares = floor(min((risk_pct*NAV - existing_risk)/(ref-stop), cap_pct*NAV/ref, sleeve_cash/ref)).
+
+    ``existing_risk`` is the stop-risk already carried in the same name: the per-trade risk
+    budget applies to the position as a whole, so each add only gets what is left of it.
 
     Returns None for an invalid request (non-positive NAV/price, stop at or above reference).
     """
     if nav <= 0 or ref_price <= 0 or stop_price <= 0 or stop_price >= ref_price or sleeve_cash < 0:
         return None
-    by_risk = limits.risk_per_trade_pct * nav / (ref_price - stop_price)
+    by_risk = (limits.risk_per_trade_pct * nav - existing_risk) / (ref_price - stop_price)
+    if by_risk < 0:
+        by_risk = D("0")
     by_cap = limits.max_position_pct * nav / ref_price
     by_cash = sleeve_cash / ref_price
     smallest = min(by_risk, by_cap, by_cash)
@@ -199,7 +219,14 @@ def evaluate_entry(
     if existing_value >= limits.max_position_pct * nav:
         return RiskDecision(False, 0, (RejectCode.POSITION_AT_CAP,), flags=("POSITION_OVER_CAP_NO_ADDS",))
 
-    sizing = size_order(nav=nav, ref_price=ref_price, stop_price=stop_price, sleeve_cash=sleeve_cash, limits=limits)
+    existing_risk = portfolio.stop_risk_of(symbol)
+    if existing_risk >= limits.risk_per_trade_pct * nav:
+        return RiskDecision(False, 0, (RejectCode.RISK_BUDGET_EXHAUSTED,), flags=("POSITION_RISK_AT_BUDGET",))
+
+    sizing = size_order(
+        nav=nav, ref_price=ref_price, stop_price=stop_price, sleeve_cash=sleeve_cash, limits=limits,
+        existing_risk=existing_risk,
+    )
     if sizing is None:
         return RiskDecision(False, 0, (RejectCode.INVALID_REQUEST,))
 
