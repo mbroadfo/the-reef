@@ -12,6 +12,11 @@ import TradesPage from './pages/TradesPage'
 import SharksPage from './pages/SharksPage'
 import PortfolioPage from './pages/PortfolioPage'
 import MarketPage from './pages/MarketPage'
+import Reef2Shell from './reef2/Reef2Shell'
+import AquariumPage from './reef2/AquariumPage'
+import ProposalPage from './reef2/ProposalPage'
+import TeamPage from './reef2/TeamPage'
+import LabPage from './reef2/LabPage'
 
 const ComingSoon = () => (
   <div className="text-slate-500 p-8">Coming soon</div>
@@ -67,8 +72,16 @@ export default function App() {
     <BrowserRouter>
       <PortfolioProvider>
         <Routes>
+          {/* Reef 2.0 aquarium: renders the engine's snapshot (public/reef2/snapshot.json) */}
+          <Route element={<Reef2Shell />}>
+            <Route path="/"                 element={<AquariumPage />} />
+            <Route path="/team/:id"         element={<TeamPage />} />
+            <Route path="/proposal/:id"     element={<ProposalPage />} />
+            <Route path="/lab"              element={<LabPage />} />
+          </Route>
+          {/* Legacy 1.0 dashboard, unchanged */}
           <Route element={<AppShell />}>
-            <Route path="/"          element={<DashboardPage onLive={() => {}} />} />
+            <Route path="/dashboard" element={<DashboardPage onLive={() => {}} />} />
             <Route path="/sharks"    element={<SharksPage />} />
             <Route path="/positions" element={<PositionsPage />} />
             <Route path="/trades"    element={<TradesPage />} />

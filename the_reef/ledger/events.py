@@ -36,6 +36,8 @@ class EventKind(str, Enum):
     ORDER_REJECTED = "ORDER_REJECTED"  # refused at decision time or at fill time
     SESSION_MARKED = "SESSION_MARKED"  # end-of-session valuation, verified against the books
     SESSION_CLOSED = "SESSION_CLOSED"  # every step of the session is done; the next may start
+    PROPOSAL_SUBMITTED = "PROPOSAL_SUBMITTED"  # a pod's entry proposal packet; audit only, no balance effect
+    APEX_DECISION = "APEX_DECISION"  # Apex's (D0) verdict on a proposal: FUNDED or DECLINED, with reasons
 
 
 class Side(str, Enum):
@@ -228,3 +230,18 @@ def session_marked(
 def session_closed(epoch_id: str, at: datetime, session_day: date) -> EventDraft:
     return EventDraft(derive_id("session_closed", epoch_id, session_day.isoformat()), epoch_id,
                       EventKind.SESSION_CLOSED, at, {"session_day": session_day.isoformat()})
+
+
+def proposal_submitted(epoch_id: str, at: datetime, *, packet: Mapping[str, Any]) -> EventDraft:
+    """``packet`` is the shared proposal contract (see the_reef.pods.contract). Idempotent on its id."""
+    body = dict(packet)
+    return EventDraft(derive_id("proposal", epoch_id, str(body["proposal_id"])), epoch_id,
+                      EventKind.PROPOSAL_SUBMITTED, at, body)
+
+
+def apex_decision(epoch_id: str, at: datetime, *, sleeve_id: str, proposal_id: str, outcome: str,
+                  detail: Mapping[str, Any]) -> EventDraft:
+    if outcome not in ("FUNDED", "DECLINED"):
+        raise ValueError("outcome must be FUNDED or DECLINED")
+    return EventDraft(derive_id("apex_decision", epoch_id, proposal_id), epoch_id, EventKind.APEX_DECISION, at,
+                      {"sleeve_id": sleeve_id, "proposal_id": proposal_id, "outcome": outcome, **dict(detail)})
