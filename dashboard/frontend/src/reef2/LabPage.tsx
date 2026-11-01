@@ -3,8 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Loading, Section } from './ui'
 import { dayLabel, num, pct, usd } from './format'
 import { useSnapshot } from './useSnapshot'
-import { recomputePods, verifyChain } from './verify'
-import type { ChainResult } from './verify'
+import { recomputePods, verifyIntegrity } from './verify'
+import type { IntegrityReport } from './verify'
 import type { LedgerEventJson, Snapshot } from './types'
 
 function Check({ ok, title, detail }: { ok: boolean | null; title: string; detail: string }) {
@@ -17,21 +17,37 @@ function Check({ ok, title, detail }: { ok: boolean | null; title: string; detai
 }
 
 function Verification({ snap }: { snap: Snapshot }) {
-  const [chain, setChain] = useState<ChainResult | null>(null)
-  useEffect(() => { verifyChain(snap.events).then(setChain).catch(() => setChain({ ok: false, checked: 0, firstBadSeq: null, head: '' })) }, [snap])
+  const [report, setReport] = useState<IntegrityReport | null>(null)
+  const [checkpoint, setCheckpoint] = useState('')
+  const header = useMemo(() => ({ events: snap.generated_from.events, head_hash: snap.generated_from.head_hash }), [snap])
+  useEffect(() => {
+    verifyIntegrity(snap.events, header, checkpoint)
+      .then(setReport)
+      .catch(() => setReport({ ok: false, checks: [{ name: 'Verification could not run', ok: false, detail: 'this browser does not expose Web Crypto here' }], firstBadSeq: null, head: '', count: 0 }))
+  }, [snap, header, checkpoint])
   const pods = useMemo(() => recomputePods(snap), [snap])
   return (
     <div className="glass p-4">
       <p className="mb-1 text-sm text-slate-400">Run now, in your browser, from the raw events on this page. Nothing below is read from the engine's own summary.</p>
       <ul className="divide-y divide-slate-800/70">
-        <Check ok={chain ? chain.ok : null} title="Hash chain: every event's hash recomputes from its content and its predecessor"
-               detail={chain ? (chain.ok ? `${chain.checked} events (SHA-256). Head ${chain.head.slice(0, 20)}... matches the snapshot header.` : `Broken at event #${chain.firstBadSeq}.`) : 'checking...'} />
+        {report ? report.checks.map(c => <Check key={c.name} ok={c.ok} title={c.name} detail={c.detail} />) : <Check ok={null} title="Integrity checks" detail="running..." />}
         {pods.map(p => (
           <Check key={p.pod_id} ok={p.ok} title={`${snap.pods.find(x => x.pod_id === p.pod_id)!.name} sleeve: books recomputed from funding events and fills`}
                  detail={`cash ${usd(p.cash)} + positions at the last official closes = NAV ${usd(p.nav)}; page claims ${usd(p.claimedNav)}. Realized P&L ${usd(p.realized, true)} (average-cost).`} />
         ))}
         {snap.checks.map(c => <Check key={c.name} ok={c.ok} title={`Engine: ${c.name}`} detail={c.detail} />)}
       </ul>
+      <div className="mt-3 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3 text-sm text-slate-300">
+        <p><strong className="text-amber-300">What this proves, and what it does not.</strong> The checks above are self-contained: they catch a changed, missing, reordered or
+          cut-off event, because the events, their hash chain and the header must all agree. They cannot catch a snapshot that was <em>entirely rewritten</em> with the hashes
+          and header recomputed to match. Only a head hash recorded somewhere independent can. The head for this snapshot is
+          {' '}<code className="break-all font-mono text-cyan-300">{snap.generated_from.head_hash}</code>; the snapshot is also rebuilt from fixed seeds by
+          {' '}<code className="font-mono text-cyan-300">tools/build_competition_snapshot.py</code> and compared in a test.</p>
+        <label className="mt-2 block text-xs text-slate-400">Compare with a head hash you recorded independently
+          <input value={checkpoint} onChange={e => setCheckpoint(e.target.value)} placeholder="paste a 64-character head hash"
+                 className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 font-mono text-xs text-slate-200" spellCheck={false} />
+        </label>
+      </div>
     </div>
   )
 }
@@ -148,9 +164,9 @@ export default function LabPage() {
       <Section title="Provenance and limits">
         <div className="glass p-4 text-sm text-slate-300 leading-relaxed">
           <ul className="list-disc space-y-1.5 pl-5">
-            <li><strong>Prices are synthetic.</strong> A seeded generator makes every bar (`tests/fixtures/competition_scenario.py`); reruns are byte-identical. No market data, no vendor, no cost.</li>
+            <li><strong>Prices are synthetic.</strong> A seeded generator makes every bar (tests/fixtures/competition_scenario.py); reruns are byte-identical. No market data, no vendor, no cost.</li>
             <li><strong>The accounting is real.</strong> Orders, fills, stops, sleeves, risk checks and valuations come from the same engine and ledger Reef 2.0 would use. Fills are at the next open or the stop price, with no fees or slippage here.</li>
-            <li><strong>Apex is deterministic.</strong> {snap.apex.rule}</li>
+            <li><strong>Apex is deterministic and the sleeves are fixed.</strong> {snap.apex.rule} Apex does not yet move capital between pods based on performance.</li>
             <li><strong>Four pods are inactive</strong> and show no figures. Two active pods over {snap.pods.find(p => p.status === 'ACTIVE')?.sessions} sessions cannot say which philosophy is better.</li>
             <li><strong>Not live.</strong> No broker, no database writes, no model calls. Regenerate with <code className="font-mono text-cyan-300">uv run python tools/build_competition_snapshot.py</code>.</li>
           </ul>

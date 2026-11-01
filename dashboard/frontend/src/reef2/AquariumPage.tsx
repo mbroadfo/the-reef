@@ -184,7 +184,7 @@ function Scoreboard({ snap }: { snap: Snapshot }) {
           ))}
         </tbody>
       </table>
-      <p className="px-3 py-2 text-xs text-slate-500">Ranked by return per unit of risk. Over {rows[0]?.sessions} synthetic sessions with a handful of trades this ordering is a demonstration of the accounting, not a skill estimate.</p>
+      <p className="px-3 py-2 text-xs text-slate-500">Ranked by return per unit of risk. Sleeves are fixed, so a leader does not receive more capital. Over {rows[0]?.sessions} synthetic sessions with a handful of trades this ordering is a demonstration of the accounting, not a skill estimate.</p>
     </div>
   )
 }
@@ -214,11 +214,19 @@ export default function AquariumPage() {
         <Link to="/lab" className="block"><Stat label="Ledger" value={<span className={ok ? 'text-gain' : 'text-loss'}>{ok ? 'Verified' : 'FAILED'}</span>} sub={`${snap.generated_from.events} events · open the Research Lab`} /></Link>
       </div>
 
+      <div className="glass mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm" style={{ borderColor: 'rgba(245,158,11,0.35)' }}>
+        <span className="chip chip-warn">FIXED SLEEVES</span>
+        <span className="text-slate-300">
+          Apex gives each hunting pod a fixed share of the fund ({active.map(p => `${p.name} ${Number(p.sleeve_weight) * 100}%`).join(', ')}; {Number(snap.apex.unallocated_weight) * 100}% stays in cash).
+          It decides which <em>pitches</em> to fund inside a sleeve, not which <em>shark</em> deserves more of the fund. Capital competition between pods is the next milestone.
+        </span>
+      </div>
+
       <Section title="The tank" hint="Click a team for its mandate, research desk, books and pitches.">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{snap.pods.map(p => <PodCard key={p.pod_id} pod={p} />)}</div>
       </Section>
 
-      <Section title="The race" hint="Sleeve return on each team's own capital">
+      <Section title="The race" hint="Each team's return on its own fixed sleeve">
         <Race snap={snap} />
       </Section>
 
@@ -233,6 +241,7 @@ export default function AquariumPage() {
       <Section title="How Apex decides">
         <div className="glass p-4 text-sm text-slate-300 leading-relaxed">
           <p>{snap.apex.rule}</p>
+          <p className="mt-2 text-amber-200/90"><strong>Allocation today is fixed, not competitive.</strong> The 30/30 sleeve weights are set at the start and never change; better performance earns a pod no extra capital and worse performance costs it none. Dynamic, performance-driven allocation is a later milestone.</p>
           <p className="mt-2 text-slate-400">
             Limits enforced by the Risk Engine: {snap.limits.position_cap_pct}% max per position, {snap.limits.risk_per_trade_pct}% of NAV at risk per trade,
             {' '}{snap.limits.max_invested_pct}% max invested, {snap.limits.daily_loss_pause_pct}% daily-loss pause, {snap.limits.drawdown_pause_pct}% drawdown pause.

@@ -20,18 +20,54 @@ async function sha256(text: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-export interface ChainResult { ok: boolean; checked: number; firstBadSeq: number | null; head: string }
+export interface IntegrityCheck { name: string; ok: boolean; detail: string }
+export interface IntegrityReport { ok: boolean; checks: IntegrityCheck[]; firstBadSeq: number | null; head: string; count: number }
+export interface Header { events: number; head_hash: string }
 
-export async function verifyChain(events: LedgerEventJson[]): Promise<ChainResult> {
+// Self-contained integrity check of an event list against the header the same file carries. It detects altered,
+// omitted, reordered and truncated events. It cannot detect a snapshot that was fully rewritten (events, hashes and
+// header recomputed together); only a head hash recorded somewhere else can. Pass that as `expectedHead`.
+export async function verifyIntegrity(events: LedgerEventJson[], header: Header, expectedHead?: string): Promise<IntegrityReport> {
+  let firstBad: number | null = null
+  const note = (seq: number) => { if (firstBad === null || seq < firstBad) firstBad = seq }
+
+  let seqBad: number | null = null
+  events.forEach((e, i) => { if (seqBad === null && e.seq !== i + 1) seqBad = e.seq })
+  if (seqBad !== null) note(seqBad)
+
   let prev = GENESIS
+  let linkBad: number | null = null
+  let hashBad: number | null = null
   for (const e of events) {
+    if (linkBad === null && e.prev_hash !== prev) linkBad = e.seq
     const content = { event_id: e.event_id, epoch_id: e.epoch_id, kind: e.kind, occurred_at: e.occurred_at, payload: e.payload }
-    const fingerprint = await sha256(canonical(content))
-    const expected = await sha256(`${e.seq}|${prev}|${fingerprint}`)
-    if (e.prev_hash !== prev || e.hash !== expected) return { ok: false, checked: e.seq - 1, firstBadSeq: e.seq, head: prev }
+    const expected = await sha256(`${e.seq}|${e.prev_hash}|${await sha256(canonical(content))}`)
+    if (hashBad === null && e.hash !== expected) hashBad = e.seq
     prev = e.hash
   }
-  return { ok: true, checked: events.length, firstBadSeq: null, head: prev }
+  if (linkBad !== null) note(linkBad)
+  if (hashBad !== null) note(hashBad)
+  const head = events.length ? events[events.length - 1].hash : GENESIS
+  const countOk = events.length === header.events
+  const headOk = head === header.head_hash
+  const checks: IntegrityCheck[] = [
+    { name: 'Sequence numbers are consecutive from 1', ok: seqBad === null,
+      detail: seqBad === null ? `#1 to #${events.length}, no gaps, repeats or reordering` : `breaks at event #${seqBad}: an event is missing, repeated or out of order` },
+    { name: 'Hash-chain continuity: each event points at the hash before it', ok: linkBad === null,
+      detail: linkBad === null ? 'every prev_hash equals the hash of the event before it' : `broken at event #${linkBad}` },
+    { name: 'Each event hash recomputes from its own content', ok: hashBad === null,
+      detail: hashBad === null ? `${events.length} SHA-256 hashes recomputed in this browser` : `event #${hashBad} was altered after it was hashed` },
+    { name: 'Event count matches the snapshot header', ok: countOk,
+      detail: countOk ? `${events.length} events` : `header says ${header.events}, found ${events.length}${events.length < header.events ? ' (truncated)' : ''}` },
+    { name: 'Final head hash matches the snapshot header', ok: headOk,
+      detail: headOk ? `${head.slice(0, 20)}...` : `header ${header.head_hash.slice(0, 16)}... but the events end at ${head.slice(0, 16)}...` },
+  ]
+  if (expectedHead !== undefined && expectedHead.trim() !== '') {
+    const ok = head === expectedHead.trim().toLowerCase()
+    checks.push({ name: 'Head hash matches the independent checkpoint you entered', ok,
+                  detail: ok ? 'equal' : `the checkpoint is ${expectedHead.trim().slice(0, 16)}... but the events end at ${head.slice(0, 16)}...` })
+  }
+  return { ok: checks.every(c => c.ok), checks, firstBadSeq: firstBad, head, count: events.length }
 }
 
 export interface PodRecompute { pod_id: string; funded: number; realized: number; cash: number; nav: number; claimedNav: number; ok: boolean }

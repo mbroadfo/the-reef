@@ -1,6 +1,8 @@
 {
  "apex": {
+  "allocation_mode": "FIXED_SLEEVES",
   "allocator": "D0 (deterministic)",
+  "dynamic_reallocation": false,
   "max_new_positions_per_pod_per_session": 1,
   "rule": "Fixed sleeve weights at the start; each session the best-ranked proposal per pod is funded with an equal share of the pod's cash as a share ceiling, then the Risk Engine sizes the order.",
   "sleeve_weights": {
@@ -10,7 +12,8 @@
    "momentum": "0.30",
    "news": "0",
    "value": "0"
-  }
+  },
+  "unallocated_weight": "0.40"
  },
  "checks": [
   {

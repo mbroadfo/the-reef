@@ -182,3 +182,13 @@ def test_snapshot_checks_pass_and_every_story_is_traceable(snap):
             assert "lifecycle" not in r, "a declined proposal has no trade"
     closed = [r for r in snap["proposals"] if (r.get("lifecycle") or {}).get("status") == "CLOSED"]
     assert closed and all(r["lifecycle"]["pnl"] is not None and r["lifecycle"]["sleeve_nav_after"] for r in closed)
+
+
+def test_apex_is_declared_as_fixed_sleeves_not_dynamic_competition(snap):
+    apex = snap["apex"]
+    assert apex["allocation_mode"] == "FIXED_SLEEVES" and apex["dynamic_reallocation"] is False
+    assert D(apex["unallocated_weight"]) == D("0.40")
+    # The weights never change over the run: every sleeve is funded once, at the start, and never again.
+    funding = [e for e in snap["events"] if e["kind"] == "SLEEVE_FUNDED"]
+    assert len(funding) == 2 and {e["payload"]["ref"] for e in funding} == {"d0-initial"}
+    assert funding[-1]["seq"] < min(e["seq"] for e in snap["events"] if e["kind"] == "SESSION_MARKED")

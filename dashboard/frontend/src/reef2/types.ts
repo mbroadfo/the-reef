@@ -124,7 +124,7 @@ export interface Snapshot {
   mode: { kind: string; label: string; disclosure: string }
   generated_from: { epoch_id: string; events: number; head_hash: string; first_session: string; last_session: string; initial_cash: string }
   limits: Record<string, string>
-  apex: { allocator: string; sleeve_weights: Record<string, string>; max_new_positions_per_pod_per_session: number; rule: string }
+  apex: { allocator: string; allocation_mode: string; dynamic_reallocation: boolean; unallocated_weight: string; sleeve_weights: Record<string, string>; max_new_positions_per_pod_per_session: number; rule: string }
   fund: {
     nav: string; unallocated: string; return: number; max_drawdown: number
     nav_series: [string, string][]
