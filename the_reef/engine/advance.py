@@ -20,7 +20,7 @@ Decisions are made at the close and filled at the next valid open (decision D6).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
@@ -33,6 +33,7 @@ from the_reef.ledger.events import EventDraft, Side
 from the_reef.ledger.ledger import AppendResult, Ledger
 from the_reef.ledger.state import EpochState, OrderRecord, valuation
 from the_reef.ledger.views import fund_view
+from the_reef.execution.costs import ExecutionCosts
 from the_reef.market.bars import BarSource
 from the_reef.market.calendar import MarketCalendar
 from the_reef.market.instruments import CorporateActionSource, InstrumentMaster, Intent
@@ -68,6 +69,7 @@ class EngineDeps:
     sleeves: Sequence[SleeveSpec]
     universe: Sequence[str]
     initial_cash: Decimal = D("10000")
+    costs: ExecutionCosts = ExecutionCosts()
 
     @property
     def ports(self) -> GatePorts:
@@ -267,6 +269,8 @@ def _resolve_one(ledger: Ledger, deps: EngineDeps, o: OrderRecord, day: date, re
                         o.stop_price, o.sector, o.requested_shares)
     queued = QueuedOrder(order, o.symbol, day, session.open)
     open_print = deps.bars.official_open(o.symbol, session)
+    if intent.adds_exposure and open_print is not None and open_print.price is not None:
+        open_print = replace(open_print, price=deps.costs.buy_price(open_print.price))  # sized at the price actually paid
     view = _risk_view(ep, deps, session.open, day, marked_day=ep.last_marked)  # advance() guarantees it is the previous session
     d = fill_at_open(deps.ports, queued, open_print, view, ep.sleeves[o.sleeve_id].cash)
     if not d.accepted or open_print is None or open_print.price is None:
@@ -277,7 +281,9 @@ def _resolve_one(ledger: Ledger, deps: EngineDeps, o: OrderRecord, day: date, re
         return
     side = Side.BUY if intent.adds_exposure else Side.SELL
     _emit(ledger, ev.fill(deps.epoch_id, session.open, sleeve_id=o.sleeve_id, order_id=o.order_id, symbol=o.symbol,
-                          side=side, shares=d.shares, price=open_print.price, session_day=day,
+                          side=side, shares=d.shares,
+                          price=open_print.price if intent.adds_exposure else deps.costs.sell_price(open_print.price),
+                          session_day=day,
                           stop_price=o.stop_price if intent.adds_exposure else None), report)
     clamps = ",".join(c.rule.value for c in (d.risk.clamps if d.risk else ()))
     report.add(NoteKind.FILL, o.sleeve_id, o.symbol,
@@ -300,9 +306,9 @@ def _run_stops(ledger: Ledger, deps: EngineDeps, day: date, as_of: datetime, rep
                 report.add(NoteKind.STOP_UNCHECKED, sid, sym, "no bar for the session; stop not evaluated")
                 continue
             if bar.open <= pos.stop_price:  # gapped through the stop: filled at the open, not at the stop
-                price, at, kind = bar.open, session.open, NoteKind.STOP_GAP
+                price, at, kind = deps.costs.sell_price(bar.open, gap=True), session.open, NoteKind.STOP_GAP
             elif bar.low <= pos.stop_price:  # traded through intraday: filled at the stop
-                price, at, kind = pos.stop_price, session.close, NoteKind.STOP_TOUCH
+                price, at, kind = deps.costs.sell_price(pos.stop_price), session.close, NoteKind.STOP_TOUCH
             else:
                 continue
             due.append((at, sid, sym, pos, price, kind, bar))
