@@ -54,6 +54,8 @@ class SymbolQuality:
     last: date | None = None
     dropped_not_session: int = 0
     dropped_bad_ohlc: int = 0
+    duplicate_dates: int = 0  # extra rows for a date already seen; the first is kept
+    conflicting_duplicates: int = 0  # ...and the repeat disagreed with it
     missing_sessions: int = 0  # sessions between first and last with no row
     splits: int = 0
     dividends: int = 0
@@ -78,8 +80,16 @@ class HistoricalBarSource:
         for sym in symbols:
             q = SymbolQuality(sym)
             bars: dict[date, DailyBar] = {}
+            seen: dict[date, cache.RawRow] = {}
             for r in cache.read(sym, root):
                 q.rows += 1
+                if r.day in seen:
+                    q.duplicate_dates += 1
+                    f = seen[r.day]
+                    if (f.open, f.high, f.low, f.close, f.volume) != (r.open, r.high, r.low, r.close, r.volume):
+                        q.conflicting_duplicates += 1
+                    continue
+                seen[r.day] = r
                 if r.split not in (0, 1):
                     q.splits += 1
                 if r.dividend > 0:

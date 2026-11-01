@@ -31,18 +31,18 @@ Slippage 5 bps each side, an extra 20 bps when a stop gaps through at the open, 
 
 | Window | Hunter sleeve | SPY | Univ. buy&hold | Hunter maxDD | SPY maxDD | Avg exposure | Round trips | Win rate | Stop exits | Turnover (x capital) | Paused |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 2016 | +11.6% | +10.9% | +19.3% | -9.2% | -8.8% | 86% | 182 | 35% | 77% | 17.5 | 0% |
-| 2017 | +12.5% | +17.8% | +22.4% | -5.1% | -2.9% | 90% | 245 | 41% | 80% | 18.7 | 0% |
-| 2018 | -8.8% | -6.3% | -5.4% | -14.7% | -19.0% | 80% | 198 | 34% | 84% | 17.7 | 0% |
-| 2019 | +6.8% | +30.4% | +30.2% | -9.7% | -6.5% | 88% | 213 | 39% | 79% | 17.4 | 0% |
-| 2020 | +30.0% | +15.1% | +22.9% | -12.1% | -33.1% | 75% | 171 | 43% | 79% | 17.1 | 0% |
-| 2021 | +8.8% | +24.9% | +26.8% | -15.3% | -5.1% | 86% | 208 | 35% | 79% | 18.4 | 0% |
-| 2022 | -25.9% | -18.8% | -9.9% | -27.1% | -24.2% | 50% | 133 | 31% | 80% | 13.6 | 34% |
-| 2023 | +9.6% | +22.7% | +19.4% | -17.0% | -10.0% | 86% | 178 | 35% | 76% | 18.9 | 0% |
-| 2024 | +8.6% | +22.8% | +16.2% | -8.6% | -8.0% | 84% | 206 | 38% | 86% | 20.2 | 0% |
-| 2025 | +0.6% | +13.9% | +15.5% | -13.9% | -16.9% | 83% | 208 | 32% | 84% | 19.1 | 0% |
-| 2026 YTD | +36.4% | +8.8% | +12.7% | -7.6% | -7.8% | 84% | 171 | 37% | 79% | 19.6 | 0% |
-| 2016-2026 continuous | +9.1% | +263.7% | +758.2% | -22.2% | -33.1% | 27% | 780 | 38% | 79% | 67.9 | 69% |
+| 2016 | +13.4% | +10.9% | +19.3% | -8.2% | -8.8% | 86% | 185 | 36% | 77% | 17.5 | 0% |
+| 2017 | +13.7% | +17.8% | +22.4% | -3.7% | -2.9% | 90% | 240 | 40% | 80% | 18.7 | 0% |
+| 2018 | -9.0% | -6.3% | -5.4% | -15.2% | -19.0% | 80% | 207 | 33% | 84% | 18.2 | 0% |
+| 2019 | +6.8% | +30.4% | +30.2% | -9.0% | -6.5% | 88% | 220 | 39% | 81% | 17.6 | 0% |
+| 2020 | +33.0% | +15.1% | +22.9% | -12.1% | -33.1% | 75% | 169 | 43% | 80% | 17.0 | 0% |
+| 2021 | +6.7% | +24.9% | +26.8% | -15.3% | -5.1% | 86% | 210 | 34% | 79% | 18.5 | 0% |
+| 2022 | -24.3% | -18.8% | -9.9% | -25.9% | -24.2% | 50% | 135 | 31% | 79% | 13.7 | 34% |
+| 2023 | +6.2% | +22.7% | +19.4% | -16.5% | -10.0% | 86% | 175 | 33% | 74% | 18.5 | 0% |
+| 2024 | +7.1% | +22.8% | +16.2% | -8.8% | -8.0% | 84% | 214 | 37% | 86% | 20.2 | 0% |
+| 2025 | +3.8% | +13.9% | +15.5% | -13.9% | -16.9% | 83% | 206 | 33% | 83% | 18.9 | 0% |
+| 2026 YTD | +35.6% | +8.8% | +12.7% | -9.0% | -7.8% | 84% | 160 | 37% | 81% | 19.7 | 0% |
+| 2016-2026 continuous | +6.6% | +263.7% | +758.2% | -22.8% | -33.1% | 27% | 804 | 38% | 79% | 69.1 | 69% |
 
 ## Stress execution
 
@@ -50,18 +50,18 @@ Slippage 15 bps each side, an extra 75 bps when a stop gaps through at the open,
 
 | Window | Hunter sleeve | SPY | Univ. buy&hold | Hunter maxDD | SPY maxDD | Avg exposure | Round trips | Win rate | Stop exits | Turnover (x capital) | Paused |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 2016 | +7.1% | +10.9% | +19.3% | -11.8% | -8.8% | 86% | 185 | 33% | 77% | 17.1 | 0% |
-| 2017 | +7.7% | +17.8% | +22.4% | -5.5% | -2.9% | 90% | 238 | 38% | 80% | 18.1 | 0% |
-| 2018 | -16.5% | -6.3% | -5.4% | -21.8% | -19.0% | 80% | 202 | 29% | 84% | 17.7 | 0% |
-| 2019 | -3.3% | +30.4% | +30.2% | -13.9% | -6.5% | 87% | 213 | 36% | 79% | 17.6 | 0% |
-| 2020 | +26.6% | +15.1% | +22.9% | -12.6% | -33.1% | 75% | 176 | 40% | 78% | 17.0 | 0% |
-| 2021 | +4.2% | +24.9% | +26.8% | -16.8% | -5.1% | 87% | 200 | 32% | 78% | 17.6 | 0% |
-| 2022 | -26.2% | -18.8% | -9.9% | -26.8% | -24.2% | 50% | 121 | 30% | 77% | 13.4 | 35% |
-| 2023 | +4.9% | +22.7% | +19.4% | -17.9% | -10.0% | 86% | 173 | 34% | 75% | 18.3 | 0% |
-| 2024 | +4.1% | +22.8% | +16.2% | -8.7% | -8.0% | 85% | 209 | 38% | 87% | 19.4 | 0% |
-| 2025 | -0.3% | +13.9% | +15.5% | -15.8% | -16.9% | 84% | 196 | 33% | 83% | 18.2 | 0% |
-| 2026 YTD | +30.2% | +8.8% | +12.7% | -8.5% | -7.8% | 84% | 160 | 35% | 79% | 19.3 | 0% |
-| 2016-2026 continuous | -5.8% | +263.7% | +758.2% | -25.1% | -33.1% | 24% | 698 | 35% | 78% | 56.5 | 73% |
+| 2016 | +9.5% | +10.9% | +19.3% | -9.9% | -8.8% | 86% | 182 | 34% | 76% | 17.0 | 0% |
+| 2017 | +7.4% | +17.8% | +22.4% | -6.1% | -2.9% | 90% | 239 | 36% | 79% | 18.1 | 0% |
+| 2018 | -15.3% | -6.3% | -5.4% | -20.7% | -19.0% | 80% | 203 | 30% | 84% | 17.5 | 0% |
+| 2019 | -2.0% | +30.4% | +30.2% | -12.8% | -6.5% | 87% | 214 | 38% | 79% | 17.5 | 0% |
+| 2020 | +25.7% | +15.1% | +22.9% | -12.6% | -33.1% | 75% | 174 | 40% | 81% | 16.8 | 0% |
+| 2021 | +5.3% | +24.9% | +26.8% | -16.7% | -5.1% | 87% | 202 | 33% | 79% | 17.9 | 0% |
+| 2022 | -27.0% | -18.8% | -9.9% | -27.6% | -24.2% | 50% | 130 | 32% | 78% | 13.5 | 35% |
+| 2023 | +5.2% | +22.7% | +19.4% | -17.9% | -10.0% | 86% | 173 | 34% | 75% | 18.3 | 0% |
+| 2024 | -0.8% | +22.8% | +16.2% | -10.7% | -8.0% | 85% | 215 | 37% | 87% | 19.3 | 0% |
+| 2025 | +0.0% | +13.9% | +15.5% | -15.6% | -16.9% | 84% | 203 | 33% | 85% | 18.2 | 0% |
+| 2026 YTD | +30.3% | +8.8% | +12.7% | -8.9% | -7.8% | 84% | 163 | 36% | 79% | 19.6 | 0% |
+| 2016-2026 continuous | -5.5% | +263.7% | +758.2% | -23.2% | -33.1% | 24% | 688 | 36% | 78% | 56.1 | 73% |
 
 **Paused** = share of sessions the fund sat 10%+ below its high-water mark, where the Risk Engine blocks new entries until a human resumes (provisional limit). The replay has no human, so in the continuous run the pause never lifts and Hunter stops trading for years; that, not strategy behaviour, explains its low exposure there. The single-year windows restart each epoch at a fresh high-water mark and are the fairer read.
 
@@ -70,8 +70,8 @@ Slippage 15 bps each side, an extra 75 bps when a stop gaps through at the open,
 | Execution | Median Hunter | Median SPY | Years Hunter > SPY | Worst year Hunter | Worst year SPY | Median round trips | Median exposure |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Frictionless | +10.7% | +16.4% | 3/10 | -25.2% | -18.8% | 202 | 85% |
-| Base | +8.7% | +16.4% | 2/10 | -25.9% | -18.8% | 202 | 85% |
-| Stress | +4.2% | +16.4% | 1/10 | -26.2% | -18.8% | 198 | 85% |
+| Base | +6.8% | +16.4% | 2/10 | -24.3% | -18.8% | 206 | 85% |
+| Stress | +2.6% | +16.4% | 1/10 | -27.0% | -18.8% | 202 | 85% |
 
 Hunter's sleeve is only 40% of the fund, so fund-level figures are diluted by 60% idle cash; compare the sleeve to SPY (both on the same $4,000), not the fund.
 
@@ -80,6 +80,8 @@ Hunter's sleeve is only 40% of the fund, so fund-level figures are diluted by 60
 - Symbols: 96 (universe 95 + SPY); rows: 285,348.
 - Rows dropped as not on an NYSE session: 0; dropped for inconsistent OHLC: 0.
 - Missing observations (sessions inside a symbol's own date range that no row covers): 0; longest gap: 0 sessions.
+- Duplicate dates (extra rows for a date already seen, first kept): 0; of those, repeats that disagreed with the first: 0.
+- Provenance: private cache manifest present; 96 files, every SHA-256 matches; manifest digest `4e20d34abd06a67b`; Yahoo Finance public chart data via yfinance (yfinance 1.4.1); files written from 2026-11-01 (reconstructed from the cache already on disk; the original fetch time was not recorded).
 - Splits in the sample: 36; dividends: 3990 (not credited).
 - Symbols whose data starts after the cache start: KHC, PYPL.
 - Sessions with an unmarked holding (no official close), base run: 0.

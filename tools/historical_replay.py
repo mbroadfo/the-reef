@@ -12,6 +12,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+from the_reef.backtest import cache
 from the_reef.backtest.history import CachedCalendar, HistoricalBarSource
 from the_reef.backtest.replay import WindowResult, run_window
 from the_reef.backtest.universe import BENCHMARK, UNIVERSE
@@ -64,10 +65,23 @@ def table(rs: list[WindowResult]) -> list[str]:
     return rows
 
 
+def provenance_line(p) -> str:
+    if not p.present:
+        return "- Provenance: NO MANIFEST beside the cache, so the source and integrity of this data cannot be shown."
+    src = p.source or {}
+    when = (src.get("files_modified_between") or ["unknown"])[0][:10]
+    return (f"- Provenance: private cache manifest present; {p.checked} files, every SHA-256 matches; manifest digest `{p.digest[:16]}`; "
+            f"{src.get('provider', 'unknown source')} (yfinance {src.get('yfinance_version', '?')}); files written from {when}"
+            + (f" ({src['note']})" if src.get("note") else "") + ".")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")
     args = ap.parse_args()
+    prov = cache.verify_manifest()
+    if prov.present and not prov.ok:
+        raise SystemExit(f"cache does not match its manifest (altered {prov.altered}, missing {prov.missing}, unlisted {prov.unlisted}); refetch or investigate")
     cal = CachedCalendar(ExchangeCalendar())
     bars = HistoricalBarSource(cal, [*UNIVERSE, BENCHMARK])
     q = bars.quality
@@ -120,6 +134,9 @@ def main() -> None:
           f"- Rows dropped as not on an NYSE session: {q.total('dropped_not_session')}; dropped for inconsistent OHLC: {q.total('dropped_bad_ohlc')}.",
           f"- Missing observations (sessions inside a symbol's own date range that no row covers): {q.total('missing_sessions')}; "
           f"longest gap: {max(x.max_gap_sessions for x in q.per_symbol.values())} sessions.",
+          f"- Duplicate dates (extra rows for a date already seen, first kept): {q.total('duplicate_dates')}; "
+          f"of those, repeats that disagreed with the first: {q.total('conflicting_duplicates')}.",
+          provenance_line(prov),
           f"- Splits in the sample: {q.total('splits')}; dividends: {q.total('dividends')} (not credited).",
           f"- Symbols whose data starts after the cache start: {late}.",
           f"- Sessions with an unmarked holding (no official close), base run: {sum(r.unmarked_sessions for r in base)}.", ""]
