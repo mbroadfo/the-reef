@@ -8,6 +8,9 @@ mkdirSync(out, { recursive: true })
 
 const pages = [
   ['aquarium', '/'],
+  ['aquarium-session-01', '/?s=1'],
+  ['aquarium-session-24', '/?s=24'],
+  ['aquarium-session-46', '/?s=46'],
   ['proposal-funded-win', '/proposal/momentum%3A2026-08-19%3ADIPC'],
   ['proposal-funded-loss', '/proposal/contrarian%3A2026-09-15%3ADIPB'],
   ['proposal-declined', '/proposal/momentum%3A2026-08-19%3ADIPA'],
@@ -28,6 +31,7 @@ for (const [sizeName, viewport] of sizes) {
     await page.waitForTimeout(700)
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     await page.screenshot({ path: `${out}/${name}-${sizeName}.png`, fullPage: true })
+    if (name.startsWith('aquarium')) await page.screenshot({ path: `${out}/${name}-fold-${sizeName}.png` })
     console.log(sizeName, name, overflow > 0 ? `HORIZONTAL OVERFLOW ${overflow}px` : 'ok')
   }
   if (errors.length) console.log(sizeName, 'console errors:', errors.slice(0, 5))
