@@ -29,13 +29,22 @@ def test_default_costs_change_nothing():
     assert c.buy_price(D("123.4567")) == D("123.4567") and c.sell_price(D("123.4567"), gap=True) == D("123.4567")
 
 
-def test_buys_pay_up_and_sells_receive_less_rounded_against_the_trader():
+def test_buys_pay_up_and_sells_receive_less_with_the_fee_added_exactly():
     c = ExecutionCosts(slippage_bps=D("10"), gap_slippage_bps=D("50"), fee_per_share=D("0.01"))
     assert c.buy_price(D("100")) == D("100.11")        # 100.10 + 0.01
     assert c.sell_price(D("100")) == D("99.89")        # 99.90 - 0.01
     assert c.sell_price(D("100"), gap=True) == D("99.39")  # 60 bps total
-    assert c.buy_price(D("10.001")) == D("10.03")      # 10.021 rounds up
-    assert c.sell_price(D("0.001")) == D("0.01")       # never non-positive
+    assert c.buy_price(D("10.001")) == D("10.021001")  # 10.011001 (exact at 1e-6), then + 0.01
+    assert c.sell_price(D("0.000001")) > 0             # never non-positive
+
+
+def test_a_fractional_cent_fee_is_not_rounded_up_to_a_cent():
+    c = ExecutionCosts(fee_per_share=D("0.005"))
+    assert c.buy_price(D("100")) == D("100.005") and c.sell_price(D("100")) == D("99.995")
+    half = ExecutionCosts(slippage_bps=D("5"), fee_per_share=D("0.005"))
+    assert half.buy_price(D("100")) == D("100.055") and half.sell_price(D("100")) == D("99.945")
+    # Over many shares the fee is exactly shares x fee, not shares x a rounded cent.
+    assert (c.buy_price(D("100")) - D("100")) * 1000 == D("5.000")
 
 
 def test_costs_lower_the_result_and_every_fill_is_on_the_losing_side_of_the_open():
@@ -125,3 +134,47 @@ def test_the_replay_ledger_is_untouched_by_the_cost_hook():
     run(world, deps, led, START_INDEX, START_INDEX + 30)  # raises LedgerError if any mark disagrees with the books
     replayed = Ledger(type(led.store)(led.store.read_all()))
     assert replayed.state.digest() == led.state.digest()
+
+
+def test_duplicate_dates_are_detected_first_row_kept_and_conflicts_counted(tmp_path):
+    rows = [row(DAYS[0]), row(DAYS[1]), row(DAYS[1]), row(DAYS[2], "100", "101", "99", "100"), row(DAYS[2], "100", "103", "99", "102")]
+    src = build(tmp_path, rows)
+    q = src.quality.per_symbol["AAA"]
+    assert (q.rows, q.duplicate_dates, q.conflicting_duplicates) == (5, 2, 1)
+    kept = src.history("AAA", WORLD.calendar.session(DAYS[2]).close)
+    assert [b.day for b in kept] == DAYS[:3] and kept[-1].close == D("100")  # the first of the conflicting pair
+
+
+def _manifest(tmp_path, syms=("AAA", "BBB")):
+    for s in syms:
+        cache.write(s, [row(DAYS[0]), row(DAYS[1])], tmp_path)
+    m = cache.build_manifest(list(syms), {"provider": "test"}, tmp_path)
+    cache.write_manifest(m, tmp_path)
+    return m
+
+
+def test_manifest_records_checksums_and_verifies_clean(tmp_path):
+    m = _manifest(tmp_path)
+    assert set(m["files"]) == {"AAA", "BBB"} and m["files"]["AAA"]["rows"] == 2 and len(m["files"]["AAA"]["sha256"]) == 64
+    chk = cache.verify_manifest(tmp_path)
+    assert chk.present and chk.ok and chk.checked == 2 and chk.digest == m["files_digest"]
+
+
+def test_manifest_detects_altered_missing_and_unlisted_files_and_absence(tmp_path):
+    assert not cache.verify_manifest(tmp_path).present
+    _manifest(tmp_path)
+    cache.write("AAA", [row(DAYS[0]), row(DAYS[1], "100", "101", "99", "100.5")], tmp_path)  # one price changed
+    cache.path_for("BBB", tmp_path).unlink()
+    cache.write("CCC", [row(DAYS[0])], tmp_path)
+    chk = cache.verify_manifest(tmp_path)
+    assert not chk.ok and chk.altered == ("AAA",) and chk.missing == ("BBB",) and chk.unlisted == ("CCC",)
+
+
+def test_a_manifest_whose_file_list_was_edited_fails_its_own_digest(tmp_path):
+    import json
+    _manifest(tmp_path)
+    p = tmp_path / cache.MANIFEST
+    m = json.loads(p.read_text())
+    m["files"]["AAA"]["rows"] = 999
+    p.write_text(json.dumps(m))
+    assert not cache.verify_manifest(tmp_path).ok
