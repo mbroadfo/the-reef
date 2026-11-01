@@ -41,9 +41,9 @@ export function Contender({ pod, pv, rival, view, pitchOf, onSelect }:
     : pv.positions.length ? `Holding ${pv.positions.length}`
     : 'Waiting for a setup'
   return (
-    <div className="contender p-4" style={{ borderColor: `${hex}44` }}>
+    <div className="contender p-3 sm:p-4" style={{ borderColor: `${hex}44` }}>
       <div className="flex items-center justify-between gap-2">
-        <Link to={`/team/${pod.pod_id}`} className="text-xl font-bold hover:underline" style={{ color: hex }}>{pod.name}</Link>
+        <Link to={`/team/${pod.pod_id}?s=${view.index + 1}`} className="text-xl font-bold hover:underline" style={{ color: hex }}>{pod.name}</Link>
         {rival && view.index >= 1 && (
           <span className={`chip ${pv.lead_by_return ? 'chip-funded' : 'chip-neutral'}`}>
             {pv.lead_by_return ? `LEADS BY ${Math.abs(lead).toFixed(2)} PTS` : lead === 0 ? 'LEVEL' : `TRAILS BY ${Math.abs(lead).toFixed(2)} PTS`}
@@ -53,7 +53,7 @@ export function Contender({ pod, pv, rival, view, pitchOf, onSelect }:
       <p className="text-sm font-semibold text-slate-200">{how.verb}</p>
 
       <div className="relative -mx-2 mt-1 flex justify-center">
-        <SharkArt species={species} size={230} charging={species === 'mako' && boughtToday} />
+        <SharkArt species={species} size={180} charging={species === 'mako' && boughtToday} />
       </div>
 
       <div className="mt-1 grid grid-cols-2 gap-2">
@@ -82,13 +82,17 @@ export function Contender({ pod, pv, rival, view, pitchOf, onSelect }:
 
       <dl className="mt-3 grid grid-cols-3 gap-1 text-center">
         <div><Label>Exposure</Label><dd className="font-mono text-sm text-slate-100">{view.index === 0 ? '-' : pct(pv.avg_exposure, 0, false)}</dd></div>
-        <div><Label>Avg hold</Label><dd className="font-mono text-sm text-slate-100">{pv.avg_hold === null ? '-' : `${pv.avg_hold.toFixed(0)} sessions`}</dd></div>
+        <div><Label>Avg hold (sess.)</Label><dd className="font-mono text-sm text-slate-100">{pv.avg_hold === null ? '-' : pv.avg_hold.toFixed(0)}</dd></div>
         <div><Label>Win rate</Label><dd className="font-mono text-sm text-slate-100">{pv.win_rate === null ? '-' : `${(pv.win_rate * 100).toFixed(0)}% of ${pv.trades}`}</dd></div>
       </dl>
       <p className="mt-2 text-center text-xs text-slate-400">Exits so far: {pv.stop_exits} by stop, {pv.rule_exits} by its own rule</p>
-      <p className="mt-3 text-xs leading-snug text-slate-400">{how.rule}</p>
+      <details className="mt-2 text-xs text-slate-400"><summary className="cursor-pointer text-slate-300">How it hunts</summary><p className="mt-1 leading-snug">{how.rule}</p></details>
     </div>
   )
+}
+
+function Line({ k, children }: { k: string; children: ReactNode }) {
+  return <div className="flex gap-3 py-1.5"><dt className="w-20 shrink-0 text-[10px] uppercase tracking-[0.14em] text-slate-500 pt-0.5">{k}</dt><dd className="min-w-0 text-slate-200">{children}</dd></div>
 }
 
 function Rail({ n, title, children, dim }: { n: number; title: string; children?: ReactNode; dim?: boolean }) {
@@ -120,52 +124,46 @@ export function Spotlight({ pitch, fresh, view, pod, others, onSelect }:
         <span className="font-mono text-2xl font-bold text-white">{pitch.symbol}</span>
         {stateChip(pitch)}
       </div>
-      <blockquote className="mt-2 border-l-2 pl-3 text-sm text-slate-200" style={{ borderColor: hex }}>{pk.thesis}</blockquote>
+      <blockquote className="mt-2 line-clamp-2 border-l-2 pl-3 text-sm text-slate-200" style={{ borderColor: hex }}>{pk.thesis}</blockquote>
 
-      <ol className="mt-3 space-y-2.5">
-        <Rail n={1} title={`Asked for ${pk.capital_request.shares} shares (${usd(pk.capital_request.dollars)})`}>
-          {Math.round(Number(pk.capital_request.fraction_of_sleeve_cash) * 100)}% of its sleeve's cash. Stop {usd(pk.exit_plan.stop_price)} ({pk.risk.stop_distance_pct}% away), {usd(pk.risk.risk_at_request)} at risk.
-        </Rail>
-        {d && (funded ? (
-          <Rail n={2} title={`Apex funded it: up to ${d.granted_shares} shares`}>
-            Ranked #{d.rank} of {d.of} from {pod.name}. The D0 ceiling was {d.ceiling_shares} shares; Apex never grants more than a pod asks for. Risk Engine pre-check passed ({d.risk_check_shares} sh).
-          </Rail>
-        ) : (
-          <Rail n={2} title={`Apex declined: ${reasonLabel(d.reasons)}`}>
-            {pitch.decision_explained.length ? pitch.decision_explained.join(' ') : d.detail}
-          </Rail>
-        ))}
-        {funded && pitch.state === 'QUEUED' && (
-          <Rail n={3} title={`Order queued for ${dayLabel(d!.fill_session ?? '')}'s open`}>No price is assumed in advance. The fill is not known yet.</Rail>
-        )}
-        {funded && pitch.state === 'NOT_FILLED' && <Rail n={3} title="The order did not fill">It was refused at the open. Nothing was bought.</Rail>}
-        {pitch.entry && (
-          <Rail n={3} title={`Bought ${pitch.entry.shares} at ${usd(pitch.entry.price)} on ${dayLabel(pitch.entry.session_day)}`}>
-            Risk sized the fill from the actual open. {pitch.state === 'OPEN' && <>Stop now {usd(pitch.stop)}.</>}
-          </Rail>
-        )}
-        {pitch.state === 'OPEN' && (
-          <Rail n={4} title={`Open: ${usd(pitch.pnl, true)} (${pct(pitch.position_return, 1)}) at ${dayLabel(view.day)}'s close`}>
-            {pitch.sessions_held} session{pitch.sessions_held === 1 ? '' : 's'} held. No outcome yet.
-          </Rail>
-        )}
-        {pitch.state === 'CLOSED' && pitch.exit && (
-          <Rail n={4} title={`Sold at ${usd(pitch.exit.price)} on ${dayLabel(pitch.exit.session_day)}: ${usd(pitch.pnl, true)} (${pct(pitch.position_return, 1)})`}>
-            {pitch.exit.reason}. Held {pitch.sessions_held} sessions.
-          </Rail>
-        )}
-        {!funded && d && <Rail n={3} title="Nothing was traded" dim>No order, no fill, no effect on any sleeve.</Rail>}
-      </ol>
+      <dl className="mt-3 divide-y divide-slate-800/80 text-sm">
+        <Line k="Asked">{pk.capital_request.shares} shares ({usd(pk.capital_request.dollars)}), stop {usd(pk.exit_plan.stop_price)}</Line>
+        <Line k="Apex">{d ? (funded ? <span className="font-semibold text-emerald-300">Funded up to {d.granted_shares} shares</span>
+          : <span className="font-semibold text-red-300">Declined: {reasonLabel(d.reasons)}</span>) : '-'}</Line>
+        <Line k="Execution">
+          {pitch.entry ? <>Bought {pitch.entry.shares} at {usd(pitch.entry.price)} on {dayLabel(pitch.entry.session_day)}</>
+            : pitch.state === 'QUEUED' ? <>Order queued for {dayLabel(d?.fill_session ?? '')}'s open</>
+            : pitch.state === 'NOT_FILLED' ? 'Order did not fill' : 'Nothing was traded'}
+        </Line>
+        <Line k="Result">
+          {pitch.state === 'OPEN' ? <span className={tone(pitch.pnl)}>Open {usd(pitch.pnl, true)} ({pct(pitch.position_return, 1)}) at {dayLabel(view.day)}'s close</span>
+            : pitch.state === 'CLOSED' && pitch.exit ? <><span className={tone(pitch.pnl)}>Sold {usd(pitch.pnl, true)} ({pct(pitch.position_return, 1)})</span> on {dayLabel(pitch.exit.session_day)}</>
+            : <span className="text-slate-500">{funded ? 'Not known yet' : 'No effect on any sleeve'}</span>}
+        </Line>
+      </dl>
+      <details className="mt-2 text-xs text-slate-400">
+        <summary className="cursor-pointer text-slate-300">Why Apex decided this</summary>
+        <ol className="mt-2 space-y-2.5">
+          <Rail n={1} title="The ask">{Math.round(Number(pk.capital_request.fraction_of_sleeve_cash) * 100)}% of its sleeve's cash; {usd(pk.risk.risk_at_request)} at risk to a stop {pk.risk.stop_distance_pct}% away.</Rail>
+          {d && (funded ? (
+            <Rail n={2} title="The decision">Ranked #{d.rank} of {d.of} from {pod.name}. The D0 ceiling was {d.ceiling_shares} shares; Apex never grants more than a pod asks for. Risk Engine pre-check passed ({d.risk_check_shares} sh).</Rail>
+          ) : (
+            <Rail n={2} title="The decision">{pitch.decision_explained.length ? pitch.decision_explained.join(' ') : d.detail}</Rail>
+          ))}
+          {pitch.entry && <Rail n={3} title="The fill">Risk sized the fill from the actual open. {pitch.state === 'OPEN' && <>Stop now {usd(pitch.stop)}.</>}</Rail>}
+          {pitch.state === 'CLOSED' && pitch.exit && <Rail n={4} title="The exit">{pitch.exit.reason}. Held {pitch.sessions_held} sessions.</Rail>}
+        </ol>
+      </details>
 
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-800 pt-3 text-xs">
-        <Link to={`/proposal/${encodeURIComponent(pitch.proposal_id)}`} className="rounded-full border border-cyan-300/50 bg-cyan-400/10 px-3 py-1.5 font-semibold text-cyan-100 hover:bg-cyan-400/20">
+        <Link to={`/proposal/${encodeURIComponent(pitch.proposal_id)}?s=${view.index + 1}`} className="rounded-full border border-cyan-300/50 bg-cyan-400/10 px-3 py-1.5 font-semibold text-cyan-100 hover:bg-cyan-400/20">
           Follow the full story
         </Link>
         {d && <Link to={`/lab?seq=${d.seq}`} className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-200 hover:border-cyan-300/60">Evidence: ledger #{d.seq}</Link>}
         {pitch.entry && <Link to={`/lab?seq=${pitch.entry.seq}`} className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-200 hover:border-cyan-300/60">Fill: ledger #{pitch.entry.seq}</Link>}
         {pitch.exit && <Link to={`/lab?seq=${pitch.exit.seq}`} className="rounded-full border border-slate-600 px-3 py-1.5 text-slate-200 hover:border-cyan-300/60">Exit: ledger #{pitch.exit.seq}</Link>}
       </div>
-      {view.index < view.total - 1 && <p className="mt-2 text-[11px] text-slate-500">The full story page shows the whole record, including what happened after this session.</p>}
+      {view.index < view.total - 1 && <p className="mt-2 text-[11px] text-slate-500">The full story opens the complete record, including what happened after this session.</p>}
 
       {others.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
@@ -200,7 +198,7 @@ export function ApexColumn({ snap, view, selected, onSelect }: { snap: Snapshot;
   return (
     <div className="flex flex-col items-center">
       <div className="relative flex w-full flex-col items-center">
-        <SharkArt species="greatwhite" size={200} />
+        <SharkArt species="greatwhite" size={170} glow />
         <div className="-mt-1 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/60 bg-amber-300/10 px-4 py-1">
             <span className="text-lg font-extrabold tracking-[0.2em] text-amber-200">APEX</span>

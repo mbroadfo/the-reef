@@ -3,6 +3,8 @@
 import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import { sessionsOf, spotlightFor, viewAt } from '../src/reef2/replay.ts'
+import { decisionMarkers } from '../src/reef2/replay.ts'
+import { nextParams, sessionParam, visibleMarkers } from '../src/reef2/timelineLogic.ts'
 import type { Snapshot } from '../src/reef2/types.ts'
 
 const snap = JSON.parse(readFileSync(new URL('../public/reef2/snapshot.json', import.meta.url), 'utf8')) as Snapshot
@@ -33,6 +35,7 @@ assert.equal(sessions[69].day, snap.generated_from.last_session)
     assert.ok(close(p.volatility_ann!, s.volatility_ann!, 1e-9), `${p.pod_id} volatility`)
     assert.ok(close(p.avg_exposure, s.avg_exposure!, 1e-9), `${p.pod_id} exposure`)
     assert.equal(p.trades, s.trades)
+    assert.ok(close(p.avg_win ?? 0, Number(s.avg_win ?? 0), 0.005) && close(p.avg_loss ?? 0, Number(s.avg_loss ?? 0), 0.005), `${p.pod_id} avg win/loss`)
     assert.ok(close(p.win_rate!, s.win_rate!, 1e-12))
     assert.equal(p.proposals, s.proposals)
     assert.equal(p.funded_proposals, s.funded_proposals)
@@ -157,6 +160,39 @@ for (const t of [0, 1, 2, 9, 19, 33, 34, 49, 61, 68, 69]) {
   assert.equal(closed.state, 'CLOSED')
   assert.ok(close(closed.pnl!, 194.64, 0.005))
   assert.match(closed.exit!.reason, /Stopped out/)
+}
+
+// --- timeline controls -------------------------------------------------------------------------------------------------
+{
+  // Chronological mode never shows a decision from a later session; retrospective mode shows all of them.
+  const markers = decisionMarkers(snap)
+  assert.ok(markers.length > 10)
+  for (const t of [0, 5, 23, 45, 69]) {
+    const shown = visibleMarkers(markers, t, false)
+    assert.ok(shown.every(m => m.index <= t), `session ${t + 1}: a future marker is visible`)
+    assert.equal(shown.length, markers.filter(m => m.index <= t).length)
+    assert.equal(visibleMarkers(markers, t, true).length, markers.length)
+  }
+  assert.ok(visibleMarkers(markers, 0, false).length < markers.length)
+
+  // A marker click sets the session and the pitch in one update; neither can be lost or left stale.
+  const m = markers.find(x => x.funded && x.index > 10)!
+  const before = new URLSearchParams('s=3&p=old')
+  const after = nextParams(before, m.index, 70, m.proposal_id)
+  assert.equal(after.get('s'), String(m.index + 1))
+  assert.equal(after.get('p'), m.proposal_id)
+  assert.equal(nextParams(after, 40, 70).get('p'), null, 'moving the timeline clears the selected pitch')
+  assert.equal(nextParams(new URLSearchParams(''), 999, 70).get('s'), '70')
+  assert.equal(nextParams(new URLSearchParams(''), -4, 70).get('s'), '1')
+  assert.equal(sessionParam(null, 70), 69)
+  assert.equal(sessionParam('0', 70), 69)
+  assert.equal(sessionParam('24', 70), 23)
+  // The pitch a marker selects exists at the marker's own session and was decided there.
+  for (const mk of markers) {
+    const v = viewAt(snap, mk.index)
+    const p = v.pitches.find(x => x.proposal_id === mk.proposal_id)
+    assert.ok(p && p.decided_today, `marker ${mk.proposal_id} must be visible and decided at its own session`)
+  }
 }
 
 console.log('reef2 replay tests passed')

@@ -11,16 +11,16 @@ interface Palette { top: string; belly: string; fin: string; accent: string }
 const PALETTE: Record<Species, Palette> = {
   mako:       { top: '#7c3aed', belly: '#ddd6fe', fin: '#5b21b6', accent: '#c4b5fd' },
   hammerhead: { top: '#b7791f', belly: '#fef3c7', fin: '#8a5a12', accent: '#fcd34d' },
-  greatwhite: { top: '#475569', belly: '#f1f5f9', fin: '#334155', accent: '#f5c451' },
+  greatwhite: { top: '#7b8ba3', belly: '#f8fafc', fin: '#5f6f87', accent: '#f5c451' },
 }
 
-export default function SharkArt({ species, size = 200, className = '', sleeping = false, charging = false }:
-  { species: Species; size?: number; className?: string; sleeping?: boolean; charging?: boolean }) {
+export default function SharkArt({ species, size = 200, className = '', sleeping = false, charging = false, glow = false }:
+  { species: Species; size?: number; className?: string; sleeping?: boolean; charging?: boolean; glow?: boolean }) {
   const id = useId().replace(/:/g, '')
   const c = sleeping ? { top: '#475569', belly: '#94a3b8', fin: '#334155', accent: '#94a3b8' } : PALETTE[species]
   const w = size, h = size * 0.5
   return (
-    <svg viewBox="0 0 260 130" width={w} height={h} className={className} role="img" aria-label={`${species} shark`} style={{ overflow: 'visible' }}>
+    <svg viewBox="0 0 260 130" width={w} height={h} className={className} role="img" aria-label={`${species} shark`} style={{ overflow: 'visible', filter: glow ? 'drop-shadow(0 0 14px rgba(245,196,81,0.4))' : undefined }}>
       <defs>
         <linearGradient id={`b${id}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={c.top} /><stop offset="0.56" stopColor={c.top} />

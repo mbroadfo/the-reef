@@ -45,6 +45,8 @@ export interface PodView {
   trades: number
   wins: number
   win_rate: number | null
+  avg_win: number | null
+  avg_loss: number | null
   avg_exposure: number
   avg_hold: number | null          // sessions held, closed trades
   stop_exits: number
@@ -253,6 +255,8 @@ export function viewAt(snap: Snapshot, index: number): SessionView {
       pod_id: id, funded: f, nav, cash: cash[id] ?? 0, invested: nav - (cash[id] ?? 0), realized: realized[id] ?? 0, unrealized: unreal,
       return: st.ret, max_drawdown: st.max_drawdown, sessions: st.sessions, volatility_ann: st.volatility_ann, sharpe_like: st.sharpe_like,
       trades: tr.length, wins, win_rate: tr.length ? wins / tr.length : null,
+      avg_win: wins ? tr.filter(t => t.pnl > 0).reduce((a, t) => a + t.pnl, 0) / wins : null,
+      avg_loss: tr.length > wins ? tr.filter(t => t.pnl <= 0).reduce((a, t) => a + t.pnl, 0) / (tr.length - wins) : null,
       avg_exposure: ex.length ? ex.reduce((a, b) => a + b, 0) / ex.length : 0,
       avg_hold: tr.length ? tr.reduce((a, t) => a + t.held, 0) / tr.length : null,
       stop_exits: tr.filter(t => t.stop).length, rule_exits: tr.filter(t => !t.stop).length,

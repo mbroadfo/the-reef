@@ -14,6 +14,7 @@ const pages = [
   ['proposal-funded-win', '/proposal/momentum%3A2026-08-19%3ADIPC'],
   ['proposal-funded-loss', '/proposal/contrarian%3A2026-09-15%3ADIPB'],
   ['proposal-declined', '/proposal/momentum%3A2026-08-19%3ADIPA'],
+  ['team-momentum-session-24', '/team/momentum?s=24'],
   ['lab', '/lab'],
   ['team-inactive', '/team/value'],
 ]

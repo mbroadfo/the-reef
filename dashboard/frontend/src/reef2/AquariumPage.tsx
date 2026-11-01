@@ -133,7 +133,7 @@ function Scoreboard({ snap, view }: { snap: Snapshot; view: SessionView }) {
             const pod = podById(snap, p.pod_id)
             return (
               <tr key={p.pod_id} className="border-b border-slate-800/60 last:border-0">
-                <td className="px-2 py-2 text-left"><Link to={`/team/${p.pod_id}`} className="flex items-center gap-2"><span className="font-mono text-slate-500">#{p.rank}</span><PodChip pod={pod} /></Link></td>
+                <td className="px-2 py-2 text-left"><Link to={`/team/${p.pod_id}?s=${view.index + 1}`} className="flex items-center gap-2"><span className="font-mono text-slate-500">#{p.rank}</span><PodChip pod={pod} /></Link></td>
                 <td className={`${td} ${tone(p.return)}`}>{pct(p.return, 2)}</td>
                 <td className={td}>{pct(p.max_drawdown, 1, false)}</td>
                 <td className={td}>{pct(p.volatility_ann, 1, false)}</td>
@@ -186,11 +186,14 @@ function Aquarium({ snap }: { snap: Snapshot }) {
     <>
       <div className="pt-1">
         <h1 className="text-2xl font-bold leading-tight text-white sm:text-4xl">Two sharks hunt. <span className="text-amber-300">One CIO decides.</span></h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-300 sm:text-base">
+        <p className="mt-1 text-sm text-slate-300 sm:hidden">Press play to replay 70 synthetic sessions.</p>
+        <p className="mt-2 hidden max-w-3xl text-slate-300 sm:block">
           {a.name} and {b.name} each pitch trades to Apex, who funds or declines them by fixed rules while Risk watches every order. Press play to replay all {view.total} sessions of this
           synthetic competition, and pause on any decision.
         </p>
       </div>
+
+      <TimelineBar tl={tl} />
 
       <div className="arena mt-4 p-3 sm:p-5">
         <div className="grid gap-4 lg:grid-cols-[1fr_1.35fr_1fr] lg:items-start">
@@ -203,8 +206,6 @@ function Aquarium({ snap }: { snap: Snapshot }) {
           <Sleeping snap={snap} />
         </div>
       </div>
-
-      <TimelineBar tl={tl} />
 
       <Section title="The race" hint={`Each team's return on its own sleeve through ${dayLabel(view.day)}`}>
         <Race snap={snap} tl={tl} />
