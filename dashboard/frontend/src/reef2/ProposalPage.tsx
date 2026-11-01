@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import PodShark, { POD_HEX } from './PodShark'
 import { DecisionChip, Loading, PodChip, podById } from './ui'
@@ -62,6 +62,8 @@ function PriceChart({ row, snap }: { row: ProposalRow; snap: Snapshot }) {
 
 export default function ProposalPage() {
   const { id } = useParams()
+  const [params] = useSearchParams()
+  const from = Number(params.get('s')) || null
   const { snap, error } = useSnapshot()
   if (!snap) return <Loading error={error} />
   const row = snap.proposals.find(r => r.proposal_id === id)
@@ -78,6 +80,13 @@ export default function ProposalPage() {
     <>
       <nav className="text-sm text-slate-400"><Link to="/" className="hover:text-white">Aquarium</Link> / <Link to={`/team/${pod.pod_id}`} className="hover:text-white">{pod.name}</Link> / <span className="text-slate-200">{pk.symbol} · {dayLabel(pk.as_of_session)}</span></nav>
 
+      {from !== null && from < snap.fund.nav_series.length && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: 'rgba(245,158,11,0.5)', background: 'rgba(245,158,11,0.08)' }}>
+          <span className="chip chip-warn">COMPLETE RECORD</span>
+          <span className="text-slate-200">You opened this from session {from} of the replay. This story shows everything that happened afterward too, through the end of the demonstration.</span>
+          <Link to={`/?s=${from}&p=${encodeURIComponent(row.proposal_id)}`} className="ml-auto text-cyan-300 hover:underline">Back to the replay at session {from}</Link>
+        </div>
+      )}
       <div className="glass mt-3 flex flex-wrap items-center gap-4 p-4" style={{ borderColor: `${accent}55` }}>
         <PodShark pod={pod} size={64} />
         <div className="min-w-0 flex-1">
@@ -167,7 +176,7 @@ export default function ProposalPage() {
                 <div className="glass p-3"><div className="text-[11px] uppercase tracking-wider text-slate-500">Whole fund</div><div className={`mt-1 font-mono text-2xl font-bold ${tone(l.fund_return_contribution)}`}>{pct(l.fund_return_contribution, 2)}</div><div className="text-xs text-slate-400">of the $10,000 fund</div></div>
               </div>
               <p className="mt-2 text-sm text-slate-400">
-                Standing today: {pod.name} {pct(pod.return, 2)} (#{pod.rank})
+                Standing at the end of the demonstration: {pod.name} {pct(pod.return, 2)} (#{pod.rank})
                 {rival.map(r => <span key={r.pod_id}>, {r.name} {pct(r.return, 2)} (#{r.rank})</span>)}.
                 Sleeve NAVs are the ledger's verified end-of-session valuations; the other pod's books are untouched by this trade.
               </p>

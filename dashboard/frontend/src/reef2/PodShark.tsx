@@ -1,4 +1,5 @@
 import sharkImg from '../assets/shark-base.png'
+import SharkArt, { SPECIES } from './Sharks'
 import type { Pod } from './types'
 
 // Hue shifts applied to the single shark illustration so each pod is recognisable at a glance.
@@ -17,6 +18,8 @@ export const POD_HEX: Record<string, string> = {
 
 export default function PodShark({ pod, size = 72 }: { pod: Pod; size?: number }) {
   const active = pod.status === 'ACTIVE'
+  const species = SPECIES[pod.pod_id]
+  if (active && species) return <div style={{ width: size * 1.6, height: size * 0.8, flexShrink: 0 }}><SharkArt species={species} size={size * 1.6} /></div>
   return (
     <div className={active ? 'shark-bob' : ''} style={{ width: size, height: size, flexShrink: 0 }}>
       <img
