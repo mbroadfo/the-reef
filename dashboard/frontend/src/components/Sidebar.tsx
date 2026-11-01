@@ -6,7 +6,7 @@ import { fetchSentiment } from '../api'
 import type { Sentiment } from '../types'
 
 const NAV_ITEMS: { label: string; path: string; emoji: string }[] = [
-  { label: 'Command Center', path: '/',          emoji: '⚡' },
+  { label: 'Command Center', path: '/dashboard',          emoji: '⚡' },
   { label: 'Sharks',         path: '/sharks',    emoji: '🦈' },
   { label: 'Portfolio',      path: '/portfolio', emoji: '📊' },
   { label: 'Trades',         path: '/trades',    emoji: '↗️' },
@@ -48,7 +48,7 @@ export default function Sidebar() {
           <NavLink
             key={path}
             to={path}
-            end={path === '/'}
+            end={path === '/dashboard'}
             className={({ isActive }) => isActive ? active : inactive}
             style={{ fontSize: '15px' }}
           >

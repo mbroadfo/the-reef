@@ -8,7 +8,7 @@ import type { LucideIcon } from 'lucide-react'
 import reefLogo from '../assets/the_reef_logo.png'
 
 const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
-  { label: 'Command Center', path: '/',          icon: LayoutDashboard },
+  { label: 'Command Center', path: '/dashboard',          icon: LayoutDashboard },
   { label: 'Sharks',         path: '/sharks',    icon: Fish },
   { label: 'Portfolio',      path: '/portfolio', icon: Briefcase },
   { label: 'Trades',         path: '/trades',    icon: ArrowLeftRight },
@@ -82,7 +82,7 @@ export default function MobileNav({ open, onClose }: { open: boolean; onClose: (
             <NavLink
               key={path}
               to={path}
-              end={path === '/'}
+              end={path === '/dashboard'}
               onClick={onClose}
               className={({ isActive }) => isActive ? active : inactive}
             >

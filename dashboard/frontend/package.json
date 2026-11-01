@@ -8,7 +8,7 @@
     "preview": "vite preview",
     "screenshot": "node scripts/screenshot.js",
     "screenshot:local": "node scripts/screenshot.js http://localhost:5173",
-    "test": "node --experimental-strip-types --no-warnings scripts/snapshots.test.ts"
+    "test": "node --experimental-strip-types --no-warnings scripts/snapshots.test.ts && node --experimental-strip-types --no-warnings scripts/reef2.test.ts"
   },
   "dependencies": {
     "lucide-react": "^0.400.0",

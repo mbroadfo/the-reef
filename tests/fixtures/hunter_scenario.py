@@ -110,7 +110,7 @@ class World:
     days: list[date]
 
 
-def make_world() -> World:
+def make_world(specs: dict | None = None) -> World:
     cal = load_calendar()
     days: list[date] = []
     d = cal.first_day
@@ -120,7 +120,7 @@ def make_world() -> World:
         d = date.fromordinal(d.toordinal() + 1)
     bars: list[DailyBar] = []
     records: list[InstrumentRecord] = []
-    for sym, (start, sector, vol, segs, skip) in SPECS.items():
+    for sym, (start, sector, vol, segs, skip) in (specs or SPECS).items():
         bars.extend(build_bars(sym, start, segs, days, SEED, vol, frozenset(skip)))
         records.append(InstrumentRecord(sym, "NYSE", InstrumentStatus.ACTIVE, date(2010, 1, 4), None, sector,
                                         "synthetic", datetime(2020, 1, 1, tzinfo=UTC)))

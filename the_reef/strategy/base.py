@@ -35,6 +35,17 @@ class StrategyContext:
 
 
 @dataclass(frozen=True)
+class Finding:
+    """One research agent's output for one ticker. Deterministic today; an LLM agent could return the same shape."""
+
+    agent: str
+    role: str
+    verdict: str  # "support" | "oppose" | "neutral"
+    summary: str
+    metrics: tuple[tuple[str, str], ...] = ()  # (label, value) pairs, every figure recomputable from the bars
+
+
+@dataclass(frozen=True)
 class Proposal:
     symbol: str
     intent: Intent
@@ -42,6 +53,8 @@ class Proposal:
     ref_price: Decimal  # the close the decision was made on
     stop_price: Decimal | None  # invalidation price for OPEN/ADD
     rationale: str
+    thesis: str = ""
+    findings: tuple[Finding, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -16,12 +16,12 @@ Ledger events (immutable, hash-chained; all but three of the stop raises omitted
 
 | seq | time | event | detail |
 |---|---|---|---|
-| 32 | 2026-08-28 20:01 UTC | ORDER_QUEUED | open up to 10 HUNT, stop 99.50, fill session 2026-08-31 |
-| 35 | 2026-08-31 13:30 UTC | FILL | BUY 9 HUNT @ 102.40 (order hunter-momentum:2026-08-28:HUNT:open) |
-| 43 | 2026-09-02 20:01 UTC | STOP_UPDATED | HUNT stop -> 99.91 |
-| 46 | 2026-09-03 20:01 UTC | STOP_UPDATED | HUNT stop -> 101.07 |
-| 209 | 2026-10-15 20:01 UTC | STOP_UPDATED | HUNT stop -> 131.80 |
-| 214 | 2026-10-16 13:30 UTC | FILL | SELL 9 HUNT @ 119.38 (order stop:HUNT:2026-10-16) |
+| 47 | 2026-08-28 20:01 UTC | ORDER_QUEUED | open up to 10 HUNT, stop 99.50, fill session 2026-08-31 |
+| 51 | 2026-08-31 13:30 UTC | FILL | BUY 9 HUNT @ 102.40 (order hunter-momentum:2026-08-28:HUNT:open) |
+| 61 | 2026-09-02 20:01 UTC | STOP_UPDATED | HUNT stop -> 99.91 |
+| 64 | 2026-09-03 20:01 UTC | STOP_UPDATED | HUNT stop -> 101.07 |
+| 289 | 2026-10-15 20:01 UTC | STOP_UPDATED | HUNT stop -> 131.80 |
+| 298 | 2026-10-16 13:30 UTC | FILL | SELL 9 HUNT @ 119.38 (order stop:HUNT:2026-10-16) |
 
 31 stop raises in total, each higher than the last.
 
@@ -81,9 +81,9 @@ The sleeve's return is against the $4,000 it was funded with, never against the 
 
 ## 5. Deterministic replay and recovery
 
-- Events in the ledger: 288; head hash `7009141fcd935227...`; state digest `ddc7ab72666685ee...`.
+- Events in the ledger: 398; head hash `d3a126ece91b5b61...`; state digest `4dab5c9666e9bc76...`.
 - Replaying every event from the start gives the same state digest: **True** and the same head hash: **True**.
 - A second, independent run of the whole simulation produces an identical ledger (same head hash): **True**.
-- Loading the stored events against the preserved checkpoint (seq 288) succeeds: **True**.
+- Loading the stored events against the preserved checkpoint (seq 398) succeeds: **True**.
 - Crash recovery: the test suite kills the process at every single append of a 25-session run (over 100 crash points), reloads from what the store durably holds, resumes with `next_session_to_advance`, and requires the final state to equal the uninterrupted run exactly (`tests/hunter/test_engine_safety.py`).
 

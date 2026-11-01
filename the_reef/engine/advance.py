@@ -35,6 +35,7 @@ from the_reef.ledger.state import EpochState, OrderRecord, valuation
 from the_reef.ledger.views import fund_view
 from the_reef.execution.costs import ExecutionCosts
 from the_reef.market.bars import BarSource
+from the_reef.pods.contract import build_packet
 from the_reef.market.calendar import MarketCalendar
 from the_reef.market.instruments import CorporateActionSource, InstrumentMaster, Intent
 from the_reef.market.quotes import MarkStatus, mark_close
@@ -363,20 +364,65 @@ def _decide(ledger: Ledger, deps: EngineDeps, day: date, decide_at: datetime, re
                 continue
             _queue(ledger, deps, spec, exit_prop, sl.positions[exit_prop.symbol].shares, day, decide_at, report)
         props = [p for p in spec.strategy.propose(ctx) if p.symbol not in blocked]
-        for alloc in allocate(props, sl.cash, deps.d0):
-            _queue(ledger, deps, spec, alloc.proposal, alloc.ceiling_shares, day, decide_at, report)
+        ranked = sorted(props, key=lambda p: (-p.score, p.symbol))
+        packets = {p.symbol: build_packet(pod_id=spec.sleeve_id, strategy=spec.strategy, prop=p, day=day, created_at=decide_at,
+                                          sleeve_cash=ep.sleeves[spec.sleeve_id].cash, sector=_sector(deps, p.symbol, decide_at))
+                   for p in ranked}
+        for p in ranked:
+            _emit(ledger, ev.proposal_submitted(deps.epoch_id, decide_at, packet=packets[p.symbol]), report)
+        funded = {a.proposal.symbol: a for a in allocate(props, sl.cash, deps.d0)}
+        for rank, p in enumerate(ranked, 1):
+            pid = packets[p.symbol]["proposal_id"]
+            base = {"rule": "D0", "rank": rank, "of": len(ranked), "sleeve_cash": format(sl.cash, "f"),
+                    "max_new_per_session": deps.d0.max_new_per_session}
+            alloc = funded.get(p.symbol)
+            if alloc is None:
+                _emit(ledger, ev.apex_decision(deps.epoch_id, decide_at, sleeve_id=spec.sleeve_id, proposal_id=pid,
+                                               outcome="DECLINED", detail={**base, "reasons": ["D0_RANK_CAP"],
+                                                                            "detail": f"ranked {rank} of {len(ranked)}; D0 funds at most {deps.d0.max_new_per_session} new positions a session"}),
+                      report)
+                continue
+            asked = packets[p.symbol]["capital_request"]["shares"]
+            granted = min(alloc.ceiling_shares, asked)  # Apex never grants more than the pod asked for
+            out = _queue(ledger, deps, spec, alloc.proposal, granted, day, decide_at, report)
+            detail = {**base, "requested_shares": asked, "ceiling_shares": alloc.ceiling_shares, "granted_shares": granted,
+                      "ceiling_dollars": format((alloc.ceiling_shares * p.ref_price).quantize(D("0.01")), "f"),
+                      "granted_dollars": format((granted * p.ref_price).quantize(D("0.01")), "f"),
+                      "risk_check_shares": out.risk_shares, "order_id": out.order_id}
+            if out.ok:
+                _emit(ledger, ev.apex_decision(deps.epoch_id, decide_at, sleeve_id=spec.sleeve_id, proposal_id=pid,
+                                               outcome="FUNDED", detail={**detail, "reasons": [], "fill_session": out.fill_session,
+                                                                         "detail": "D0 ceiling set; gate and pre-trade risk passed; queued for the next valid open"}),
+                      report)
+            else:
+                _emit(ledger, ev.apex_decision(deps.epoch_id, decide_at, sleeve_id=spec.sleeve_id, proposal_id=pid,
+                                               outcome="DECLINED", detail={**detail, "reasons": out.code.split(":"), "detail": out.detail}),
+                      report)
+
+
+@dataclass(frozen=True)
+class QueueOutcome:
+    ok: bool
+    code: str = ""
+    detail: str = ""
+    risk_shares: int | None = None
+    order_id: str = ""
+    fill_session: str = ""
 
 
 def _queue(ledger: Ledger, deps: EngineDeps, spec: SleeveSpec, prop: Proposal, shares: int, day: date,
-           decide_at: datetime, report: AdvanceReport) -> None:
+           decide_at: datetime, report: AdvanceReport) -> QueueOutcome:
     ep = ledger.state.epoch(deps.epoch_id)
     sector = _sector(deps, prop.symbol, decide_at)
     order_id = f"{spec.strategy.strategy_id}:{day.isoformat()}:{prop.symbol}:{prop.intent.value}"
 
-    def refuse(code: str, detail: str) -> None:
+    risk_shares: int | None = None
+
+    def refuse(code: str, detail: str) -> QueueOutcome:
         _emit(ledger, ev.order_rejected(deps.epoch_id, decide_at, sleeve_id=spec.sleeve_id, order_id=order_id,
                                         stage="DECISION", code=code, detail=detail, symbol=prop.symbol), report)
         report.add(NoteKind.DECISION_REJECTED, spec.sleeve_id, prop.symbol, f"{code}: {detail}")
+        return QueueOutcome(False, code, detail, risk_shares, order_id)
 
     if shares <= 0:
         return refuse("SIZE_ZERO", "allocator ceiling is zero shares")
@@ -390,6 +436,7 @@ def _queue(ledger: Ledger, deps: EngineDeps, spec: SleeveSpec, prop: Proposal, s
         risk = evaluate_entry(symbol=prop.symbol, sector=sector, ref_price=prop.ref_price, stop_price=prop.stop_price,
                               sleeve_cash=ep.sleeves[spec.sleeve_id].cash, portfolio=view, limits=deps.limits,
                               requested_shares=shares)
+        risk_shares = risk.shares if risk.approved else None
         if not risk.approved:
             return refuse(":".join(["RISK_REJECTED", *(r.value for r in risk.reasons)]), "pre-trade risk check at the close")
     _emit(ledger, ev.order_queued(deps.epoch_id, decide_at, sleeve_id=spec.sleeve_id, order_id=order_id,
@@ -399,3 +446,4 @@ def _queue(ledger: Ledger, deps: EngineDeps, spec: SleeveSpec, prop: Proposal, s
                                   rationale=f"[{spec.strategy.strategy_id}@{spec.strategy.spec_hash}] {prop.rationale}"), report)
     report.add(NoteKind.QUEUED, spec.sleeve_id, prop.symbol,
                f"{prop.intent.value} up to {shares} sh for {gate.queued.fill_session}; {prop.rationale}")
+    return QueueOutcome(True, "", "", risk_shares, order_id, gate.queued.fill_session.isoformat())
