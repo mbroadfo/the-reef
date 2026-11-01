@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
 import RightRail from './components/RightRail'
 import MobileNav from './components/MobileNav'
+import PaperBanner from './components/PaperBanner'
 import DashboardPage from './pages/DashboardPage'
 import PositionsPage from './pages/PositionsPage'
 import TradesPage from './pages/TradesPage'
@@ -21,10 +22,12 @@ function AppShell() {
   const [, setLive] = useState(false)
 
   return (
-    // Mobile: flex column. lg+: 3-column CSS grid.
-    // gridColumn/gridRow on children are ignored when flex is active.
+    <div className="h-screen w-screen overflow-hidden bg-reef-bg flex flex-col">
+    <PaperBanner />
+    {/* Mobile: flex column. lg+: 3-column CSS grid.
+        gridColumn/gridRow on children are ignored when flex is active. */}
     <div
-      className="h-screen w-screen overflow-hidden bg-reef-bg flex flex-col lg:grid lg:grid-rows-[88px_1fr]"
+      className="flex-1 min-h-0 w-full overflow-hidden bg-reef-bg flex flex-col lg:grid lg:grid-rows-[88px_1fr]"
       style={{ gridTemplateColumns: '246px 1fr 320px' }}
     >
       {/* Sidebar — hidden on mobile, spans both rows on desktop */}
@@ -54,6 +57,7 @@ function AppShell() {
       </div>
 
       <MobileNav open={navOpen} onClose={() => setNavOpen(false)} />
+    </div>
     </div>
   )
 }

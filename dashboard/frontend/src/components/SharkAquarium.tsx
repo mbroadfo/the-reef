@@ -39,9 +39,9 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
           const color      = getSharkColor(rosterName)
           const filter     = getSharkFilter(rosterName)
           const confidence = shark?.win_rate ?? 0
-          const returnVal  = isActive
-            ? parseFloat(((shark!.total_pnl / 10000) * 100).toFixed(1))
-            : null
+          // Reef 1.0 attributes P&L to sharks imperfectly, and sharks have no sleeve of their own,
+          // so there is no honest per-shark return percentage. Show attributed dollars only.
+          const pnl        = isActive ? shark!.total_pnl : null
 
           const parts       = normalizeSharkName(rosterName).split(' ')
           const firstName   = parts[0]
@@ -109,19 +109,22 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
                 />
               </div>
 
-              {/* Return % or Hunting state */}
+              {/* Attributed P&L or Hunting state */}
               {isActive ? (
                 <>
                   <div style={{ textAlign: 'center', marginTop: '6px' }}>
-                    <div style={{
-                      fontSize: '18px', fontWeight: '800', fontFamily: FONT_MONO,
-                      color: returnVal! > 0 ? 'var(--reef-gain)' : returnVal! < 0 ? 'var(--reef-loss)' : '#64748b',
-                      lineHeight: 1,
-                    }}>
-                      {returnVal! > 0 ? '+' : ''}{returnVal!.toFixed(1)}%
+                    <div
+                      title="Reef 1.0 attribution of realized and open P&L to this shark. Not a strategy return: sharks do not yet have independent capital."
+                      style={{
+                        fontSize: '17px', fontWeight: '800', fontFamily: FONT_MONO,
+                        color: pnl! > 0 ? 'var(--reef-gain)' : pnl! < 0 ? 'var(--reef-loss)' : '#94a3b8',
+                        lineHeight: 1,
+                      }}
+                    >
+                      {pnl! > 0 ? '+' : pnl! < 0 ? '-' : ''}${Math.abs(pnl!).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </div>
                     <div style={{ fontSize: '9px', fontFamily: FONT_SANS, color: '#94a3b8', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      30D Return
+                      Attributed P&amp;L
                     </div>
                   </div>
                   <div style={{ width: '100%', marginTop: '8px' }}>
@@ -129,7 +132,7 @@ export default function SharkAquarium({ sharks }: { sharks: Shark[] }) {
                       <div style={{ width: `${confidence}%`, height: '100%', background: color, borderRadius: '2px', transition: 'width 300ms ease' }} />
                     </div>
                     <div style={{ fontSize: '10px', fontWeight: '600', fontFamily: FONT_SANS, color: '#94a3b8', textAlign: 'center', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      {confidence.toFixed(0)}% Confidence
+                      {confidence.toFixed(0)}% Win · {shark!.trades} {shark!.trades === 1 ? 'trade' : 'trades'}
                     </div>
                   </div>
                 </>
