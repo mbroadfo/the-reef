@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Loading, Section } from './ui'
 import { dayLabel, num, pct, usd } from './format'
 import { useSnapshot } from './useSnapshot'
-import { recomputePods, verifyIntegrity } from './verify'
+import { recomputePods, verifyCapital, verifyIntegrity } from './verify'
 import type { IntegrityReport } from './verify'
 import type { LedgerEventJson, Snapshot } from './types'
 
@@ -147,6 +147,29 @@ function Explorer({ snap }: { snap: Snapshot }) {
   )
 }
 
+function CapitalTransfers({ snap }: { snap: Snapshot }) {
+  const cap = useMemo(() => verifyCapital(snap.events), [snap])
+  const funding = useMemo(() => snap.events.filter(e => e.kind === 'SLEEVE_FUNDED' && String((e.payload as any).ref) !== 'd0-initial'), [snap])
+  return (
+    <div className="glass p-4" id="capital">
+      <p className="text-sm text-slate-300">
+        Every capital review is an <span className="font-mono">APEX_CAPITAL_DECISION</span> event holding the evidence Apex used, its rationale and the transfers it ordered; each transfer is a signed
+        <span className="font-mono"> SLEEVE_FUNDED</span> event that carries the review id. This page re-derives, from the events alone, that the transfers add up to the change in the central reserve, that the reserve each
+        decision started from matches the funding history, that every transfer exists exactly as decided (and none exists undecided), that no reclaim exceeds the uncommitted cash recorded, and that the fund NAV quoted is the verified mark of that session.
+      </p>
+      <ul className="mt-3 divide-y divide-slate-800/80">
+        <Check ok={cap.ok} title={cap.ok ? `All ${cap.checks.length} capital reviews and ${funding.length} transfers verify` : 'Capital verification FAILED'}
+               detail={cap.ok ? 'Money is only moved between sleeves and the reserve; the fund total is unchanged by every transfer.' : [...cap.checks.filter(c => !c.ok).flatMap(c => c.problems.map(p => `${c.review_id}: ${p}`)), ...cap.stray.map(s => `undecided transfer ${s}`)].join('; ')} />
+        {cap.checks.map(c => (
+          <Check key={c.review_id} ok={c.ok} title={`${c.review_id} · ledger #${c.seq} · ${c.outcome === 'REALLOCATED' ? `moved ${usd(c.moved)}` : 'held'}`}
+                 detail={c.ok ? (c.outcome === 'REALLOCATED' ? 'transfers match their SLEEVE_FUNDED events and the reserve arithmetic' : 'no money moved') : c.problems.join('; ')} />
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-slate-500">Open any of these in the explorer below by event number: {funding.slice(0, 6).map(e => `#${e.seq}`).join(', ')}{funding.length > 6 ? ', ...' : ''}</p>
+    </div>
+  )
+}
+
 export default function LabPage() {
   const { snap, error } = useSnapshot()
   if (!snap) return <Loading error={error} />
@@ -159,6 +182,7 @@ export default function LabPage() {
         <p className="mt-1 text-sm text-slate-500">Epoch <span className="font-mono">{g.epoch_id}</span> · sessions {dayLabel(g.first_session)} to {dayLabel(g.last_session)} · head <span className="font-mono">{g.head_hash.slice(0, 16)}...</span></p>
       </div>
       <Section title="Verification"><Verification snap={snap} /></Section>
+      <Section title="Capital transfers" hint="Apex's reallocations, verified from the ledger events alone" id="capital-transfers"><CapitalTransfers snap={snap} /></Section>
       <Section title="Performance figures and their formulas"><Formulas snap={snap} /></Section>
       <Section title="Ledger explorer" hint="Open any event; links from the proposal stories land here"><Explorer snap={snap} /></Section>
       <Section title="Provenance and limits">
@@ -166,7 +190,7 @@ export default function LabPage() {
           <ul className="list-disc space-y-1.5 pl-5">
             <li><strong>Prices are synthetic.</strong> A seeded generator makes every bar (tests/fixtures/competition_scenario.py); reruns are byte-identical. No market data, no vendor, no cost.</li>
             <li><strong>The accounting is real.</strong> Orders, fills, stops, sleeves, risk checks and valuations come from the same engine and ledger Reef 2.0 would use. Fills are at the next open or the stop price, with no fees or slippage here.</li>
-            <li><strong>Apex is deterministic and the sleeves are fixed.</strong> {snap.apex.rule} Apex does not yet move capital between pods based on performance.</li>
+            <li><strong>Apex is deterministic and moves capital in small, recorded steps.</strong> {snap.apex.rule} Returns are time-weighted, so a transfer is never counted as performance. No language model decides anything.</li>
             <li><strong>Four pods are inactive</strong> and show no figures. Two active pods over {snap.pods.find(p => p.status === 'ACTIVE')?.sessions} sessions cannot say which philosophy is better.</li>
             <li><strong>The timeline replays the ledger.</strong> Each session view on the aquarium is rebuilt in the browser from the events up to that session's close; tests prove it cannot contain later information and that the final session equals the engine's figures.</li>
             <li><strong>Not live.</strong> No broker, no database writes, no model calls. Regenerate with <code className="font-mono text-cyan-300">uv run python tools/build_competition_snapshot.py</code>.</li>

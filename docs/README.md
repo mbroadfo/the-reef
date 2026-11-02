@@ -7,6 +7,7 @@
 | [Ledger](reef2-ledger.md) | Event-sourced, hash-chained ledger and derived books |
 | [Hunter walkthrough](reef2-hunter-walkthrough.md) | The Hunter strategy end to end on a fixture |
 | [Hunter history](reef2-hunter-history.md) | Offline replay on free real prices, with limitations |
+| [Capital competition](reef2-capital.md) | Apex's capital policy C1, transfer accounting, flow-adjusted performance |
 | [Aquarium](reef2-aquarium.md) | Competing pods, Apex D0, the snapshot contract and the UI |
 | [Release management](release-management.md) | Branch rules, gated manual deploys (currently disabled) |
 | [Serverless infrastructure](serverless-infrastructure.md) | Reef 1.0 AWS stack (retained, not exercised) |

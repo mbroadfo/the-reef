@@ -116,6 +116,13 @@ class EpochState:
     def cash(self) -> Decimal:
         return self.unallocated + sum((s.cash for s in self.sleeves.values()), ZERO)
 
+    def committed_cash(self, sleeve_id: str) -> Decimal:
+        """Cash a sleeve has promised to queued entry orders (requested shares at the decision price).
+        It cannot be reclaimed until those orders fill or are refused."""
+        return sum((o.requested_shares * o.ref_price for o in self.orders.values()
+                    if o.sleeve_id == sleeve_id and o.status is OrderStatus.QUEUED and o.intent in ("open", "add")
+                    and o.requested_shares and o.ref_price), ZERO)
+
     def holdings(self, sleeve_id: str) -> dict[str, int]:
         return {sym: p.shares for sym, p in self.sleeves[sleeve_id].positions.items()}
 
@@ -271,6 +278,10 @@ def _apply_in_epoch(ep: EpochState, draft: EventDraft) -> EpochState:
             raise LedgerError(f"session {day} is already closed")
         return replace(ep, last_completed=day)
 
+    if kind is EventKind.APEX_CAPITAL_DECISION:
+        _str(p, "review_id")
+        return ep  # an audit record of a capital review; the transfers it orders are SLEEVE_FUNDED events
+
     sid = _str(p, "sleeve_id")
     sl = _sleeve(ep, sid)
 
@@ -318,6 +329,8 @@ def _apply_in_epoch(ep: EpochState, draft: EventDraft) -> EpochState:
             raise LedgerError("funding exceeds unallocated fund cash")
         if amount < 0 and -amount > sl.cash:
             raise LedgerError("defunding exceeds sleeve cash")
+        if amount < 0 and -amount > sl.cash - ep.committed_cash(sid):
+            raise LedgerError("defunding would sweep cash committed to queued orders")
         return _put(ep, sid, replace(sl, cash=sl.cash + amount), unallocated=ep.unallocated - amount)
 
     symbol = _str(p, "symbol")

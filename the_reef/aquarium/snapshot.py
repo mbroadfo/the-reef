@@ -17,7 +17,8 @@ from the_reef.engine.advance import EngineDeps
 from the_reef.ledger.events import EventKind, LedgerEvent, thaw
 from the_reef.ledger.ledger import InMemoryEventStore, Ledger
 from the_reef.ledger.state import LedgerState, apply
-from the_reef.performance.metrics import max_drawdown, round_trips
+from the_reef.allocation.capital import verify_capital
+from the_reef.performance.metrics import flow_adjusted_series, max_drawdown, round_trips
 from the_reef.pods.registry import POD_REGISTRY, PodStatus
 
 D = Decimal
@@ -45,14 +46,15 @@ def event_dict(e: LedgerEvent) -> dict[str, Any]:
             "kind": c["kind"], "occurred_at": c["occurred_at"], "payload": c["payload"]}
 
 
-def _stats(series: list[tuple[str, Decimal]], base: Decimal) -> dict[str, Any]:
-    vals = [base] + [v for _, v in series]
-    rets = [float(b / a - 1) for a, b in zip(vals, vals[1:]) if a > 0]
+def _stats(points) -> dict[str, Any]:
+    """Time-weighted statistics from flow-adjusted returns: a transfer of capital is never a return."""
+    rets = [float(p.ret) for p in points]
     n = len(rets)
     mean = sum(rets) / n if n else 0.0
     sd = math.sqrt(sum((r - mean) ** 2 for r in rets) / (n - 1)) if n > 1 else 0.0
-    total = float(vals[-1] / base - 1) if base > 0 else 0.0
-    dd = float(max_drawdown(series, base))
+    total = float(points[-1].index - 1) if points else 0.0
+    idx = [(p.day, p.index) for p in points]
+    dd = float(max_drawdown(idx, D("1")))
     return {
         "return": total, "max_drawdown": dd, "sessions": n,
         "volatility_ann": sd * math.sqrt(252) if sd else None,
@@ -194,7 +196,7 @@ def build_snapshot(ledger: Ledger, deps: EngineDeps, *, first_session: date, las
                 "status": "CLOSED" if ex else "OPEN",
                 "pnl": None if pnl is None else _money(pnl.quantize(D("0.01"))),
                 "return": None if pnl is None else float(pnl / (entry_px * shares)),
-                "sleeve_return_contribution": None if pnl is None or funded == 0 else float(pnl / funded),
+                "sleeve_return_contribution": None if pnl is None or before is None or before == 0 else float(pnl / before),
                 "fund_return_contribution": None if pnl is None else float(pnl / initial),
                 "sleeve_nav_before": None if before is None else _money(before),
                 "sleeve_nav_after": None if after is None else _money(after),
@@ -233,15 +235,22 @@ def build_snapshot(ledger: Ledger, deps: EngineDeps, *, first_session: date, las
             positions.append({"symbol": sym, "shares": pos.shares, "avg_cost": _money(pos.avg_cost.quantize(D("0.0001"))),
                               "mark": _money(mark), "stop": None if pos.stop_price is None else _money(pos.stop_price),
                               "unrealized": _money((mark * pos.shares - pos.cost).quantize(D("0.01")))})
-        nav = series[-1][1] if series else funded
+        last_mark_seq = max((e.seq for e in events if e.draft.kind is EventKind.SESSION_MARKED), default=0)
+        after_mark = sum((D(str(e.draft.payload["amount"])) for e in events if e.seq > last_mark_seq
+                          and e.draft.kind is EventKind.SLEEVE_FUNDED and e.draft.payload["sleeve_id"] == spec.pod_id), D("0"))
+        nav = (series[-1][1] if series else D("0")) + after_mark  # capital controlled: a transfer made at the last close counts
         tr = trips[spec.pod_id]
         wins = [t for t in tr if t.pnl > 0]
         losses = [t for t in tr if t.pnl <= 0]
         exposure = [float(i / n) for i, (_, n) in zip(invested_pod[spec.pod_id], series) if n > 0]
-        stats = _stats(series, funded)
+        points = flow_adjusted_series(events, eid, spec.pod_id)
+        stats = _stats(points)
+        initial_funded = next((D(str(e.draft.payload["amount"])) for e in events
+                               if e.draft.kind is EventKind.SLEEVE_FUNDED and e.draft.payload["sleeve_id"] == spec.pod_id), D("0"))
         pods.append({
             **base,
-            "funded": _money(funded), "nav": _money(nav), "cash": _money(sl.cash), "invested": _money(nav - sl.cash),
+            "funded": _money(funded), "initial_funded": _money(initial_funded), "net_transfers": _money(funded - initial_funded),
+            "nav": _money(nav), "twr_series": [[p.day, format(p.index, "f")] for p in points], "cash": _money(sl.cash), "invested": _money(nav - sl.cash),
             "realized_pnl": _money(sl.realized_pnl), "unrealized_pnl": _money(unreal.quantize(D("0.01"))),
             "positions": positions, "nav_series": [[d, _money(v)] for d, v in series], **stats,
             "trades": len(tr), "win_rate": (len(wins) / len(tr)) if tr else None,
@@ -262,6 +271,9 @@ def build_snapshot(ledger: Ledger, deps: EngineDeps, *, first_session: date, las
     bench = equal_weight_series(deps.bars, cal, list(deps.universe), initial, days) if days else []  # type: ignore[arg-type]
     pods_nav = sum((D(p["nav"]) for p in active), D("0"))
     fund_nav = nav_fund[-1][1] if nav_fund else initial
+    capital_problems = verify_capital(events, eid)
+    n_reviews = sum(1 for e in events if e.draft.kind is EventKind.APEX_CAPITAL_DECISION)
+    n_moves = sum(1 for e in events if e.draft.kind is EventKind.SLEEVE_FUNDED and e.draft.payload["ref"] != "d0-initial")
     checks = [
         {"name": "Hash chain", "ok": all(e.verify() for e in events), "detail": f"{len(events)} events; each hash recomputes from its content and the previous hash"},
         {"name": "Fund NAV = unallocated cash + sleeve NAVs", "ok": final.unallocated + pods_nav == fund_nav,
@@ -269,6 +281,9 @@ def build_snapshot(ledger: Ledger, deps: EngineDeps, *, first_session: date, las
         {"name": "Each sleeve: funded + realized + unrealized = NAV",
          "ok": all(D(p["funded"]) + D(p["realized_pnl"]) + D(p["unrealized_pnl"]) == D(p["nav"]) for p in active),
          "detail": "checked per pod from fills and the last official closes"},
+        {"name": "Capital transfers verify against the ledger", "ok": not capital_problems,
+         "detail": (f"{n_reviews} reviews, {n_moves} transfers: each equals its SLEEVE_FUNDED events, adds up to the reserve change, and left fund NAV alone"
+                    if not capital_problems else "; ".join(capital_problems[:3]))},
         {"name": "Replaying the events reproduces the books", "ok": Ledger(InMemoryEventStore(events)).state.digest() == ledger.state.digest(),
          "detail": f"state digest {ledger.state.digest()[:16]}..."},
     ]
@@ -281,11 +296,14 @@ def build_snapshot(ledger: Ledger, deps: EngineDeps, *, first_session: date, las
         "limits": {"position_cap_pct": _money(deps.limits.max_position_pct * 100), "risk_per_trade_pct": _money(deps.limits.risk_per_trade_pct * 100),
                    "max_invested_pct": _money(deps.limits.max_invested_pct * 100), "daily_loss_pause_pct": _money(deps.limits.daily_loss_pause_pct * 100),
                    "drawdown_pause_pct": _money(deps.limits.drawdown_pause_pct * 100)},
-        "apex": {"allocator": "D0 (deterministic)", "allocation_mode": "FIXED_SLEEVES", "dynamic_reallocation": False,
+        "apex": {"allocator": "D0 + capital policy C1 (deterministic)",
+                 "allocation_mode": "DYNAMIC_SLEEVES" if deps.capital else "FIXED_SLEEVES", "dynamic_reallocation": deps.capital is not None,
                  "unallocated_weight": _money(D("1") - sum((p.sleeve_weight for p in POD_REGISTRY), D("0"))),
                  "sleeve_weights": {p["pod_id"]: p["sleeve_weight"] for p in pods},
                  "max_new_positions_per_pod_per_session": deps.d0.max_new_per_session,
-                 "rule": "Fixed sleeve weights at the start; each session the best-ranked proposal per pod is funded with an equal share of the pod's cash as a share ceiling, then the Risk Engine sizes the order."},
+                 "capital_policy": deps.capital.describe() if deps.capital else None,
+                 "rule": "Sleeves start at 30% / 30% of the fund with 40% in the central reserve. Each session the best-ranked proposal per pod is funded with an equal share of the pod's cash as a share ceiling, then the Risk Engine sizes the order. "
+                         "Every " + (str(deps.capital.review_every) if deps.capital else "-") + " sessions Apex reviews each pod's flow-adjusted record and may move one small step of uncommitted cash toward the pod that is winning."},
         "fund": {"nav": _money(fund_nav), "unallocated": _money(final.unallocated), "return": float(fund_nav / initial - 1),
                  "max_drawdown": float(max_drawdown(nav_fund, initial)),
                  "nav_series": [[d, _money(v)] for d, v in nav_fund],

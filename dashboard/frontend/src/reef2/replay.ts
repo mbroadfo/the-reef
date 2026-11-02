@@ -29,9 +29,43 @@ export interface PitchView {
 
 export interface PositionNow { symbol: string; shares: number; avg_cost: number; mark: number; stop: number | null; unrealized: number; entry_day: string; sessions_held: number }
 
+export interface CapitalTransfer { sleeve_id: string; amount: number; counterparty: string; seq: number | null }
+export interface CapitalEvidence {
+  history_sessions: number; window_sessions: number; window_return: number; window_max_drawdown: number; score: number
+  lifetime_return: number; proposals: number; funded_proposals: number; closed_trades: number; win_rate: number | null
+  sleeve_nav: number; sleeve_cash: number; committed_cash: number; free_cash: number; utilization: number
+  net_capital: number; initial_funding: number
+}
+// One Apex capital review, exactly as the ledger recorded it (APEX_CAPITAL_DECISION plus the SLEEVE_FUNDED events it ordered).
+export interface CapitalReview {
+  review_id: string
+  review_no: number              // marked sessions at the review
+  index: number                  // 0-based session of the review
+  day: string
+  seq: number
+  outcome: 'REALLOCATED' | 'HELD'
+  reasons: string[]
+  rationale: string
+  leader: string | null
+  trailer: string | null
+  gap: number | null
+  fund_nav: number
+  reserve_before: number
+  reserve_after: number
+  transfers: CapitalTransfer[]
+  evidence: Record<string, CapitalEvidence>
+  decided_today: boolean
+}
+export interface CapitalPoint { day: string; pods: Record<string, number>; reserve: number }
+
 export interface PodView {
   pod_id: string
-  funded: number
+  funded: number                 // net capital ever contributed: initial funding plus transfers
+  initial_funded: number
+  net_transfers: number          // capital moved in (+) or out (-) by Apex; never a return
+  controlled: number             // capital the pod controls right now: its NAV plus any transfer made at this close
+  pnl: number                    // investment P&L: realized plus unrealized, unaffected by transfers
+  twr_series: [string, number][] // capital-flow-adjusted growth of 1
   nav: number
   cash: number
   invested: number
@@ -73,6 +107,10 @@ export interface SessionView {
   benchReturn: number | null
   pods: PodView[]                    // active pods only
   pitches: PitchView[]               // every pitch known by this session's close, oldest first
+  reviews: CapitalReview[]           // every capital review known by this session's close, oldest first
+  reviewsToday: CapitalReview[]
+  capital: CapitalPoint[]            // capital by session (marked NAVs) up to this session
+  reserve: number                    // central reserve after any transfer made at this close
   today: PitchView[]                 // pitches decided at this session's close
   prices: Record<string, [string, number][]>
 }
@@ -110,6 +148,20 @@ export function seriesStats(navs: number[], base: number) {
   }
 }
 
+// Time-weighted statistics from flow-adjusted per-session returns (mirrors the_reef/aquarium/snapshot.py::_stats).
+export function flowStats(rets: number[]) {
+  const n = rets.length
+  const mean = n ? rets.reduce((a, b) => a + b, 0) / n : 0
+  const sd = n > 1 ? Math.sqrt(rets.reduce((a, r) => a + (r - mean) ** 2, 0) / (n - 1)) : 0
+  let idx = 1, peak = 1, worst = 0
+  for (const r of rets) { idx *= 1 + r; peak = Math.max(peak, idx); worst = Math.min(worst, idx / peak - 1) }
+  return {
+    ret: idx - 1, max_drawdown: worst, sessions: n,
+    volatility_ann: sd ? sd * Math.sqrt(252) : null,
+    sharpe_like: sd ? (mean / sd) * Math.sqrt(252) : null,
+  }
+}
+
 interface Pos { shares: number; cost: number; stop: number | null; entryDay: string; entryIdx: number }
 
 export function viewAt(snap: Snapshot, index: number): SessionView {
@@ -127,6 +179,14 @@ export function viewAt(snap: Snapshot, index: number): SessionView {
   const book: Record<string, Record<string, Pos>> = {}
   const navSeries: Record<string, [string, number][]> = {}
   const exposure: Record<string, number[]> = {}
+  const pending: Record<string, number> = {}                  // transfers since the last mark
+  const lastNav: Record<string, number> = {}
+  const rets: Record<string, number[]> = {}
+  const twr: Record<string, [string, number][]> = {}
+  const capital: CapitalPoint[] = []
+  const initialFunding: Record<string, number> = {}
+  const reviewRaw: { seq: number; p: Record<string, any> }[] = []
+  const reviewFunding = new Map<string, { sleeve_id: string; amount: number; seq: number }[]>()
   const trades: Record<string, { pnl: number; held: number; stop: boolean }[]> = {}
   let marks: Record<string, number> = {}
   const fundSeries: [string, number][] = []
@@ -145,6 +205,12 @@ export function viewAt(snap: Snapshot, index: number): SessionView {
       case 'SLEEVE_FUNDED':
         cash[p.sleeve_id] = (cash[p.sleeve_id] ?? 0) + num(p.amount)
         funded[p.sleeve_id] = (funded[p.sleeve_id] ?? 0) + num(p.amount)
+        pending[p.sleeve_id] = (pending[p.sleeve_id] ?? 0) + num(p.amount)
+        if (p.ref === 'd0-initial') initialFunding[p.sleeve_id] = num(p.amount)
+        else reviewFunding.set(String(p.ref), [...(reviewFunding.get(String(p.ref)) ?? []), { sleeve_id: p.sleeve_id, amount: num(p.amount), seq: e.seq }])
+        break
+      case 'APEX_CAPITAL_DECISION':
+        reviewRaw.push({ seq: e.seq, p })
         break
       case 'PROPOSAL_SUBMITTED':
         packets.set(p.proposal_id, { packet: p as Packet, seq: e.seq })
@@ -189,8 +255,15 @@ export function viewAt(snap: Snapshot, index: number): SessionView {
       case 'SESSION_MARKED': {
         marks = Object.fromEntries(Object.entries(p.marks as Record<string, string>).map(([k, v]) => [k, num(v)]))
         fundSeries.push([String(p.session_day), num(p.nav)])
+        const sleeveNavs = Object.fromEntries(Object.entries(p.sleeve_nav as Record<string, string>).map(([k, v]) => [k, num(v)]))
+        capital.push({ day: String(p.session_day), pods: sleeveNavs, reserve: num(p.nav) - Object.values(sleeveNavs).reduce((a, b) => a + b, 0) })
         for (const [sid, nav] of Object.entries(p.sleeve_nav as Record<string, string>)) {
           ;(navSeries[sid] ??= []).push([String(p.session_day), num(nav)])
+          const base = (lastNav[sid] ?? 0) + (pending[sid] ?? 0)
+          const r = base > 0 ? num(nav) / base - 1 : 0
+          ;(rets[sid] ??= []).push(r)
+          ;(twr[sid] ??= []).push([String(p.session_day), (twr[sid]?.length ? twr[sid][twr[sid].length - 1][1] : 1) * (1 + r)])
+          lastNav[sid] = num(nav); pending[sid] = 0
           if (num(nav) > 0) (exposure[sid] ??= []).push((num(nav) - cash[sid]) / num(nav))
         }
         break
@@ -240,7 +313,7 @@ export function viewAt(snap: Snapshot, index: number): SessionView {
   const base = activeIds.map(id => {
     const series = navSeries[id] ?? []
     const f = funded[id] ?? 0
-    const st = seriesStats(series.map(s => s[1]), f)
+    const st = flowStats(rets[id] ?? [])
     const tr = trades[id] ?? []
     const wins = tr.filter(t => t.pnl > 0).length
     const positions: PositionNow[] = Object.entries(book[id] ?? {}).filter(([, p]) => p.shares > 0).sort(([a], [b]) => a.localeCompare(b)).map(([sym, p]) => {
@@ -252,7 +325,9 @@ export function viewAt(snap: Snapshot, index: number): SessionView {
     const ex = exposure[id] ?? []
     const mine = pitches.filter(p => p.pod_id === id)
     return {
-      pod_id: id, funded: f, nav, cash: cash[id] ?? 0, invested: nav - (cash[id] ?? 0), realized: realized[id] ?? 0, unrealized: unreal,
+      pod_id: id, funded: f, initial_funded: initialFunding[id] ?? 0, net_transfers: f - (initialFunding[id] ?? 0),
+      controlled: nav + (pending[id] ?? 0), pnl: (realized[id] ?? 0) + unreal, twr_series: twr[id] ?? [],
+      nav, cash: cash[id] ?? 0, invested: nav + (pending[id] ?? 0) - (cash[id] ?? 0), realized: realized[id] ?? 0, unrealized: unreal,
       return: st.ret, max_drawdown: st.max_drawdown, sessions: st.sessions, volatility_ann: st.volatility_ann, sharpe_like: st.sharpe_like,
       trades: tr.length, wins, win_rate: tr.length ? wins / tr.length : null,
       avg_win: wins ? tr.filter(t => t.pnl > 0).reduce((a, t) => a + t.pnl, 0) / wins : null,
@@ -269,6 +344,26 @@ export function viewAt(snap: Snapshot, index: number): SessionView {
   const topReturn = Math.max(...base.map(p => p.return))
   base.forEach(p => { p.lead_by_return = base.length > 1 && p.return === topReturn && base.filter(q => q.return === topReturn).length === 1 })
 
+  const reviews: CapitalReview[] = reviewRaw.map(({ seq, p }) => {
+    const funding = reviewFunding.get(String(p.review_id)) ?? []
+    const at = sessions.findIndex(x => x.closedSeq >= seq)
+    return {
+      review_id: String(p.review_id), review_no: Number(p.review_no), index: at, day: String(p.session_day), seq,
+      outcome: p.outcome, reasons: p.reasons ?? [], rationale: String(p.rationale), leader: p.leader ?? null, trailer: p.trailer ?? null,
+      gap: p.gap == null ? null : num(p.gap), fund_nav: num(p.fund_nav), reserve_before: num(p.reserve_before), reserve_after: num(p.reserve_after),
+      transfers: (p.transfers as any[]).map(t => ({ sleeve_id: t.sleeve_id, amount: num(t.amount), counterparty: String(t.counterparty),
+                                                     seq: funding.find(f => f.sleeve_id === t.sleeve_id && f.amount === num(t.amount))?.seq ?? null })),
+      evidence: Object.fromEntries(Object.entries(p.evidence as Record<string, any>).map(([k, v]) => [k, {
+        history_sessions: v.history_sessions, window_sessions: v.window_sessions, window_return: num(v.window_return), window_max_drawdown: num(v.window_max_drawdown),
+        score: num(v.score), lifetime_return: num(v.lifetime_return), proposals: v.proposals, funded_proposals: v.funded_proposals, closed_trades: v.closed_trades,
+        win_rate: v.win_rate == null ? null : num(v.win_rate), sleeve_nav: num(v.sleeve_nav), sleeve_cash: num(v.sleeve_cash), committed_cash: num(v.committed_cash),
+        free_cash: num(v.free_cash), utilization: num(v.utilization), net_capital: num(v.net_capital), initial_funding: num(v.initial_funding),
+      } as CapitalEvidence])),
+      decided_today: at === idx,
+    }
+  })
+  const controlledTotal = base.reduce((a, p) => a + p.controlled, 0)
+
   const symbols = new Set(pitches.map(p => p.symbol))
   const prices: Record<string, [string, number][]> = {}
   for (const s of symbols) prices[s] = (snap.prices[s] ?? []).filter(([d]) => d <= ref.day).map(([d, c]) => [d, num(c)])
@@ -281,6 +376,7 @@ export function viewAt(snap: Snapshot, index: number): SessionView {
     fundNav, fundReturn: fundNav / initial - 1, fundSeries, benchSeries: bench,
     benchReturn: bench.length ? bench[bench.length - 1][1] / initial - 1 : null,
     pods: base, pitches, today: pitches.filter(p => p.decided_today), prices,
+    reviews, reviewsToday: reviews.filter(r => r.decided_today), capital, reserve: fundNav - controlledTotal,
   }
 }
 
@@ -321,4 +417,15 @@ export function decisionMarkers(snap: Snapshot): Marker[] {
     out.push({ index, pod_id: pk.pod_id, symbol: pk.symbol, proposal_id: p.proposal_id, funded })
   }
   return out
+}
+
+export interface CapitalMarker { index: number; review_id: string; moved: boolean }
+
+// Where capital reviews fall on the timeline. Like pitches, they are dated by the session in which they were decided.
+export function capitalMarkers(snap: Snapshot): CapitalMarker[] {
+  const sessions = sessionsOf(snap.events)
+  return snap.events.filter(e => e.kind === 'APEX_CAPITAL_DECISION').map(e => {
+    const p = e.payload as Record<string, any>
+    return { index: sessions.findIndex(s => s.closedSeq >= e.seq), review_id: String(p.review_id), moved: p.outcome === 'REALLOCATED' }
+  })
 }

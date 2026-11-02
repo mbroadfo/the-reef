@@ -5,6 +5,7 @@ import PodShark, { POD_HEX } from './PodShark'
 import { ApexColumn, Contender } from './Arena'
 import { TimelineBar, useTimeline } from './Timeline'
 import type { Timeline } from './Timeline'
+import CapitalDesk from './CapitalDesk'
 import { Loading, PodChip, Section, podById } from './ui'
 import { dayLabel, num, pct, reasonLabel, tone, usd } from './format'
 import { useSnapshot } from './useSnapshot'
@@ -15,7 +16,7 @@ function Race({ snap, tl }: { snap: Snapshot; tl: Timeline }) {
   const { view, days } = tl
   const data = useMemo(() => {
     const rows: Record<string, Record<string, number | string>> = Object.fromEntries(days.map(d => [d, { day: d }]))
-    for (const p of view.pods) p.nav_series.forEach(([d, v]) => { rows[d][p.pod_id] = (v / p.funded - 1) * 100 })
+    for (const p of view.pods) p.twr_series.forEach(([d, v]) => { rows[d][p.pod_id] = (v - 1) * 100 })
     const base = Number(snap.generated_from.initial_cash)
     view.benchSeries.forEach(([d, v]) => { rows[d].benchmark = (v / base - 1) * 100 })
     return days.map(d => rows[d])
@@ -42,7 +43,7 @@ function Race({ snap, tl }: { snap: Snapshot; tl: Timeline }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <p className="mt-1 text-xs text-slate-500">Each sleeve is measured on its own funded capital, drawn only up to the session you are viewing. Dots are fills: click one for its pitch. The dashed line holds an equal-weight basket of the same synthetic universe.</p>
+      <p className="mt-1 text-xs text-slate-500">Each team is measured on what it earned, with capital transfers removed (time-weighted), drawn only up to the session you are viewing. Dots are fills: click one for its pitch. The dashed line holds an equal-weight basket of the same synthetic universe.</p>
     </div>
   )
 }
@@ -207,7 +208,11 @@ function Aquarium({ snap }: { snap: Snapshot }) {
         </div>
       </div>
 
-      <Section title="The race" hint={`Each team's return on its own sleeve through ${dayLabel(view.day)}`}>
+      <Section id="capital-desk" title="Apex's capital desk" hint="Returns are earned by trading. Capital is awarded by Apex. They are never mixed.">
+        <CapitalDesk snap={snap} tl={tl} />
+      </Section>
+
+      <Section title="The race" hint={`Each team's investment return, with transfers removed, through ${dayLabel(view.day)}`}>
         <Race snap={snap} tl={tl} />
       </Section>
 
@@ -222,7 +227,7 @@ function Aquarium({ snap }: { snap: Snapshot }) {
       <Section title="How Apex decides">
         <div className="glass p-4 text-sm leading-relaxed text-slate-300">
           <p>{snap.apex.rule}</p>
-          <p className="mt-2 text-amber-200/90"><strong>Allocation today is fixed, not competitive.</strong> The 30/30 sleeve weights are set at the start and never change; better performance earns a team no extra capital and worse performance costs it none. Dynamic, performance-driven allocation is a later milestone.</p>
+          <p className="mt-2 text-amber-200/90"><strong>Capital follows evidence, in small steps.</strong> Every {snap.apex.capital_policy?.review_every} sessions (first at {snap.apex.capital_policy?.min_history}) Apex scores each team on its trailing return minus half its worst drawdown, with transfers removed. If one team leads by a clear margin and has shown it can use more capital, Apex moves one step ({Number(snap.apex.capital_policy?.step_pct ?? 0) * 100}% of the fund, about $500) to it, taking the trailing team's uncommitted cash first and the central reserve for the rest. It never sells a position to do it, never touches cash promised to an order, and holds when the race is too close, the data is untrusted or no one is making money. These are starting rules, not tuned parameters.</p>
           <p className="mt-2 text-slate-400">
             Limits enforced by the Risk Engine: {snap.limits.position_cap_pct}% max per position, {snap.limits.risk_per_trade_pct}% of NAV at risk per trade,
             {' '}{snap.limits.max_invested_pct}% max invested, {snap.limits.daily_loss_pause_pct}% daily-loss pause, {snap.limits.drawdown_pause_pct}% drawdown pause.

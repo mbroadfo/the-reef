@@ -10,7 +10,7 @@ The goal is a $0-new-recurring-cost system: it runs from files on a laptop, CI u
 - **One engine.** `advance()` runs a session: fill queued orders at the next open, mark at the close, check stops and risk, collect pod proposals, let Apex decide, queue orders. `the_reef/engine`
 - **Risk Engine and execution gate.** Whole shares only, position and exposure limits, pauses on daily loss and drawdown, fail-closed on stale or untrusted data. `the_reef/risk`, `the_reef/execution`
 - **Pods.** Momentum (Hunter) and Contrarian are active, each in a fixed 30% sleeve of the fund (40% cash). Value, Macro, Earnings and News are registered but asleep and carry no numbers. `the_reef/pods`, `the_reef/strategy`
-- **Apex (D0).** A deterministic allocator: fixed sleeve weights, best-ranked idea per pod per session, never more than asked, then the gate and the Risk Engine. No LLM. `the_reef/allocation`
+- **Apex (D0 + C1).** A deterministic allocator: best-ranked idea per pod per session, never more than asked, then the gate and the Risk Engine; every 10 sessions a capital review moves one step of uncommitted cash toward the winning pod. No LLM. `the_reef/allocation`
 - **Offline history.** Hunter replayed on free daily bars cached locally (survivorship-biased, not evidence of an edge). `the_reef/backtest`, `docs/reef2-hunter-history.md`
 - **Aquarium and Research Lab.** A React app that renders one JSON snapshot derived from the ledger: a 70-session replay with no look-ahead, Apex's decision spotlight, team pages, proposal stories, and an in-browser re-verification of the hash chain and every sleeve's books. `dashboard/frontend`
 
@@ -27,7 +27,7 @@ PYTHONPATH=. uv run python tools/aquarium_demo.py         # rebuild the snapshot
 
 ## Current limitations
 
-- Capital is **not** reallocated between pods yet. Sleeves are fixed; dynamic Apex allocation is the next milestone.
+- Capital reallocation is a first, deliberately simple policy (C1, `docs/reef2-capital.md`): small steps, uncommitted cash only, no liquidation. Extra capital raises capacity, not deployment, because the Risk Engine's caps and D0's one-new-position rule are unchanged.
 - The demo uses synthetic prices. The real-data replay is a fixed, survivorship-biased universe and proves nothing about skill.
 - Only two pods have strategies. No LLM research agents are wired in; the interface exists so one can join without touching Apex, Risk or the ledger.
 - No broker API, no scheduled runner, no database. State lives in the ledger events and generated snapshots; private market-data caches stay outside Git. There is no live trading and no trading activation.

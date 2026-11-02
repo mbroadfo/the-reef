@@ -20,7 +20,7 @@ Reef 2.0: event-sourced paper-trading engine, independent strategy pods (Momentu
 - **Ledger** — append-only hash-chained events in `the_reef/ledger`; books are derived, never stored
 - **Engine** — `advance()` in `the_reef/engine`; Risk Engine in `the_reef/risk`; execution gate in `the_reef/execution`
 - **Pods** — `the_reef/pods`, `the_reef/strategy`; Momentum and Contrarian active (30% sleeves each), four asleep
-- **Apex** — D0 deterministic allocator, `the_reef/allocation`; dynamic capital allocation is the next milestone
+- **Apex** — D0 deterministic allocator plus C1 capital reviews (`the_reef/allocation`, `docs/reef2-capital.md`); transfers are signed `SLEEVE_FUNDED` events
 - **UI** — `dashboard/frontend/src/reef2` renders `public/reef2/snapshot.json` built by `tools/build_competition_snapshot.py`
 - **Workflows** — `ci.yml` (PR checks) plus three manual, disabled deploy workflows; nothing is scheduled
 - **Atlas** — `the_reef` / `the_reef_dev` on `reef-m0` hold Epoch 0 records; preserved untouched, nothing in the repo reads them, no Reef 2.0 work depends on them

@@ -38,6 +38,7 @@ class EventKind(str, Enum):
     SESSION_CLOSED = "SESSION_CLOSED"  # every step of the session is done; the next may start
     PROPOSAL_SUBMITTED = "PROPOSAL_SUBMITTED"  # a pod's entry proposal packet; audit only, no balance effect
     APEX_DECISION = "APEX_DECISION"  # Apex's (D0) verdict on a proposal: FUNDED or DECLINED, with reasons
+    APEX_CAPITAL_DECISION = "APEX_CAPITAL_DECISION"  # Apex's capital review: evidence, rationale and the transfers it orders; audit only
 
 
 class Side(str, Enum):
@@ -245,3 +246,10 @@ def apex_decision(epoch_id: str, at: datetime, *, sleeve_id: str, proposal_id: s
         raise ValueError("outcome must be FUNDED or DECLINED")
     return EventDraft(derive_id("apex_decision", epoch_id, proposal_id), epoch_id, EventKind.APEX_DECISION, at,
                       {"sleeve_id": sleeve_id, "proposal_id": proposal_id, "outcome": outcome, **dict(detail)})
+
+
+def apex_capital_decision(epoch_id: str, at: datetime, *, review_id: str, detail: Mapping[str, Any]) -> EventDraft:
+    """One per capital review, written before any transfer. The transfers it orders are ``SLEEVE_FUNDED``
+    events carrying ``ref=review_id``; this event moves no money itself."""
+    return EventDraft(derive_id("apex_capital_decision", epoch_id, review_id), epoch_id, EventKind.APEX_CAPITAL_DECISION, at,
+                      {"review_id": review_id, **dict(detail)})

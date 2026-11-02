@@ -111,3 +111,48 @@ export function recomputePods(snap: Snapshot): PodRecompute[] {
     }
   })
 }
+
+export interface CapitalCheck { review_id: string; seq: number; outcome: string; ok: boolean; problems: string[]; moved: number }
+
+const cents = (v: unknown): number => Math.round(Number(v) * 100)
+
+// Re-checks every Apex capital review against the ledger events alone (mirrors the_reef/allocation/capital.py::verify_capital):
+// transfers add up to the reserve change, the reserve it started from is what the funding history says, each transfer exists
+// as a SLEEVE_FUNDED event carrying the review id after the decision (and none exist without a decision), reclaims stay within
+// the uncommitted cash the evidence recorded, and the fund NAV it quoted is the verified mark of that session.
+export function verifyCapital(events: LedgerEventJson[]): { checks: CapitalCheck[]; stray: string[]; ok: boolean } {
+  let initial = 0, fundedSoFar = 0
+  const navByDay = new Map<string, number>()
+  const decisions: { seq: number; p: Record<string, any>; reserve: number }[] = []
+  const fundings = new Map<string, { seq: number; sleeve: string; amount: number }[]>()
+  for (const e of events) {
+    const p = e.payload as Record<string, any>
+    if (e.kind === 'EPOCH_OPENED') initial = cents(p.initial_cash)
+    else if (e.kind === 'SESSION_MARKED') navByDay.set(String(p.session_day), cents(p.nav))
+    else if (e.kind === 'APEX_CAPITAL_DECISION') decisions.push({ seq: e.seq, p, reserve: initial - fundedSoFar })
+    else if (e.kind === 'SLEEVE_FUNDED') {
+      fundedSoFar += cents(p.amount)
+      const k = String(p.ref)
+      fundings.set(k, [...(fundings.get(k) ?? []), { seq: e.seq, sleeve: String(p.sleeve_id), amount: cents(p.amount) }])
+    }
+  }
+  const checks: CapitalCheck[] = decisions.map(({ seq, p, reserve }) => {
+    const problems: string[] = []
+    const moves = (p.transfers as any[]).map(t => ({ sleeve: String(t.sleeve_id), amount: cents(t.amount) }))
+    const draw = moves.reduce((a, m) => a + m.amount, 0)
+    if (cents(p.reserve_before) !== reserve) problems.push(`reserve before ${p.reserve_before} is not ${(reserve / 100).toFixed(2)} from the funding history`)
+    if (cents(p.reserve_after) !== cents(p.reserve_before) - draw) problems.push('transfers do not add up to the change in the reserve')
+    const got = (fundings.get(String(p.review_id)) ?? [])
+    const key = (x: { sleeve: string; amount: number }) => `${x.sleeve}:${x.amount}`
+    if ([...got.map(g => key({ sleeve: g.sleeve, amount: g.amount }))].sort().join('|') !== moves.map(key).sort().join('|')) problems.push('the SLEEVE_FUNDED events do not match the decision\'s transfers')
+    if (got.some(g => g.seq < seq)) problems.push('a transfer precedes its decision')
+    if (p.outcome === 'HELD' && moves.length) problems.push('a HELD review moved capital')
+    if (moves.filter(m => m.amount > 0).length > 1) problems.push('more than one grant')
+    for (const m of moves) if (m.amount < 0 && -m.amount > cents(p.evidence[m.sleeve].free_cash)) problems.push(`reclaimed more from ${m.sleeve} than its uncommitted cash`)
+    if (navByDay.get(String(p.session_day)) !== cents(p.fund_nav)) problems.push('the quoted fund NAV is not the verified mark of that session')
+    return { review_id: String(p.review_id), seq, outcome: String(p.outcome), ok: problems.length === 0, problems, moved: moves.filter(m => m.amount > 0).reduce((a, m) => a + m.amount, 0) / 100 }
+  })
+  const decided = new Set(decisions.map(d => String(d.p.review_id)))
+  const stray = [...fundings.keys()].filter(k => k !== 'd0-initial' && !decided.has(k))
+  return { checks, stray, ok: checks.every(c => c.ok) && stray.length === 0 }
+}

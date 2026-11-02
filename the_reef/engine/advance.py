@@ -26,6 +26,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Sequence
 
+from the_reef.allocation.capital import CapitalPolicy, build_evidence, decide as decide_capital, previous_beneficiary
 from the_reef.allocation.d0 import D0Config, allocate, sleeve_targets
 from the_reef.execution.gate import GatePorts, OrderIntent, QueuedOrder, fill_at_open, queue_order
 from the_reef.ledger import events as ev
@@ -71,6 +72,7 @@ class EngineDeps:
     universe: Sequence[str]
     initial_cash: Decimal = D("10000")
     costs: ExecutionCosts = ExecutionCosts()
+    capital: CapitalPolicy | None = None  # None = fixed sleeves (D0 only); set to let Apex move capital between pods
 
     @property
     def ports(self) -> GatePorts:
@@ -88,6 +90,7 @@ class NoteKind(str, Enum):
     STOP_RAISED = "STOP_RAISED"
     QUEUED = "QUEUED"
     DECISION_REJECTED = "DECISION_REJECTED"
+    CAPITAL_REVIEW = "CAPITAL_REVIEW"
 
 
 @dataclass(frozen=True)
@@ -218,7 +221,8 @@ def advance(ledger: Ledger, deps: EngineDeps, day: date) -> AdvanceReport:
         _run_stops(ledger, deps, day, decide_at, report)
         # 4. mark to the close
         _mark(ledger, deps, day, report)
-    # 5. decisions for the next open
+    # 5. capital review (if due), then decisions for the next open
+    _review_capital(ledger, deps, day, decide_at, report)
     _decide(ledger, deps, day, decide_at, report)
     _emit(ledger, ev.session_closed(deps.epoch_id, decide_at, day), report)
     return report
@@ -337,6 +341,48 @@ def _mark(ledger: Ledger, deps: EngineDeps, day: date, report: AdvanceReport) ->
                                     nav=nav, sleeve_nav=sleeve_nav), report)
     report.nav = nav
     report.add(NoteKind.MARKED, detail=f"NAV {nav}" + (f"; UNMARKED {','.join(unmarked)}" if unmarked else ""))
+
+
+def _review_capital(ledger: Ledger, deps: EngineDeps, day: date, decide_at: datetime, report: AdvanceReport) -> None:
+    """Apex's periodic capital review. Written as one decision event (evidence, rationale, ordered transfers) and then
+    the signed SLEEVE_FUNDED events it orders. Safe to re-run: a decision that exists is never recomputed, and each
+    transfer is keyed by the review id, so a crash between the events resumes exactly where it stopped."""
+    policy = deps.capital
+    if policy is None:
+        return
+    ep = ledger.state.epoch(deps.epoch_id)
+    n = len(ep.marks)
+    if not policy.is_review_session(n):
+        return
+    review_id = f"review-{n:03d}"
+    events = ledger.store.read_all()
+    decision_id = ev.derive_id("apex_capital_decision", deps.epoch_id, review_id)
+    existing = next((e for e in events if e.draft.event_id == decision_id), None)
+    if existing is not None:
+        transfers = [(str(t["sleeve_id"]), D(str(t["amount"]))) for t in existing.draft.payload["transfers"]]
+    else:
+        pod_ids = [s.sleeve_id for s in deps.sleeves]
+        evidence = build_evidence(policy, events, ep, pod_ids)
+        fund_nav = ep.marks[day.isoformat()]
+        trusted = ep.last_marked == day.isoformat() and not ep.last_unmarked
+        out = decide_capital(policy, evidence, fund_nav=fund_nav, reserve=ep.unallocated, trusted=trusted,
+                             previous_beneficiary=previous_beneficiary(events, deps.epoch_id))
+        ordered = out.ordered()
+        draw = sum((t.amount for t in ordered), D("0"))  # > 0: the reserve paid in; < 0: it received
+        detail = {
+            "review_no": n, "session_day": day.isoformat(), "decided_at": decide_at.isoformat(), "policy": policy.describe(),
+            "outcome": out.outcome, "reasons": list(out.reasons), "rationale": out.rationale,
+            "leader": out.leader, "trailer": out.trailer, "gap": None if out.gap is None else format(out.gap.quantize(D("0.000001")), "f"),
+            "fund_nav": format(fund_nav, "f"), "reserve_before": format(ep.unallocated, "f"),
+            "reserve_after": format(ep.unallocated - draw, "f"),
+            "evidence": {pid: e.as_payload() for pid, e in sorted(evidence.items())},
+            "transfers": [{"sleeve_id": t.sleeve_id, "amount": format(t.amount, "f"), "counterparty": t.source} for t in ordered],
+        }
+        _emit(ledger, ev.apex_capital_decision(deps.epoch_id, decide_at, review_id=review_id, detail=detail), report)
+        transfers = [(t.sleeve_id, t.amount) for t in ordered]
+        report.add(NoteKind.CAPITAL_REVIEW, detail=f"{review_id}: {out.outcome}; {out.rationale}")
+    for sleeve_id, amount in transfers:
+        _emit(ledger, ev.sleeve_funded(deps.epoch_id, decide_at, sleeve_id, amount, ref=review_id), report)
 
 
 def _decide(ledger: Ledger, deps: EngineDeps, day: date, decide_at: datetime, report: AdvanceReport) -> None:

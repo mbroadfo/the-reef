@@ -75,6 +75,17 @@ export default function ProposalPage() {
   const rival = snap.pods.filter(p => p.status === 'ACTIVE' && p.pod_id !== pod.pod_id)
   const idx = snap.proposals.indexOf(row)
   const sizedAtOpen = l?.entry?.shares
+  // The capital behind this pitch, from the ledger: what the pod controlled when Apex decided, the last review before that, and any
+  // transfer that landed while the trade was open (which is capital, not P&L).
+  const ev = snap.events
+  const lastMark = [...ev].reverse().find(e => e.kind === 'SESSION_MARKED' && e.seq < d.seq)
+  const controlledThen = lastMark ? Number((lastMark.payload as any).sleeve_nav[row.pod_id]) : null
+  const reviewBefore = [...ev].reverse().find(e => e.kind === 'APEX_CAPITAL_DECISION' && e.seq < d.seq)
+  const seqOfDay = (day?: string | null) => ev.find(e => e.kind === 'SESSION_MARKED' && (e.payload as any).session_day === day)?.seq
+  const fromSeq = seqOfDay(l?.entry?.session_day) ?? 0
+  const toSeq = l?.exit ? l.exit.seq : Infinity
+  const moved = ev.filter(e => e.kind === 'SLEEVE_FUNDED' && (e.payload as any).ref !== 'd0-initial' && (e.payload as any).sleeve_id === row.pod_id && e.seq > fromSeq && e.seq < toSeq)
+  const movedTotal = moved.reduce((a, e) => a + Number((e.payload as any).amount), 0)
 
   return (
     <>
@@ -130,6 +141,11 @@ export default function ProposalPage() {
               <Trace ok={!d.reasons.includes('D0_RANK_CAP')} title={`Rank: #${d.rank} of ${d.of} from ${pod.name}`}>
                 Apex's D0 rule funds at most {d.max_new_per_session} new position{d.max_new_per_session > 1 ? 's' : ''} per pod per session, best score first.
               </Trace>
+              <Trace ok={null} title={`Whose capital: ${pod.name} controlled ${controlledThen === null ? '-' : usd(controlledThen)} at this decision`}>
+                {reviewBefore
+                  ? <>Apex's latest capital review before this was <LedgerRef seq={reviewBefore.seq} label="capital review" />: {String((reviewBefore.payload as any).rationale)}</>
+                  : 'No capital review had happened yet: the original 30/30/40 split applied.'}
+              </Trace>
               <Trace ok={d.reasons.includes('D0_RANK_CAP') ? null : !d.reasons.includes('SIZE_ZERO')} title={d.ceiling_shares !== undefined ? `Capital: asked ${d.requested_shares} sh, D0 ceiling ${d.ceiling_shares} sh, granted ${d.granted_shares} sh` : 'Capital'}>
                 {d.ceiling_shares !== undefined ? <>Pod cash {usd(d.sleeve_cash)}. Granted {usd(d.granted_dollars)} at most; Apex never grants more than the pod asked for.</> : 'Not reached: the idea was outranked first.'}
               </Trace>
@@ -172,7 +188,8 @@ export default function ProposalPage() {
             <Step n={6} title={`Who benefited: ${pod.name}`} accent={Number(l.pnl) >= 0 ? '#00ff88' : '#ff4444'}>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="glass p-3"><div className="text-[11px] uppercase tracking-wider text-slate-500">{l.status === 'OPEN' ? 'Unrealized P&L' : 'Realized P&L'}</div><div className={`mt-1 font-mono text-2xl font-bold ${tone(l.pnl)}`}>{usd(l.pnl, true)}</div><div className={`text-xs ${tone(l.return)}`}>{pct(l.return, 2)} on the position</div></div>
-                <div className="glass p-3"><div className="text-[11px] uppercase tracking-wider text-slate-500">{pod.name} sleeve</div><div className="mt-1 font-mono text-lg text-white">{usd(l.sleeve_nav_before)} → {usd(l.sleeve_nav_after)}</div><div className={`text-xs ${tone(l.sleeve_return_contribution)}`}>{pct(l.sleeve_return_contribution, 2)} of the sleeve's capital</div></div>
+                <div className="glass p-3"><div className="text-[11px] uppercase tracking-wider text-slate-500">{pod.name} sleeve</div><div className="mt-1 font-mono text-lg text-white">{usd(l.sleeve_nav_before)} → {usd(l.sleeve_nav_after)}</div><div className={`text-xs ${tone(l.sleeve_return_contribution)}`}>{pct(l.sleeve_return_contribution, 2)} of the sleeve's capital</div>
+                  {moved.length > 0 && <div className="mt-1 text-xs text-amber-200">Includes {usd(movedTotal, true)} moved by Apex while this trade was open: capital, not profit.</div>}</div>
                 <div className="glass p-3"><div className="text-[11px] uppercase tracking-wider text-slate-500">Whole fund</div><div className={`mt-1 font-mono text-2xl font-bold ${tone(l.fund_return_contribution)}`}>{pct(l.fund_return_contribution, 2)}</div><div className="text-xs text-slate-400">of the $10,000 fund</div></div>
               </div>
               <p className="mt-2 text-sm text-slate-400">

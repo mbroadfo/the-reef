@@ -36,6 +36,8 @@ export function Contender({ pod, pv, rival, view, pitchOf, onSelect }:
   const todays = view.today.filter(p => p.pod_id === pod.pod_id)
   const boughtToday = pv.positions.some(x => x.sessions_held === 0)
   const lead = rival ? (pv.return - rival.return) * 100 : 0
+  const todaysReview = view.reviewsToday[0]
+  const todaysTransfer = todaysReview?.transfers.find(t => t.sleeve_id === pod.pod_id)
   const status = boughtToday ? 'Just bought in'
     : todays.some(p => p.decision?.outcome === 'FUNDED') ? 'Pitch funded, order queued'
     : pv.positions.length ? `Holding ${pv.positions.length}`
@@ -57,9 +59,20 @@ export function Contender({ pod, pv, rival, view, pitchOf, onSelect }:
       </div>
 
       <div className="mt-1 grid grid-cols-2 gap-2">
-        <div><Label>Sleeve NAV</Label><div className="font-mono text-2xl font-bold text-white">{usd(pv.nav)}</div></div>
-        <div className="text-right"><Label>Return on {usd(pv.funded)}</Label><div className={`font-mono text-2xl font-bold ${tone(pv.return)}`}>{pct(pv.return, 2)}</div></div>
+        <div><Label>Capital controlled</Label><div className="font-mono text-2xl font-bold text-white">{usd(pv.controlled)}</div></div>
+        <div className="text-right"><Label>Investment return</Label><div className={`font-mono text-2xl font-bold ${tone(pv.return)}`}>{pct(pv.return, 2)}</div></div>
       </div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
+        <span>Started <span className="font-mono text-slate-200">{usd(pv.initial_funded)}</span></span>
+        <span>Trading <span className={`font-mono ${tone(pv.pnl)}`}>{usd(pv.pnl, true)}</span></span>
+        <span title="Capital moved by Apex. It changes what the team controls but is never counted as a return.">Apex transfers <span className={`font-mono ${pv.net_transfers === 0 ? 'text-slate-300' : tone(pv.net_transfers)}`}>{usd(pv.net_transfers, true)}</span></span>
+      </div>
+      {todaysReview && (
+        <div className="mt-2 rounded-lg border border-amber-300/50 bg-amber-300/10 px-2.5 py-1.5 text-xs text-amber-100">
+          {todaysTransfer ? <>Apex {todaysTransfer.amount > 0 ? 'awarded' : 'reclaimed'} <span className="font-mono font-bold">{usd(Math.abs(todaysTransfer.amount))}</span> at this close{todaysTransfer.amount > 0 ? ' (not a return)' : ' from uncommitted cash'}.</>
+            : <>Apex reviewed capital at this close and held.</>}
+        </div>
+      )}
 
       <div className="mt-3 rounded-lg bg-slate-950/50 p-2.5">
         <Label>Right now</Label>
@@ -205,7 +218,7 @@ export function ApexColumn({ snap, view, selected, onSelect }: { snap: Snapshot;
             <span className="text-xs uppercase tracking-[0.14em] text-amber-100/80">Chief Investment Officer</span>
           </div>
           <p className="mx-auto mt-1.5 max-w-md text-xs leading-snug text-slate-400">
-            Funds pitches, not sharks. Sleeves are fixed ({active.map(p => `${p.name} ${Number(p.sleeve_weight) * 100}%`).join(', ')}, {Number(snap.apex.unallocated_weight) * 100}% cash).
+            Funds pitches and, every {snap.apex.capital_policy?.review_every ?? 10} sessions, the sharks themselves: sleeves start at {active.map(p => `${p.name} ${Number(p.sleeve_weight) * 100}%`).join(', ')} with {Number(snap.apex.unallocated_weight) * 100}% in reserve, and capital follows the evidence.
             Fixed rules, no language model.
           </p>
           <p className="mt-1 font-mono text-xs text-slate-300">

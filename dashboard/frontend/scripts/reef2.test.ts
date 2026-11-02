@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import assert from 'node:assert/strict'
-import { canonical, recomputePods, verifyIntegrity } from '../src/reef2/verify.ts'
+import { canonical, recomputePods, verifyCapital, verifyIntegrity } from '../src/reef2/verify.ts'
 import type { LedgerEventJson, Snapshot } from '../src/reef2/types.ts'
 
 const snap = JSON.parse(readFileSync(new URL('../public/reef2/snapshot.json', import.meta.url), 'utf8')) as Snapshot
@@ -97,6 +97,20 @@ assert.ok(snap.pods.filter(p => p.status === 'INACTIVE').every(p => p.inactive_r
   'inactive pods carry a reason and no invented numbers')
 assert.ok(snap.proposals.every(r => r.decision !== null), 'every proposal has an Apex decision')
 assert.ok(snap.checks.every(c => c.ok), 'server-side checks all pass')
-assert.equal(snap.apex.allocation_mode, 'FIXED_SLEEVES')
-assert.equal(snap.apex.dynamic_reallocation, false)
+assert.equal(snap.apex.allocation_mode, 'DYNAMIC_SLEEVES')
+assert.equal(snap.apex.dynamic_reallocation, true)
+
+// --- capital transfers verify from the events alone ------------------------------------------------------------
+{
+  const cap = verifyCapital(snap.events)
+  assert.ok(cap.ok, JSON.stringify(cap.checks.filter(c => !c.ok)))
+  assert.ok(cap.checks.length >= 4 && cap.checks.some(c => c.outcome === 'REALLOCATED') && cap.checks.some(c => c.outcome === 'HELD'))
+  const victim = snap.events.findIndex(e => e.kind === 'SLEEVE_FUNDED' && String((e.payload as any).ref).startsWith('review-'))
+  const dropped = snap.events.filter((_, i) => i !== victim)
+  assert.equal(verifyCapital(dropped).ok, false, 'a missing transfer is caught')
+  const forged = snap.events.map((e, i) => i === victim ? { ...e, payload: { ...e.payload, amount: '999.00' } } : e)
+  assert.equal(verifyCapital(forged).ok, false, 'a changed transfer is caught')
+  const stray = snap.events.map((e, i) => i === victim ? { ...e, payload: { ...e.payload, ref: 'review-999' } } : e)
+  assert.equal(verifyCapital(stray).ok, false, 'a transfer nobody decided is caught')
+}
 console.log('reef2 snapshot tests passed')
