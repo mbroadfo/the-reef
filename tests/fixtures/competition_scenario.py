@@ -14,6 +14,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from tests.fixtures.hunter_scenario import EPOCH_ID, SPECS, START_INDEX, Seg, World, make_world
+from the_reef.allocation.capital import CapitalPolicy
 from the_reef.allocation.d0 import D0Config
 from the_reef.engine.advance import EngineDeps, SleeveSpec
 from the_reef.pods.registry import POD_REGISTRY, PodStatus
@@ -39,10 +40,10 @@ def make_comp_world() -> World:
     return make_world(SPECS_COMP)
 
 
-def make_comp_deps(world: World, limits: RiskLimits | None = None) -> EngineDeps:
+def make_comp_deps(world: World, limits: RiskLimits | None = None, capital: CapitalPolicy | None = CapitalPolicy()) -> EngineDeps:
     active = [p for p in POD_REGISTRY if p.status is PodStatus.ACTIVE]
     return EngineDeps(
         epoch_id=EPOCH_ID, calendar=world.calendar, instruments=world.master, actions=world.actions, bars=world.bars,
         limits=limits or RiskLimits(), d0=D0Config({p.pod_id: p.sleeve_weight for p in active}, max_new_per_session=D0_MAX_NEW),
-        sleeves=[SleeveSpec(p.pod_id, p.make_strategy()) for p in active], universe=UNIVERSE,
+        sleeves=[SleeveSpec(p.pod_id, p.make_strategy()) for p in active], universe=UNIVERSE, capital=capital,
     )

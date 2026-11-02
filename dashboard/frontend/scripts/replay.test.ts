@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import { sessionsOf, spotlightFor, viewAt } from '../src/reef2/replay.ts'
-import { decisionMarkers } from '../src/reef2/replay.ts'
+import { capitalMarkers, decisionMarkers } from '../src/reef2/replay.ts'
 import { nextParams, sessionParam, visibleMarkers } from '../src/reef2/timelineLogic.ts'
 import type { Snapshot } from '../src/reef2/types.ts'
 
@@ -192,6 +192,69 @@ for (const t of [0, 1, 2, 9, 19, 33, 34, 49, 61, 68, 69]) {
     const v = viewAt(snap, mk.index)
     const p = v.pitches.find(x => x.proposal_id === mk.proposal_id)
     assert.ok(p && p.decided_today, `marker ${mk.proposal_id} must be visible and decided at its own session`)
+  }
+}
+
+// --- capital: reviews appear when they happen, transfers are never returns, and every session reconciles ------------
+{
+  const cm = capitalMarkers(snap)
+  assert.ok(cm.length >= 4 && cm.some(m => m.moved) && cm.some(m => !m.moved), 'both moved and held reviews exist')
+  assert.deepEqual(cm.map(m => m.index), [...cm.map(m => m.index)].sort((a, b) => a - b))
+  const first = cm[0].index
+  assert.equal(viewAt(snap, first - 1).reviews.length, 0, 'no review is visible before it is decided')
+  const at = viewAt(snap, first)
+  assert.equal(at.reviews.length, 1)
+  assert.equal(at.reviewsToday.length, 1)
+  assert.equal(viewAt(snap, first + 1).reviewsToday.length, 0)
+  assert.deepEqual(visibleMarkers(cm, first - 1, false), [], 'chronological mode hides future reviews')
+  assert.equal(visibleMarkers(cm, first - 1, true).length, cm.length)
+
+  let prevReturn: Record<string, number> = {}
+  for (let i = 0; i < sessions.length; i++) {
+    const v = viewAt(snap, i)
+    const controlled = v.pods.reduce((a, p) => a + p.controlled, 0)
+    assert.ok(close(controlled + v.reserve, v.fundNav, 0.005), `session ${i + 1}: sleeves plus reserve equal the fund NAV`)
+    for (const p of v.pods) {
+      // capital controlled = capital contributed + investment P&L, so transfers can only ever show up as contributed capital
+      assert.ok(close(p.controlled, p.funded + p.realized + p.unrealized, 0.01), `${p.pod_id} session ${i + 1}: controlled = funded + P&L`)
+      assert.ok(close(p.pnl, p.realized + p.unrealized, 1e-9))
+      assert.ok(close(p.funded, p.initial_funded + p.net_transfers, 1e-9))
+      assert.ok(p.cash >= -1e-9, 'no negative cash')
+      // the session in which a transfer lands (the next one) must not show a return jump of the transfer's size
+      if (v.reviewsToday.some(r => r.transfers.some(t => t.sleeve_id === p.pod_id && t.amount > 0))) {
+        const next = viewAt(snap, Math.min(i + 1, sessions.length - 1))
+        const q = next.pods.find(x => x.pod_id === p.pod_id)!
+        const grant = v.reviewsToday[0].transfers.find(t => t.sleeve_id === p.pod_id)!.amount
+        assert.ok(Math.abs(q.return - p.return) < grant / p.nav / 2, `${p.pod_id}: a $${grant} grant is not a return`)
+      }
+      prevReturn[p.pod_id] = p.return
+    }
+  }
+  // The capital chart and the summary bar are the same numbers: at every session the chart's last point is the post-review balance.
+  for (let i = 0; i < sessions.length; i++) {
+    const v = viewAt(snap, i)
+    const last = v.capital[v.capital.length - 1]
+    assert.equal(last.day, v.day)
+    for (const p of v.pods) assert.ok(close(last.pods[p.pod_id], p.controlled, 0.005), `session ${i + 1} ${p.pod_id}: chart ${last.pods[p.pod_id]} vs bar ${p.controlled}`)
+    assert.ok(close(last.reserve, v.reserve, 0.005), `session ${i + 1}: chart reserve ${last.reserve} vs bar ${v.reserve}`)
+  }
+  {
+    const at = (n: number) => viewAt(snap, n - 1).capital.at(-1)!
+    assert.ok(close(at(15).pods.momentum, 3685.16, 0.005) && close(at(15).pods.contrarian, 2470.36, 0.005), 'session 15 shows the balances after the $500 transfer')
+    for (const n of [15, 25, 35]) {
+      const r = viewAt(snap, n - 1).reviewsToday[0]
+      const to = r.transfers.find(t => t.amount > 0)!
+      const before = viewAt(snap, n - 2).capital.at(-1)!.pods[to.sleeve_id]
+      assert.ok(at(n).pods[to.sleeve_id] > before - 200, `session ${n}: the grant is in the chart`)
+    }
+    // no look-ahead: an earlier view never contains a later session's point
+    assert.ok(viewAt(snap, 10).capital.every(c => c.day <= viewAt(snap, 10).day) && viewAt(snap, 10).capital.length === 11)
+  }
+  // Transfers recorded in a review are the ones the ledger shows, with their event numbers.
+  for (const r of viewAt(snap, 69).reviews) {
+    assert.ok(r.transfers.every(t => t.seq !== null && t.seq > r.seq), 'each transfer points at its SLEEVE_FUNDED event after the decision')
+    assert.ok(close(r.transfers.reduce((a, t) => a + t.amount, 0), r.reserve_before - r.reserve_after, 0.005))
+    assert.ok(r.rationale.length > 20 && r.reasons.length > 0)
   }
 }
 

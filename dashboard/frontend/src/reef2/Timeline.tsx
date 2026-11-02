@@ -2,14 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { POD_HEX } from './PodShark'
 import { dayLabel } from './format'
-import { decisionMarkers, sessionsOf, viewAt } from './replay'
+import { capitalMarkers, decisionMarkers, sessionsOf, viewAt } from './replay'
 import { nextParams, sessionParam, visibleMarkers } from './timelineLogic'
-import type { Marker, SessionView } from './replay'
+import type { CapitalMarker, Marker, SessionView } from './replay'
 import type { Snapshot } from './types'
 
 export interface Timeline {
   view: SessionView
   markers: Marker[]
+  reviewMarkers: CapitalMarker[]
   days: string[]
   playing: boolean
   speed: number
@@ -33,6 +34,7 @@ export function useTimeline(snap: Snapshot): Timeline {
   const days = useMemo(() => sessionsOf(snap.events).map(s => s.day), [snap])
   const total = days.length
   const markers = useMemo(() => decisionMarkers(snap), [snap])
+  const reviewMarkers = useMemo(() => capitalMarkers(snap), [snap])
   const index = sessionParam(params.get('s'), total)
   const view = useMemo(() => viewAt(snap, index), [snap, index])
   const [playing, setPlaying] = useState(false)
@@ -67,7 +69,7 @@ export function useTimeline(snap: Snapshot): Timeline {
   const prevPitch = () => { setPlaying(false); const t = [...fundedIdx].reverse().find(i => i < index); if (t !== undefined) go(t) }
   const nextPitch = () => { if (!retrospective) return; setPlaying(false); const t = fundedIdx.find(i => i > index); if (t !== undefined) go(t) }
   return {
-    view, markers, days, playing, speed, pauseAtFunded, selected: params.get('p'),
+    view, markers, reviewMarkers, days, playing, speed, pauseAtFunded, selected: params.get('p'),
     retrospective, setRetrospective, go, select, toggle, stop: () => setPlaying(false), setSpeed, setPauseAtFunded, prevPitch, nextPitch,
   }
 }
@@ -79,6 +81,7 @@ export function TimelineBar({ tl }: { tl: Timeline }) {
   const hasPrev = markers.some(m => m.funded && m.index < view.index)
   const hasNext = tl.retrospective && markers.some(m => m.funded && m.index > view.index)
   const shown = visibleMarkers(markers, view.index, tl.retrospective)
+  const shownReviews = visibleMarkers(tl.reviewMarkers, view.index, tl.retrospective)
   const here = markers.filter(m => m.index === view.index)
   return (
     <div className="timeline-bar z-30 mt-3 px-3 sm:sticky sm:top-2 pb-2 pt-2 sm:px-4" role="group" aria-label="Competition timeline">
@@ -102,6 +105,13 @@ export function TimelineBar({ tl }: { tl: Timeline }) {
       </div>
 
       <div className="relative mt-1 h-4">
+        {shownReviews.map(m => (
+          <button key={m.review_id} type="button" onClick={() => { tl.stop(); tl.go(m.index) }}
+                  aria-label={`Session ${m.index + 1}: Apex capital review, ${m.moved ? 'capital moved' : 'held'}`}
+                  title={`${dayLabel(tl.days[m.index])}: Apex capital review (${m.moved ? 'capital moved' : 'held'})`}
+                  className="absolute top-0.5 h-3 w-3 -translate-x-1/2 rotate-45"
+                  style={{ left: `calc(${frac(m.index)} * (100% - 18px) + 9px)`, background: m.moved ? '#fcd34d' : 'transparent', border: '1.5px solid #fcd34d', opacity: m.index === view.index ? 1 : 0.85 }} />
+        ))}
         {shown.map(m => (
           <button key={m.proposal_id} type="button" onClick={() => { tl.stop(); tl.go(m.index, m.proposal_id) }}
                   aria-label={`Session ${m.index + 1}: ${m.pod_id} ${m.funded ? 'funded' : 'declined'} ${m.symbol}`}
@@ -122,7 +132,7 @@ export function TimelineBar({ tl }: { tl: Timeline }) {
         <button className="tl-btn" onClick={() => { tl.stop(); tl.go(view.index + 1) }} disabled={view.index >= last} aria-label="Next session">›</button>
         <button className="tl-btn px-3 text-xs" onClick={tl.nextPitch} disabled={!hasNext} title={tl.retrospective ? undefined : 'Turn on retrospective mode to jump ahead'} aria-label="Next funded pitch">pitch ▸</button>
         <span className="ml-auto hidden text-xs text-slate-500 md:inline">
-          ledger as of #{view.cutSeq} · {here.length ? `${here.length} marked decision${here.length > 1 ? 's' : ''} today` : 'dots: filled = funded, hollow = declined; later decisions stay hidden'}
+          ledger as of #{view.cutSeq} · {here.length ? `${here.length} marked decision${here.length > 1 ? 's' : ''} today` : 'dots: filled = funded, hollow = declined; gold diamonds: Apex capital reviews; later ones stay hidden'}
         </span>
       </div>
     </div>

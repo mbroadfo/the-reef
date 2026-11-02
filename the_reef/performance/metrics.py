@@ -79,6 +79,67 @@ def round_trips(events: Sequence[LedgerEvent], epoch_id: str, sleeve_id: str) ->
     return out
 
 
+@dataclass(frozen=True)
+class FlowPoint:
+    """One marked session of a sleeve, with the capital that was in it at the start of that session.
+
+    ``base`` is the previous mark plus any transfers made since (a transfer is decided after the close, so it
+    belongs to the next session). ``ret`` = nav / base - 1 therefore measures only what the sleeve earned;
+    ``index`` chains those returns (time-weighted), starting at 1.
+    """
+    day: str
+    nav: Decimal
+    base: Decimal
+    flow: Decimal  # net transfers into the sleeve since the previous mark (the first mark carries the initial funding)
+    ret: Decimal
+    index: Decimal
+
+
+_INDEX_QUANT = D("0.0000000001")
+
+
+def flow_adjusted_series(events: Sequence[LedgerEvent], epoch_id: str, sleeve_id: str, through_seq: int | None = None) -> list[FlowPoint]:
+    """Capital-flow-adjusted (time-weighted) performance of a sleeve, from ledger events only.
+
+    Receiving $500 raises ``nav`` and ``base`` together, so it never shows up as a return."""
+    out: list[FlowPoint] = []
+    pending = D("0")
+    prev_nav = D("0")
+    index = D("1")
+    for e in events:
+        if through_seq is not None and e.seq > through_seq:
+            break
+        d = e.draft
+        if d.epoch_id != epoch_id:
+            continue
+        if d.kind is EventKind.SLEEVE_FUNDED and d.payload["sleeve_id"] == sleeve_id:
+            pending += D(str(d.payload["amount"]))
+        elif d.kind is EventKind.SESSION_MARKED and sleeve_id in d.payload["sleeve_nav"]:
+            nav = D(str(d.payload["sleeve_nav"][sleeve_id]))
+            base = prev_nav + pending
+            ret = (nav / base - 1) if base > 0 else D("0")
+            index = (index * (1 + ret)).quantize(_INDEX_QUANT)
+            out.append(FlowPoint(str(d.payload["session_day"]), nav, base, pending, ret, index))
+            prev_nav, pending = nav, D("0")
+    return out
+
+
+def window_performance(points: Sequence[FlowPoint], lookback: int) -> tuple[Decimal, Decimal, int]:
+    """(return, max drawdown <= 0, sessions) over the last ``lookback`` flow-adjusted sessions."""
+    win = list(points[-lookback:]) if lookback > 0 else list(points)
+    if not win:
+        return D("0"), D("0"), 0
+    start = D("1")
+    prior = points[: len(points) - len(win)]
+    if prior:
+        start = prior[-1].index
+    peak, worst = start, D("0")
+    for p in win:
+        peak = max(peak, p.index)
+        worst = min(worst, p.index / peak - 1)
+    return win[-1].index / start - 1, worst, len(win)
+
+
 def total_return(series: Sequence[tuple[str, Decimal]], base: Decimal) -> Decimal:
     return (series[-1][1] / base - 1) if series and base > 0 else D("0")
 

@@ -64,8 +64,8 @@ export default function TeamPage() {
       ) : (
         <>
           <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Stat label="Sleeve NAV" value={usd(pv.nav)} sub={`funded ${usd(pv.funded)}`} />
-            <Stat label="Return" value={<span className={tone(pv.return)}>{pct(pv.return, 2)}</span>} sub={`max drawdown ${pct(pv.max_drawdown, 1, false)}`} />
+            <Stat label="Capital controlled" value={usd(pv.controlled)} sub={`started ${usd(pv.initial_funded)} · Apex transfers ${usd(pv.net_transfers, true)}`} />
+            <Stat label="Investment return" value={<span className={tone(pv.return)}>{pct(pv.return, 2)}</span>} sub={`transfers excluded · max drawdown ${pct(pv.max_drawdown, 1, false)}`} />
             <Stat label="Realized / unrealized" value={<span className={tone(pv.realized)}>{usd(pv.realized, true)}</span>} sub={<span className={tone(pv.unrealized)}>{usd(pv.unrealized, true)} open</span>} />
             <Stat label="Cash / invested" value={usd(pv.cash)} sub={`${usd(pv.invested)} invested · avg exposure ${pct(pv.avg_exposure, 0, false)}`} />
           </div>
@@ -95,6 +95,24 @@ export default function TeamPage() {
               <Stat label="Volatility (ann.)" value={pct(pv.volatility_ann, 1, false)} sub={`return / risk ${num(pv.sharpe_like)}`} />
               <Stat label="Pitches funded" value={`${pv.funded_proposals} of ${pv.proposals}`} />
             </div>
+          </Section>
+
+          <Section title="Capital history" hint="What Apex decided about this team's capital, up to this session">
+            <ul className="glass divide-y divide-slate-800/80 p-2">
+              {view.reviews.length === 0 && <li className="px-2 py-4 text-center text-sm text-slate-500">No capital review yet: the team still has its original {usd(pv.initial_funded)}.</li>}
+              {[...view.reviews].reverse().map(r => {
+                const t = r.transfers.find(x => x.sleeve_id === pod.pod_id)
+                const e = r.evidence[pod.pod_id]
+                return (
+                  <li key={r.review_id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-2.5 text-sm">
+                    <span className="w-24 font-mono text-xs text-slate-500">S{r.index + 1} · {dayLabel(r.day)}</span>
+                    {t ? <span className={`chip ${t.amount > 0 ? 'chip-funded' : 'chip-declined'}`}>{t.amount > 0 ? 'AWARDED' : 'RECLAIMED'} {usd(Math.abs(t.amount))}</span> : <span className="chip chip-neutral">NO CHANGE</span>}
+                    <span className="text-xs text-slate-400">score {pct(e.score, 2)} · return {pct(e.window_return, 2)} · uncommitted {usd(e.free_cash)}</span>
+                    <Link to={`/lab?seq=${r.seq}`} className="ml-auto text-xs text-cyan-300 hover:underline">ledger #{r.seq}</Link>
+                  </li>
+                )
+              })}
+            </ul>
           </Section>
 
           <Section title="Research desk" hint="Agents that prepare this team's evidence">

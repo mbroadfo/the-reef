@@ -1,5 +1,5 @@
 // Pure rules behind the timeline controls, kept free of React so they can be tested directly.
-export interface MarkerLike { index: number; funded: boolean }
+export interface MarkerLike { index: number }
 
 // One update for both the session and the selected pitch, so a marker click can never leave them out of step.
 export function nextParams(prev: URLSearchParams, index: number, total: number, pitchId?: string | null): URLSearchParams {

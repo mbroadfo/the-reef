@@ -184,11 +184,16 @@ def test_snapshot_checks_pass_and_every_story_is_traceable(snap):
     assert closed and all(r["lifecycle"]["pnl"] is not None and r["lifecycle"]["sleeve_nav_after"] for r in closed)
 
 
-def test_apex_is_declared_as_fixed_sleeves_not_dynamic_competition(snap):
+def test_apex_is_declared_as_dynamic_with_a_documented_policy(snap):
     apex = snap["apex"]
-    assert apex["allocation_mode"] == "FIXED_SLEEVES" and apex["dynamic_reallocation"] is False
-    assert D(apex["unallocated_weight"]) == D("0.40")
-    # The weights never change over the run: every sleeve is funded once, at the start, and never again.
+    assert apex["allocation_mode"] == "DYNAMIC_SLEEVES" and apex["dynamic_reallocation"] is True
+    assert D(apex["unallocated_weight"]) == D("0.40") and apex["capital_policy"]["version"] == "C1"
+    # The start is unchanged: both sleeves are funded once, at the start, before any session is marked ...
     funding = [e for e in snap["events"] if e["kind"] == "SLEEVE_FUNDED"]
-    assert len(funding) == 2 and {e["payload"]["ref"] for e in funding} == {"d0-initial"}
-    assert funding[-1]["seq"] < min(e["seq"] for e in snap["events"] if e["kind"] == "SESSION_MARKED")
+    initial = [e for e in funding if e["payload"]["ref"] == "d0-initial"]
+    assert [e["payload"]["amount"] for e in initial] == ["3000.00", "3000.00"]
+    assert initial[-1]["seq"] < min(e["seq"] for e in snap["events"] if e["kind"] == "SESSION_MARKED")
+    # ... and every later transfer belongs to a recorded capital decision.
+    reviews = {e["payload"]["review_id"] for e in snap["events"] if e["kind"] == "APEX_CAPITAL_DECISION"}
+    assert {e["payload"]["ref"] for e in funding} - {"d0-initial"} <= reviews
+    assert any(c["name"].startswith("Capital transfers") and c["ok"] for c in snap["checks"])
