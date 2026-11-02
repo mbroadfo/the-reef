@@ -58,7 +58,7 @@ function Formulas({ snap }: { snap: Snapshot }) {
   return (
     <div className="glass overflow-x-auto">
       <table className="w-full min-w-[560px] text-sm">
-        <thead><tr className="border-b border-slate-800"><th className={`${th} text-left`}>Pod</th><th className={th}>Funded</th><th className={th}>Realized</th><th className={th}>Unrealized</th><th className={th}>= NAV</th><th className={th}>Return</th><th className={th}>Max DD</th><th className={th}>Vol (ann.)</th><th className={th}>Return/risk</th></tr></thead>
+        <thead><tr className="border-b border-slate-800"><th className={`${th} text-left`}>Pod</th><th className={th} title="Net capital contributed: initial funding plus Apex transfers">Capital in</th><th className={th}>Realized</th><th className={th}>Unrealized</th><th className={th}>= NAV</th><th className={th}>Return</th><th className={th}>Max DD</th><th className={th}>Vol (ann.)</th><th className={th}>Return/risk</th></tr></thead>
         <tbody>
           {pods.map(p => (
             <tr key={p.pod_id} className="border-b border-slate-800/60 last:border-0 font-mono">
@@ -72,10 +72,10 @@ function Formulas({ snap }: { snap: Snapshot }) {
         </tbody>
       </table>
       <dl className="grid gap-2 border-t border-slate-800 px-3 py-3 text-xs text-slate-400 sm:grid-cols-2">
-        <div><dt className="font-semibold text-slate-300">Return</dt><dd>sleeve NAV at the last session / funded capital − 1</dd></div>
-        <div><dt className="font-semibold text-slate-300">Max drawdown</dt><dd>worst fall of daily sleeve NAV from its running peak</dd></div>
-        <div><dt className="font-semibold text-slate-300">Volatility (ann.)</dt><dd>sample standard deviation of daily sleeve returns × √252</dd></div>
-        <div><dt className="font-semibold text-slate-300">Return / risk</dt><dd>mean daily return ÷ daily standard deviation × √252; unstable over this few sessions</dd></div>
+        <div><dt className="font-semibold text-slate-300">Return</dt><dd>time-weighted and flow-adjusted: each session's return is NAV ÷ (previous NAV + any transfer made since) − 1, and the returns are chained. A capital transfer is never a return</dd></div>
+        <div><dt className="font-semibold text-slate-300">Max drawdown</dt><dd>worst fall of that chained, flow-adjusted growth index from its running peak (a transfer cannot create or hide a drawdown)</dd></div>
+        <div><dt className="font-semibold text-slate-300">Volatility (ann.)</dt><dd>sample standard deviation of the daily flow-adjusted returns × √252</dd></div>
+        <div><dt className="font-semibold text-slate-300">Return / risk</dt><dd>mean daily flow-adjusted return ÷ daily standard deviation × √252; unstable over this few sessions</dd></div>
         <div><dt className="font-semibold text-slate-300">NAV</dt><dd>sleeve cash + shares × official close; a holding without a valid close is carried at cost and blocks new buys</dd></div>
         <div><dt className="font-semibold text-slate-300">Realized P&L</dt><dd>sale proceeds − average cost of the shares sold; no fees or slippage in this demonstration</dd></div>
       </dl>

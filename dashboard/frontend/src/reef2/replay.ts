@@ -212,6 +212,15 @@ export function viewAt(snap: Snapshot, index: number): SessionView {
       case 'APEX_CAPITAL_DECISION':
         reviewRaw.push({ seq: e.seq, p })
         break
+      case 'SESSION_CLOSED': {
+        // A review's transfers land after the mark and before the close. Report the session's balances after them, the same
+        // figures the summary bar shows, so the chart and the bar can never disagree.
+        const last = capital[capital.length - 1]
+        if (last) {
+          for (const [sid, amt] of Object.entries(pending)) if (amt && sid in last.pods) { last.pods[sid] += amt; last.reserve -= amt }
+        }
+        break
+      }
       case 'PROPOSAL_SUBMITTED':
         packets.set(p.proposal_id, { packet: p as Packet, seq: e.seq })
         break

@@ -64,7 +64,7 @@ function Evidence({ r, snap }: { r: CapitalReview; snap: Snapshot }) {
   const rows: [string, (id: string) => string, ((id: string) => string)?][] = [
     ['Return, trailing window', id => pct(r.evidence[id].window_return, 2), id => tone(r.evidence[id].window_return)],
     ['Worst drawdown', id => pct(r.evidence[id].window_max_drawdown, 2, false)],
-    ['Apex score (return - drawdown / 2)', id => pct(r.evidence[id].score, 2), id => tone(r.evidence[id].score)],
+    ['Apex score (return - ½ × |drawdown|)', id => pct(r.evidence[id].score, 2), id => tone(r.evidence[id].score)],
     ['Pitches in the window', id => `${r.evidence[id].proposals} / ${r.evidence[id].funded_proposals} funded`],
     ['Uncommitted cash', id => usd(r.evidence[id].free_cash)],
     ['Capital controlled', id => usd(r.evidence[id].sleeve_nav)],

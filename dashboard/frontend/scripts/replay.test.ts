@@ -230,6 +230,26 @@ for (const t of [0, 1, 2, 9, 19, 33, 34, 49, 61, 68, 69]) {
       prevReturn[p.pod_id] = p.return
     }
   }
+  // The capital chart and the summary bar are the same numbers: at every session the chart's last point is the post-review balance.
+  for (let i = 0; i < sessions.length; i++) {
+    const v = viewAt(snap, i)
+    const last = v.capital[v.capital.length - 1]
+    assert.equal(last.day, v.day)
+    for (const p of v.pods) assert.ok(close(last.pods[p.pod_id], p.controlled, 0.005), `session ${i + 1} ${p.pod_id}: chart ${last.pods[p.pod_id]} vs bar ${p.controlled}`)
+    assert.ok(close(last.reserve, v.reserve, 0.005), `session ${i + 1}: chart reserve ${last.reserve} vs bar ${v.reserve}`)
+  }
+  {
+    const at = (n: number) => viewAt(snap, n - 1).capital.at(-1)!
+    assert.ok(close(at(15).pods.momentum, 3685.16, 0.005) && close(at(15).pods.contrarian, 2470.36, 0.005), 'session 15 shows the balances after the $500 transfer')
+    for (const n of [15, 25, 35]) {
+      const r = viewAt(snap, n - 1).reviewsToday[0]
+      const to = r.transfers.find(t => t.amount > 0)!
+      const before = viewAt(snap, n - 2).capital.at(-1)!.pods[to.sleeve_id]
+      assert.ok(at(n).pods[to.sleeve_id] > before - 200, `session ${n}: the grant is in the chart`)
+    }
+    // no look-ahead: an earlier view never contains a later session's point
+    assert.ok(viewAt(snap, 10).capital.every(c => c.day <= viewAt(snap, 10).day) && viewAt(snap, 10).capital.length === 11)
+  }
   // Transfers recorded in a review are the ones the ledger shows, with their event numbers.
   for (const r of viewAt(snap, 69).reviews) {
     assert.ok(r.transfers.every(t => t.seq !== null && t.seq > r.seq), 'each transfer points at its SLEEVE_FUNDED event after the decision')
