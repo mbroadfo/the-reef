@@ -8,10 +8,12 @@ Reef 2.0: event-sourced paper-trading engine, independent strategy pods (Momentu
 
 ## Hard Constraints — Never Violate
 - **No .env files** — secrets via GitHub Secrets or environment variables only
-- **No stateful data to files or git** — MongoDB Atlas only
-- **No broker API** — Apex executes paper trades in The Tank; Mike mirrors manually in eTrade
+- **State lives in the event ledger and generated snapshots** — no other stateful data in files or git. Private or vendor market-data caches stay outside Git (untracked, gitignored); vendor rows are never committed
+- **No broker API** — Apex decides and the engine records paper trades in the ledger; Mike mirrors manually in eTrade only once the system proves itself
 - **Whole shares only** — `int(position_dollars / price)`, never fractional
-- **No LLM calls, Atlas access, deployments or trading activation** without Mike's explicit go-ahead; LLM budget cap is $2/day, $30/month
+- **$0 in new recurring costs** — no paid LLM calls, subscriptions or services without Mike's separate, explicit authorization. A spending cap ($2/day, $30/month for LLMs) is a ceiling on what may be authorized, not permission to spend
+- **No trading activation, no Atlas access, no unapproved deployments** — deploy workflows are manual, gated and disabled; nothing is scheduled
+- **`MONGODB_URI` is a legacy infrastructure dependency** pending retirement (Reef 1.0 Lambda/SSM only). Reef 2.0 development and CI never need it
 - **Workflow `name:` fields must be plain ASCII** — emoji breaks GitHub's workflow_dispatch indexing
 
 ## Architecture
@@ -21,7 +23,7 @@ Reef 2.0: event-sourced paper-trading engine, independent strategy pods (Momentu
 - **Apex** — D0 deterministic allocator, `the_reef/allocation`; dynamic capital allocation is the next milestone
 - **UI** — `dashboard/frontend/src/reef2` renders `public/reef2/snapshot.json` built by `tools/build_competition_snapshot.py`
 - **Workflows** — `ci.yml` (PR checks) plus three manual, disabled deploy workflows; nothing is scheduled
-- **Atlas** — `the_reef` / `the_reef_dev` on `reef-m0` hold Epoch 0 records; nothing in the repo reads them
+- **Atlas** — `the_reef` / `the_reef_dev` on `reef-m0` hold Epoch 0 records; preserved untouched, nothing in the repo reads them, no Reef 2.0 work depends on them
 
 ## Working Style
 - Terse responses. No preamble, no trailing summary of what you just did.

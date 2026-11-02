@@ -2,7 +2,7 @@
 
 An event-sourced paper-trading engine in which independent strategy pods compete for capital under one deterministic risk engine, with Apex deciding what each pod is allowed to do. **Everything is paper. Nothing trades, nothing calls a paid API, and the demonstration costs $0.**
 
-The goal is a $0-new-recurring-cost system: it runs from files on a laptop, CI uses no secrets, and any future LLM spend is capped at $2/day and $30/month across all pods.
+The goal is a $0-new-recurring-cost system: it runs from files on a laptop, CI uses no secrets, and no paid LLM calls or services happen without Mike's separate authorization. The $2/day and $30/month LLM cap is a ceiling on what could ever be authorized, not permission to spend.
 
 ## What exists today (Reef 2.0)
 
@@ -30,7 +30,8 @@ PYTHONPATH=. uv run python tools/aquarium_demo.py         # rebuild the snapshot
 - Capital is **not** reallocated between pods yet. Sleeves are fixed; dynamic Apex allocation is the next milestone.
 - The demo uses synthetic prices. The real-data replay is a fixed, survivorship-biased universe and proves nothing about skill.
 - Only two pods have strategies. No LLM research agents are wired in; the interface exists so one can join without touching Apex, Risk or the ledger.
-- No broker, no scheduled runner, no database. State lives in the ledger events of a run. There is no live trading.
+- No broker API, no scheduled runner, no database. State lives in the ledger events and generated snapshots; private market-data caches stay outside Git. There is no live trading and no trading activation.
+- `MONGODB_URI` and Atlas are legacy Reef 1.0 infrastructure pending retirement; Reef 2.0 development and CI do not need them.
 - Mike mirrors trades manually in eTrade only if the system proves itself first.
 
 ## Reef 1.0 (retired)

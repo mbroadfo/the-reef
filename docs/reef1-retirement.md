@@ -73,6 +73,10 @@ Secrets referenced by workflows: `DEPLOY_AWS_*`, `TERRAFORM_AWS_*`, `TERRAFORM_P
 3. **Housekeeping needing your approval:** delete the unused secrets listed above; close #13; correct `MONGODB_URI` and run the ping-only auth check (still pending); decide whether to export the Epoch 0 collections before the Atlas M0 cluster is ever paused or removed.
 4. Old workflow runs and the registered-but-absent "Atlas Ping Probe" and "Gate Probe" entries remain visible in the Actions tab; GitHub removes the latter once their runs age out.
 
+## Standing constraints
+
+$0 in new recurring costs; no paid LLM calls or services without Mike's separate authorization (the $2/day, $30/month LLM cap is a ceiling, not permission); no broker API, trading activation, Atlas access or unapproved deployment. `MONGODB_URI` is a legacy infrastructure dependency pending retirement and is not needed for Reef 2.0 development.
+
 ## Before and after
 
 See the pull request description.
