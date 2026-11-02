@@ -5,24 +5,16 @@ build-backend = "hatchling.build"
 [project]
 name = "the-reef"
 version = "0.1.0"
-description = "The Reef — agentic trading team: Apex Shark PM + hunter/analyst sharks + paper brokerage"
+description = "The Reef 2.0: event-sourced paper-trading engine with competing strategy pods (no live trading, no LLM calls)"
 requires-python = ">=3.12"
 dependencies = [
-    "anthropic>=0.105.2",
-    "crewai>=1.14.6",
-    "crewai-tools>=1.14.6",
     "exchange-calendars>=4.13",
-    "openai>=2.38.0",
-    "pydantic>=2.12.5",
-    "pymongo>=4.17.0",
-    "requests>=2.34.2",
-    "rich>=14.3.4",
-    "schedule>=1.2.2",
-    "yfinance>=1.4.1",
 ]
 
 [dependency-groups]
 test = ["pytest>=8", "exchange-calendars>=4.13"]
+# Only for tools/fetch_history.py, which downloads free daily bars once into an untracked local cache.
+data = ["yfinance>=1.4.1"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

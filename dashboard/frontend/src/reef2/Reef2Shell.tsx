@@ -39,7 +39,6 @@ export default function Reef2Shell() {
         <nav className="flex items-center gap-1" aria-label="Primary">
           <NavLink to="/" end className={({ isActive }) => (isActive ? on : off)}>Aquarium</NavLink>
           <NavLink to="/lab" className={({ isActive }) => (isActive ? on : off)}>Research Lab</NavLink>
-          <NavLink to="/dashboard" className={off}>Legacy dashboard</NavLink>
         </nav>
       </header>
 
