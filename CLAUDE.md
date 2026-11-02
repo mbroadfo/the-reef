@@ -4,23 +4,24 @@
 The architect behind The Reef — working at the cutting edge of enterprise cloud and AI. Sets architecture, you execute it. Don't explain basics. Don't second-guess decisions unless something is genuinely broken at runtime.
 
 ## Project
-Autonomous agentic paper trading system. 3-tier shark hierarchy (CrewAI) → MongoDB Atlas → GitHub Actions. Paper trades mirrored manually in eTrade once the system proves itself.
+Reef 2.0: event-sourced paper-trading engine, independent strategy pods (Momentum, Contrarian) in fixed sleeves, deterministic Risk Engine, D0 Apex allocator, React aquarium. Reef 1.0 (CrewAI, Atlas, scheduled workflows) is retired; see docs/reef1-retirement.md. Paper trades mirrored manually in eTrade only once the system proves itself.
 
 ## Hard Constraints — Never Violate
 - **No .env files** — secrets via GitHub Secrets or environment variables only
 - **No stateful data to files or git** — MongoDB Atlas only
 - **No broker API** — Apex executes paper trades in The Tank; Mike mirrors manually in eTrade
 - **Whole shares only** — `int(position_dollars / price)`, never fractional
-- **No `super().__init__()` in @CrewBase classes** — breaks MRO; use `set_tank()` before instantiation
+- **No LLM calls, Atlas access, deployments or trading activation** without Mike's explicit go-ahead; LLM budget cap is $2/day, $30/month
 - **Workflow `name:` fields must be plain ASCII** — emoji breaks GitHub's workflow_dispatch indexing
 
 ## Architecture
-- **The Tank** — MongoDB-backed paper brokerage, `$10,000` starting bankroll
-- **Apex Shark** — Claude Sonnet 4.6, Portfolio Manager, final trade authority
-- **Analyst Sharks** — Value, Macro, Contrarian (GPT-4o-mini)
-- **Hunter Sharks** — Momentum, Earnings, News (GPT-4o-mini)
-- **4 workflows** — scanner (5 min), deep_dive, stop_loss_monitor (30 min), daily_report (4:30pm ET)
-- **DB** — `the_reef` (prod) / `the_reef_dev` (dev), cluster `reef-m0`
+- **Ledger** — append-only hash-chained events in `the_reef/ledger`; books are derived, never stored
+- **Engine** — `advance()` in `the_reef/engine`; Risk Engine in `the_reef/risk`; execution gate in `the_reef/execution`
+- **Pods** — `the_reef/pods`, `the_reef/strategy`; Momentum and Contrarian active (30% sleeves each), four asleep
+- **Apex** — D0 deterministic allocator, `the_reef/allocation`; dynamic capital allocation is the next milestone
+- **UI** — `dashboard/frontend/src/reef2` renders `public/reef2/snapshot.json` built by `tools/build_competition_snapshot.py`
+- **Workflows** — `ci.yml` (PR checks) plus three manual, disabled deploy workflows; nothing is scheduled
+- **Atlas** — `the_reef` / `the_reef_dev` on `reef-m0` hold Epoch 0 records; nothing in the repo reads them
 
 ## Working Style
 - Terse responses. No preamble, no trailing summary of what you just did.
@@ -30,12 +31,9 @@ Autonomous agentic paper trading system. 3-tier shark hierarchy (CrewAI) → Mon
 
 ## Key Commands
 ```bash
-uv run python -m the_reef.main status
-uv run python -m the_reef.main scan
-uv run python -m the_reef.main dive TICKER
-uv run python -m the_reef.main sell TICKER [SHARES]
-uv run python -m the_reef.main report
-uv run python -m the_reef.main reset
-gh workflow run deep_dive.yml -f ticker=NVDA
-gh workflow run daily_report.yml -f command=reset
+uv sync --frozen --only-group test --no-install-project
+uv run pytest
+cd dashboard/frontend && npm ci && npm test && npm run build
+PYTHONPATH=. uv run python tools/build_competition_snapshot.py
+PYTHONPATH=. uv run python tools/aquarium_demo.py
 ```

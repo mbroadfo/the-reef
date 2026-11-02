@@ -1,6 +1,6 @@
 name: "CI: Pull Request Checks"
 # Required status checks for master (see docs/release-management.md): frontend, backend, terraform.
-# `tests` runs pytest; add it to the ruleset's required checks once it has reported green.
+# `hygiene` fails a PR that adds an Atlas connection string or host to a tracked file; `tests` runs pytest; add it to the ruleset's required checks once it has reported green.
 # No secrets, no AWS or Atlas access, no LLM keys. Fork PRs run with a read-only token.
 on:
   pull_request:
@@ -27,8 +27,6 @@ jobs:
       - name: Typecheck and build
         working-directory: dashboard/frontend
         run: npm ci && npm test && npm run build
-        env:
-          VITE_API_URL: https://example.invalid/
 
   backend:
     runs-on: ubuntu-latest
@@ -73,3 +71,14 @@ jobs:
           terraform fmt -check -recursive
           terraform init -backend=false -input=false
           terraform validate
+
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No hardcoded Atlas connection details
+        run: |
+          if git grep -nIE 'mongodb(\+srv)?://[^[:space:]"'"'"']*@|[A-Za-z0-9-]+\.[a-z0-9]+\.mongodb\.net' -- . ':!.github/workflows/ci.yml'; then
+            echo "Hardcoded MongoDB connection details found; use a secret." >&2
+            exit 1
+          fi

@@ -9,7 +9,7 @@ Production changes (dashboard frontend, Lambda backend, Terraform) are deployed 
 3. Every deploying job uses the `production` environment, which requires a named reviewer's approval before the job starts.
 4. Infrastructure: `plan` runs first (ungated) and prints the Terraform plan plus its SHA-256. `infra` waits for approval, builds the same deterministic Lambda zip, re-plans, **fails if the new plan's hash differs from the reviewed one**, and applies that saved plan file. There is no `-auto-approve` of a fresh plan. A plan file is not handed between jobs because artifacts on a public repository are readable by any signed-in GitHub user; the hash is the handoff. If provider or dependency versions drift between the two runs the job fails safe and you re-run.
 5. AWS credentials are set on the steps that call AWS, not on whole jobs, so `pip`, `npm` and third-party actions never see them. The plan job uses `TERRAFORM_PLAN_AWS_*` when those secrets exist (create a read-only IAM user for it) and otherwise falls back to `TERRAFORM_AWS_*`.
-6. Trading and LLM workflows are `workflow_dispatch` only until a separate activation decision. Provider keys live only in a gated `llm` environment.
+6. There are no trading or LLM workflows (Reef 1.0 was retired, see `reef1-retirement.md`). Any future one must be `workflow_dispatch` only until a separate activation decision, with provider keys only in a gated `llm` environment.
 
 ## Repository settings (not stored in the repo; applied 2026-10-30, listed here so they can be re-created)
 
@@ -24,7 +24,7 @@ gh api -X PUT repos/{owner}/{repo}/environments/production \
 gh api -X POST repos/{owner}/{repo}/environments/production/deployment-branch-policies -f name=master
 
 # 2. Branch ruleset: PR required, status checks required, no force-push or deletion
-#    Required checks (job names from .github/workflows/ci.yml): frontend, backend, terraform
+#    Required checks (job names from .github/workflows/ci.yml): frontend, backend, terraform (tests and hygiene also report; add them when ready)
 ```
 
 Branch ruleset (Settings > Rules > Rulesets), target `master`:
