@@ -8,6 +8,8 @@
 | [Hunter walkthrough](reef2-hunter-walkthrough.md) | The Hunter strategy end to end on a fixture |
 | [Hunter history](reef2-hunter-history.md) | Offline replay on free real prices, with limitations |
 | [Capital competition](reef2-capital.md) | Apex's capital policy C1, transfer accounting, flow-adjusted performance |
+| [Opportunity selection](reef2-selection.md) | Eligibility before ranking: untradable signals are withheld and audited, never allowed to take a slot |
+| [Utilization report](reef2-utilization-report.md) | Generated before/after funnel, binding limits, reviews and utilization on the 70-session fixture |
 | [Aquarium](reef2-aquarium.md) | Competing pods, Apex D0, the snapshot contract and the UI |
 | [Release management](release-management.md) | Branch rules, gated manual deploys (currently disabled) |
 | [Serverless infrastructure](serverless-infrastructure.md) | Reef 1.0 AWS stack (retained, not exercised) |

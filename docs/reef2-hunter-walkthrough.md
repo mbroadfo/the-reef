@@ -20,8 +20,8 @@ Ledger events (immutable, hash-chained; all but three of the stop raises omitted
 | 51 | 2026-08-31 13:30 UTC | FILL | BUY 9 HUNT @ 102.40 (order hunter-momentum:2026-08-28:HUNT:open) |
 | 61 | 2026-09-02 20:01 UTC | STOP_UPDATED | HUNT stop -> 99.91 |
 | 64 | 2026-09-03 20:01 UTC | STOP_UPDATED | HUNT stop -> 101.07 |
-| 289 | 2026-10-15 20:01 UTC | STOP_UPDATED | HUNT stop -> 131.80 |
-| 298 | 2026-10-16 13:30 UTC | FILL | SELL 9 HUNT @ 119.38 (order stop:HUNT:2026-10-16) |
+| 267 | 2026-10-15 20:01 UTC | STOP_UPDATED | HUNT stop -> 131.80 |
+| 273 | 2026-10-16 13:30 UTC | FILL | SELL 9 HUNT @ 119.38 (order stop:HUNT:2026-10-16) |
 
 31 stop raises in total, each higher than the last.
 
@@ -36,8 +36,8 @@ Ledger events (immutable, hash-chained; all but three of the stop raises omitted
 | 2026-08-28 | $2,089.75 | 0 | - | - | $3,991.81 | $9,991.81 |
 | 2026-08-31 | $2,102.50 | 9 | 99.50 | 102.11 | $3,992.53 | $9,992.53 |
 | 2026-09-25 | $1,083.78 | 9 | 123.38 | 129.58 | $4,278.80 | $10,278.80 |
-| 2026-10-15 | $1,093.23 | 9 | 131.80 | 135.66 | $4,473.02 | $10,473.02 |
-| 2026-10-16 | $2,167.65 | 0 | - | - | $4,314.60 | $10,314.60 |
+| 2026-10-15 | $1,042.74 | 9 | 131.80 | 135.66 | $4,493.32 | $10,493.32 |
+| 2026-10-16 | $2,117.16 | 0 | - | - | $4,334.92 | $10,334.92 |
 
 **Exit** (2026-10-16): the resting stop was 131.80. HUNT **opened at 119.38, far below it**, so the stop order filled at the open price, not at the stop: the gap is paid. (SELL 9 @ 119.38 (stop 131.80, open 119.38, low 117.92).)
 
@@ -48,7 +48,7 @@ Ledger events (immutable, hash-chained; all but three of the stop raises omitted
 | day | symbol | what happened | where it was stopped |
 |---|---|---|---|
 | 2026-08-24 | BIGP | RISK_REJECTED:SIZE_ZERO: pre-trade risk check at the close | Risk Engine: one $1,500 share exceeds the 10% position cap on a $10,000 fund |
-| 2026-09-24 | DEAL | INSTRUMENT_NOT_TRADABLE:PENDING_CASH_DEAL: DEAL has a pending cash acquisition effective 2026-12-18 | Pre-trade gate: a definitive cash acquisition is pending (the SEM lesson) |
+| 2026-09-24 | DEAL | PENDING_CASH_DEAL: DEAL has a pending cash acquisition effective 2026-12-18 | Eligibility screen before ranking: a definitive cash acquisition is pending (the SEM lesson); recorded, never proposed |
 | 2026-08-21 | GAPR | NO_VALID_OPEN_PRINT:MISSING | Fill gate: no official open print for the session, so nothing is bought at a stale price |
 | 2026-10-20 | TRND | close up to 20 sh for 2026-10-21; trend break: close 53.09 < SMA20 53.39 | Strategy exit (trend break) queued at the close, filled at the next open |
 
@@ -61,11 +61,11 @@ Ledger events (immutable, hash-chained; all but three of the stop raises omitted
 | FLATA | 2026-08-20 | 2026-09-30 | 24 | 40.30 | 40.65 | $8.40 | strategy exit |
 | HUNT | 2026-08-31 | 2026-10-16 | 9 | 102.40 | 119.38 | $152.82 | stop |
 | TRND | 2026-09-14 | 2026-10-21 | 20 | 50.40 | 53.09 | $53.80 | strategy exit |
-| GAPR | 2026-10-05 | 2026-11-03 | 15 | 64.41 | 70.07 | $84.90 | strategy exit |
+| GAPR | 2026-10-02 | 2026-11-03 | 16 | 63.54 | 70.07 | $104.48 | strategy exit |
 | FLATC | 2026-10-22 | 2026-11-06 | 14 | 69.15 | 68.57 | -$8.12 | strategy exit |
 | FLATB | 2026-11-05 | 2026-11-18 | 41 | 25.05 | 24.72 | -$13.53 | strategy exit |
 
-Closed trades: 8, total $258.85 = ledger realized P&L $258.85 (4 winners).
+Closed trades: 8, total $278.43 = ledger realized P&L $278.43 (4 winners).
 
 Open at the end: nothing.
 
@@ -73,17 +73,17 @@ Open at the end: nothing.
 
 | | start | end | return | max drawdown |
 |---|---|---|---|---|
-| Hunter sleeve (own capital base) | $4,000.00 | $4,258.85 | +6.47% | -4.81% |
-| Fund (all $10,000) | $10,000.00 | $10,258.85 | +2.59% | -2.05% |
+| Hunter sleeve (own capital base) | $4,000.00 | $4,278.43 | +6.96% | -4.81% |
+| Fund (all $10,000) | $10,000.00 | $10,278.43 | +2.78% | -2.06% |
 | Buy-and-hold, equal-dollar basket of the 8 names, same $4,000.00, whole shares | $4,000.00 | $4,162.43 | +4.06% | -11.22% |
 
 The sleeve's return is against the $4,000 it was funded with, never against the whole fund. The benchmark is bought at the first session's open and marked at each close using only bars that had closed. With synthetic data and one scenario, the comparison shows the calculation works; it says nothing about edge.
 
 ## 5. Deterministic replay and recovery
 
-- Events in the ledger: 398; head hash `d3a126ece91b5b61...`; state digest `4dab5c9666e9bc76...`.
+- Events in the ledger: 355; head hash `02abd3a342c39bd3...`; state digest `7f310252825dfd78...`.
 - Replaying every event from the start gives the same state digest: **True** and the same head hash: **True**.
 - A second, independent run of the whole simulation produces an identical ledger (same head hash): **True**.
-- Loading the stored events against the preserved checkpoint (seq 398) succeeds: **True**.
+- Loading the stored events against the preserved checkpoint (seq 355) succeeds: **True**.
 - Crash recovery: the test suite kills the process at every single append of a 25-session run (over 100 crash points), reloads from what the store durably holds, resumes with `next_session_to_advance`, and requires the final state to equal the uninterrupted run exactly (`tests/hunter/test_engine_safety.py`).
 

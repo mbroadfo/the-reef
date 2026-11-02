@@ -64,10 +64,11 @@ def test_bigp_passes_the_signal_but_fails_risk(full_run):
     assert fills(led, "BIGP") == []
 
 
-def test_deal_is_refused_by_the_tradability_gate_while_a_cash_acquisition_is_pending(full_run):
+def test_deal_is_withheld_before_ranking_while_a_cash_acquisition_is_pending(full_run):
     deps, led, reports = full_run
-    refusals = [n.detail for _, n in notes(reports, NoteKind.DECISION_REJECTED, "DEAL")]
-    assert refusals and all("PENDING_CASH_DEAL" in d for d in refusals)
+    withheld = [n.detail for _, n in notes(reports, NoteKind.SUPPRESSED, "DEAL")]
+    assert withheld and all("PENDING_CASH_DEAL" in d for d in withheld)
+    assert notes(reports, NoteKind.DECISION_REJECTED, "DEAL") == []  # it never reached the gate as a proposal
     assert fills(led, "DEAL") == []
 
 

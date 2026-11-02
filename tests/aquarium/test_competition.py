@@ -96,7 +96,8 @@ def test_every_proposal_gets_exactly_one_apex_decision_with_reasons(run):
             assert d["order_id"] and not d["reasons"]
             assert d["granted_shares"] <= d["requested_shares"] and d["granted_shares"] <= d["ceiling_shares"]
     assert any("D0_RANK_CAP" in d["reasons"] for d in decisions.values())
-    assert any("PENDING_CASH_DEAL" in d["reasons"] for d in decisions.values())
+    assert not any("PENDING_CASH_DEAL" in d["reasons"] for d in decisions.values()), "untradable names are withheld before ranking, not declined"
+    assert any(e["reason"] == "PENDING_CASH_DEAL" for e in kinds(led, EventKind.OPPORTUNITY_SUPPRESSED))
 
 
 def test_a_funded_decision_is_backed_by_a_queued_order_and_a_declined_one_by_none(run):

@@ -39,6 +39,7 @@ class EventKind(str, Enum):
     PROPOSAL_SUBMITTED = "PROPOSAL_SUBMITTED"  # a pod's entry proposal packet; audit only, no balance effect
     APEX_DECISION = "APEX_DECISION"  # Apex's (D0) verdict on a proposal: FUNDED or DECLINED, with reasons
     APEX_CAPITAL_DECISION = "APEX_CAPITAL_DECISION"  # Apex's capital review: evidence, rationale and the transfers it orders; audit only
+    OPPORTUNITY_SUPPRESSED = "OPPORTUNITY_SUPPRESSED"  # a strategy signal on an untradable name, withheld before ranking; audit only
 
 
 class Side(str, Enum):
@@ -246,6 +247,15 @@ def apex_decision(epoch_id: str, at: datetime, *, sleeve_id: str, proposal_id: s
         raise ValueError("outcome must be FUNDED or DECLINED")
     return EventDraft(derive_id("apex_decision", epoch_id, proposal_id), epoch_id, EventKind.APEX_DECISION, at,
                       {"sleeve_id": sleeve_id, "proposal_id": proposal_id, "outcome": outcome, **dict(detail)})
+
+
+def opportunity_suppressed(epoch_id: str, at: datetime, *, sleeve_id: str, session_day: str, symbol: str,
+                           detail: Mapping[str, Any]) -> EventDraft:
+    """A signal the strategy produced for a name the gate would refuse, withheld before ranking so it cannot take a
+    candidate or allocator slot. It is not a proposal: Apex never saw it. Audit only; moves no money."""
+    return EventDraft(derive_id("opportunity_suppressed", epoch_id, sleeve_id, session_day, symbol), epoch_id,
+                      EventKind.OPPORTUNITY_SUPPRESSED, at,
+                      {"sleeve_id": sleeve_id, "session_day": session_day, "symbol": symbol, **dict(detail)})
 
 
 def apex_capital_decision(epoch_id: str, at: datetime, *, review_id: str, detail: Mapping[str, Any]) -> EventDraft:

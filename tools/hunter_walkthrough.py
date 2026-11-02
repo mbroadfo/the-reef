@@ -158,7 +158,7 @@ def main() -> str:
         return next(((r.session_day, n) for r in reports for n in r.notes if n.kind is kind and n.symbol == sym), None)
     for kind, sym, where in [
         (NoteKind.DECISION_REJECTED, "BIGP", "Risk Engine: one $1,500 share exceeds the 10% position cap on a $10,000 fund"),
-        (NoteKind.DECISION_REJECTED, "DEAL", "Pre-trade gate: a definitive cash acquisition is pending (the SEM lesson)"),
+        (NoteKind.SUPPRESSED, "DEAL", "Eligibility screen before ranking: a definitive cash acquisition is pending (the SEM lesson); recorded, never proposed"),
         (NoteKind.FILL_REJECTED, "GAPR", "Fill gate: no official open print for the session, so nothing is bought at a stale price"),
         (NoteKind.QUEUED, "TRND", "Strategy exit (trend break) queued at the close, filled at the next open"),
     ]:

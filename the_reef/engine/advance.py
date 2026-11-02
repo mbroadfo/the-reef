@@ -28,7 +28,7 @@ from typing import Sequence
 
 from the_reef.allocation.capital import CapitalPolicy, build_evidence, decide as decide_capital, previous_beneficiary
 from the_reef.allocation.d0 import D0Config, allocate, sleeve_targets
-from the_reef.execution.gate import GatePorts, OrderIntent, QueuedOrder, fill_at_open, queue_order
+from the_reef.execution.gate import GatePorts, OrderIntent, QueuedOrder, fill_at_open, queue_order, screen_candidate
 from the_reef.ledger import events as ev
 from the_reef.ledger.events import EventDraft, Side
 from the_reef.ledger.ledger import AppendResult, Ledger
@@ -73,6 +73,10 @@ class EngineDeps:
     initial_cash: Decimal = D("10000")
     costs: ExecutionCosts = ExecutionCosts()
     capital: CapitalPolicy | None = None  # None = fixed sleeves (D0 only); set to let Apex move capital between pods
+    # True: names the gate would refuse are withheld from a strategy's candidates *before* it ranks and truncates them, and
+    # the withheld signals are recorded (OPPORTUNITY_SUPPRESSED). False reproduces the pre-#23 pipeline, where such a name
+    # could take a candidate slot and D0's single new-position slot; it exists to run the before/after diagnostic.
+    screen_untradable: bool = True
 
     @property
     def ports(self) -> GatePorts:
@@ -91,6 +95,7 @@ class NoteKind(str, Enum):
     QUEUED = "QUEUED"
     DECISION_REJECTED = "DECISION_REJECTED"
     CAPITAL_REVIEW = "CAPITAL_REVIEW"
+    SUPPRESSED = "SUPPRESSED"
 
 
 @dataclass(frozen=True)
@@ -400,6 +405,7 @@ def _decide(ledger: Ledger, deps: EngineDeps, day: date, decide_at: datetime, re
             blocked=blocked,
         )
         review = spec.strategy.review(ctx)
+        propose_ctx = _screen_candidates(ledger, deps, spec, ctx, blocked, day, decide_at, report)
         for sym, new_stop in sorted(review.new_stops.items()):
             pos = sl.positions.get(sym)
             if pos is not None and (pos.stop_price is None or new_stop > pos.stop_price):
@@ -409,7 +415,7 @@ def _decide(ledger: Ledger, deps: EngineDeps, day: date, decide_at: datetime, re
             if exit_prop.symbol in blocked:
                 continue
             _queue(ledger, deps, spec, exit_prop, sl.positions[exit_prop.symbol].shares, day, decide_at, report)
-        props = [p for p in spec.strategy.propose(ctx) if p.symbol not in blocked]
+        props = [p for p in spec.strategy.propose(propose_ctx) if p.symbol not in blocked]
         ranked = sorted(props, key=lambda p: (-p.score, p.symbol))
         packets = {p.symbol: build_packet(pod_id=spec.sleeve_id, strategy=spec.strategy, prop=p, day=day, created_at=decide_at,
                                           sleeve_cash=ep.sleeves[spec.sleeve_id].cash, sector=_sector(deps, p.symbol, decide_at))
@@ -444,6 +450,46 @@ def _decide(ledger: Ledger, deps: EngineDeps, day: date, decide_at: datetime, re
                 _emit(ledger, ev.apex_decision(deps.epoch_id, decide_at, sleeve_id=spec.sleeve_id, proposal_id=pid,
                                                outcome="DECLINED", detail={**detail, "reasons": out.code.split(":"), "detail": out.detail}),
                       report)
+
+
+def _screen_candidates(ledger: Ledger, deps: EngineDeps, spec: SleeveSpec, ctx: StrategyContext, blocked: frozenset[str],
+                       day: date, decide_at: datetime, report: AdvanceReport) -> StrategyContext:
+    """Eligibility before ranking. A name the gate would refuse for a new position (a pending cash deal, a halt, a delisting,
+    a listing too young) is withheld from the strategy's candidates, so it cannot take one of its ``max_candidates`` places or
+    D0's single new-position slot ahead of a name that can be bought. Uses the gate's own rule at the decision time, so
+    nothing unknown then is used. Every signal the strategy would have produced for a withheld name is written to the ledger
+    with its instrument, score, reason and decision time. Withheld signals are not proposals: they never reach Apex and do not
+    count toward C1's proposal evidence. The gate still checks again at the queue and at the fill."""
+    if not deps.screen_untradable:
+        return ctx
+    refused: dict[str, tuple[str, str, tuple[str, ...]]] = {}
+    for sym in sorted(ctx.bars):
+        if sym in ctx.holdings or sym in blocked:
+            continue
+        res = screen_candidate(deps.ports, sym, Intent.OPEN, decide_at)
+        if res is not None and not res.ok:
+            refused[sym] = (res.code.value, res.detail, tuple(res.evidence))
+    if not refused:
+        return ctx
+    # Which of the withheld names did the strategy actually signal? Ask it about those alone, repeatedly, so none is lost to
+    # its own candidate cap.
+    pool = {s: ctx.bars[s] for s in sorted(refused)}
+    while pool:
+        sigs = spec.strategy.propose(replace(ctx, bars=pool))
+        if not sigs:
+            break
+        for p in sigs:
+            code, detail, evidence = refused[p.symbol]
+            _emit(ledger, ev.opportunity_suppressed(deps.epoch_id, decide_at, sleeve_id=spec.sleeve_id, session_day=day.isoformat(),
+                                                    symbol=p.symbol, detail={
+                "decided_at": decide_at.isoformat(), "rule": "TRADABILITY_SCREEN", "intent": p.intent.value,
+                "reason": code, "detail": detail, "evidence": list(evidence), "counted_as_proposal": False,
+                "signal": {"score": format(p.score, "f"), "ref_price": format(p.ref_price, "f"),
+                           "stop_price": None if p.stop_price is None else format(p.stop_price, "f"), "rationale": p.rationale,
+                           "strategy": f"{spec.strategy.strategy_id}@{spec.strategy.spec_hash}"}}), report)
+            report.add(NoteKind.SUPPRESSED, spec.sleeve_id, p.symbol, f"{code}: {detail}")
+            pool.pop(p.symbol, None)
+    return replace(ctx, blocked=blocked | frozenset(refused))
 
 
 @dataclass(frozen=True)

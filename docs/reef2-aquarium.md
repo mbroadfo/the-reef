@@ -14,6 +14,7 @@ existing React app. Prices are synthetic and say so on every page. Nothing is li
 | Shared proposal contract (ticker, thesis, evidence, timestamps, entry/exit plan, risk, capital request) | `the_reef/pods/contract.py` |
 | Second strategy, Contrarian (mean reversion), competing with Momentum (Hunter, unmodified) | `the_reef/strategy/contrarian.py` |
 | Ledger records of what Apex was shown and decided: `PROPOSAL_SUBMITTED`, `APEX_DECISION` (audit only, move no money) | `ledger/events.py`, `engine/advance.py::_decide` |
+| Signals withheld before ranking because the gate would refuse the name: `OPPORTUNITY_SUPPRESSED` (audit only; not proposals) | `engine/advance.py::_screen_candidates`, [selection](reef2-selection.md) |
 | Apex = deterministic D0: fixed sleeve weights, best-ranked idea per pod per session, never more than asked, then gate and Risk Engine | `allocation/d0.py` + `engine/advance.py` |
 | Engine-to-UI contract: one JSON snapshot derived from the ledger only, with the raw events | `the_reef/aquarium/snapshot.py`, `public/reef2/snapshot.json` |
 | Aquarium, team pages, proposal story, Research Lab | `dashboard/frontend/src/reef2/` |

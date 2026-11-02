@@ -32,6 +32,7 @@ from the_reef.market.instruments import (
     Intent,
     InvalidSymbol,
     TradabilityCode,
+    TradabilityResult,
     check_tradable,
     normalize_symbol,
 )
@@ -113,6 +114,31 @@ def immediate_fill_allowed(ports: GatePorts, at: datetime) -> GateDecision:
     return GateDecision(False, code, f"{at.isoformat()} is {cls.phase.value}")
 
 
+def _tradable_at_decision(ports: GatePorts, symbol: str, fill_day: date, intent: Intent, decided_at: datetime) -> TradabilityResult:
+    """The one tradability rule for a decision: what was known at ``decided_at`` about trading ``symbol`` on ``fill_day``."""
+    return check_tradable(
+        symbol, fill_day, ports.instruments, ports.actions, ports.calendar,
+        intent=intent, as_of=decided_at, min_history_sessions=ports.limits.min_history_sessions,
+    )
+
+
+def screen_candidate(ports: GatePorts, symbol: str, intent: Intent, decided_at: datetime) -> TradabilityResult | None:
+    """Would ``queue_order`` accept ``intent`` in ``symbol`` decided at ``decided_at``, as far as tradability goes?
+
+    Runs the same rule as the gate on the same knowledge time, so it can be asked *before* a strategy's candidates are
+    ranked and truncated. ``None`` means it cannot be decided here (no valid next open); the gate then reports it.
+    The answer is advisory for ranking only: the gate still checks at the queue and again at the fill.
+    """
+    try:
+        sym = normalize_symbol(symbol)
+        fill = next_valid_open(ports.calendar, decided_at)
+    except InvalidSymbol as exc:
+        return TradabilityResult(False, TradabilityCode.INVALID_SYMBOL, str(exc))
+    except CalendarRangeError:
+        return None
+    return _tradable_at_decision(ports, sym, fill.day, intent, decided_at)
+
+
 def queue_order(ports: GatePorts, order: OrderIntent) -> GateDecision:
     """Accept a decision for the next valid session open, or refuse it with a reason.
 
@@ -130,10 +156,7 @@ def queue_order(ports: GatePorts, order: OrderIntent) -> GateDecision:
     except CalendarRangeError as exc:
         return GateDecision(False, GateCode.CALENDAR_UNAVAILABLE, str(exc))
 
-    trade = check_tradable(
-        symbol, fill.day, ports.instruments, ports.actions, ports.calendar,
-        intent=order.intent, as_of=order.decided_at, min_history_sessions=ports.limits.min_history_sessions,
-    )
+    trade = _tradable_at_decision(ports, symbol, fill.day, order.intent, order.decided_at)
     if not trade.ok:
         return GateDecision(False, GateCode.INSTRUMENT_NOT_TRADABLE, trade.detail, tradability=trade.code)
     queued = QueuedOrder(order, symbol, fill.day, fill.open)
