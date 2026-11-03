@@ -106,6 +106,7 @@ function Explorer({ snap }: { snap: Snapshot }) {
       case 'FILL': return `${p.sleeve_id} ${p.side} ${p.shares} ${p.symbol} @ ${p.price}`
       case 'PROPOSAL_SUBMITTED': return `${p.pod_id} pitches ${p.symbol}: ask ${usd(p.capital_request.dollars)}`
       case 'APEX_DECISION': return `${p.sleeve_id} ${p.symbol ?? String(p.proposal_id).split(':')[2]}: ${p.outcome}${p.reasons?.length ? ' (' + p.reasons.join(', ') + ')' : ''}`
+      case 'ATTESTATION': return p.subtype === 'CHARTER' ? `epoch charter: ${String(p.charter_hash).slice(0, 12)}, paper only` : `${p.session_day} data attested: ${p.bars}/${p.universe} bars${p.catch_up ? ', processed late' : ''}`
       case 'OPPORTUNITY_SUPPRESSED': return `${p.sleeve_id} ${p.symbol} signal withheld before ranking: ${p.reason} (score ${p.signal?.score})`
       case 'ORDER_QUEUED': return `${p.sleeve_id} ${p.intent} up to ${p.requested_shares} ${p.symbol}, fills ${p.fill_session}`
       case 'ORDER_REJECTED': return `${p.sleeve_id} ${p.symbol ?? ''} ${p.stage}: ${p.code}`
@@ -189,12 +190,16 @@ export default function LabPage() {
       <Section title="Provenance and limits">
         <div className="glass p-4 text-sm text-slate-300 leading-relaxed">
           <ul className="list-disc space-y-1.5 pl-5">
-            <li><strong>Prices are synthetic.</strong> A seeded generator makes every bar (tests/fixtures/competition_scenario.py); reruns are byte-identical. No market data, no vendor, no cost.</li>
+            <li>{snap.mode.kind === 'LIVE_DATA_PAPER'
+              ? <><strong>Prices are real daily bars; fills are simulated.</strong> Bars come from a free public source after each close and are used only once final and complete; each session's ledger record carries a digest of the bars it used. Fills are reconstructed from the next session's daily open, high and low. They are not live intraday executions.</>
+              : <><strong>Prices are synthetic.</strong> A seeded generator makes every bar (tests/fixtures/competition_scenario.py); reruns are byte-identical. No market data, no vendor, no cost.</>}</li>
             <li><strong>The accounting is real.</strong> Orders, fills, stops, sleeves, risk checks and valuations come from the same engine and ledger Reef 2.0 would use. Fills are at the next open or the stop price, with no fees or slippage here.</li>
             <li><strong>Apex is deterministic and moves capital in small, recorded steps.</strong> {snap.apex.rule} Returns are time-weighted, so a transfer is never counted as performance. No language model decides anything.</li>
             <li><strong>Four pods are inactive</strong> and show no figures. Two active pods over {snap.pods.find(p => p.status === 'ACTIVE')?.sessions} sessions cannot say which philosophy is better.</li>
             <li><strong>The timeline replays the ledger.</strong> Each session view on the aquarium is rebuilt in the browser from the events up to that session's close; tests prove it cannot contain later information and that the final session equals the engine's figures.</li>
-            <li><strong>Not live.</strong> No broker, no database writes, no model calls. Regenerate with <code className="font-mono text-cyan-300">uv run python tools/build_competition_snapshot.py</code>.</li>
+            <li>{snap.mode.kind === 'LIVE_DATA_PAPER'
+              ? <><strong>Paper only.</strong> No broker, no real orders, no model calls, no paid service. The ledger lives on the operator's machine; this page was built from its snapshot (<code className="font-mono text-cyan-300">uv run --group data python tools/live.py snapshot</code>).</>
+              : <><strong>Not live.</strong> No broker, no database writes, no model calls. Regenerate with <code className="font-mono text-cyan-300">uv run python tools/build_competition_snapshot.py</code>.</>}</li>
           </ul>
           <p className="mt-3"><Link className="text-cyan-300 hover:underline" to="/">← Back to the aquarium</Link></p>
         </div>

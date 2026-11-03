@@ -40,6 +40,7 @@ class EventKind(str, Enum):
     APEX_DECISION = "APEX_DECISION"  # Apex's (D0) verdict on a proposal: FUNDED or DECLINED, with reasons
     APEX_CAPITAL_DECISION = "APEX_CAPITAL_DECISION"  # Apex's capital review: evidence, rationale and the transfers it orders; audit only
     OPPORTUNITY_SUPPRESSED = "OPPORTUNITY_SUPPRESSED"  # a strategy signal on an untradable name, withheld before ranking; audit only
+    ATTESTATION = "ATTESTATION"  # live-paper provenance: the epoch charter and the data each session was decided on; audit only
 
 
 class Side(str, Enum):
@@ -263,3 +264,11 @@ def apex_capital_decision(epoch_id: str, at: datetime, *, review_id: str, detail
     events carrying ``ref=review_id``; this event moves no money itself."""
     return EventDraft(derive_id("apex_capital_decision", epoch_id, review_id), epoch_id, EventKind.APEX_CAPITAL_DECISION, at,
                       {"review_id": review_id, **dict(detail)})
+
+
+def attestation(epoch_id: str, at: datetime, *, subtype: str, key: str, detail: Mapping[str, Any]) -> EventDraft:
+    """What a live-paper epoch rested on: ``CHARTER`` (code, limits and data source it runs under) once, and one
+    ``SESSION_DATA`` per session (the digest of the bars used, the execution basis, what was missing). Audit only; moves
+    no money. First write wins: the same ``key`` is never rewritten, so a resumed session keeps its original record."""
+    return EventDraft(derive_id("attestation", epoch_id, subtype, key), epoch_id, EventKind.ATTESTATION, at,
+                      {"subtype": subtype, "key": key, **dict(detail)})

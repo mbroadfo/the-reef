@@ -27,3 +27,6 @@ screenshots/
 dashboard/frontend/dist/
 dashboard/frontend/tsconfig.tsbuildinfo
 dashboard/infra/state-check.json
+
+# Live-paper epoch: vendor-derived prices stay out of Git
+dashboard/frontend/public/reef2/live/

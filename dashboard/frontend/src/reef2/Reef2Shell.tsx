@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import reefLogo from '../assets/the_reef_logo.png'
-import { useSnapshot } from './useSnapshot'
+import { IS_LIVE, useSnapshot } from './useSnapshot'
+import { LiveStatusBar, isLive } from './LivePanel'
 
 const link = 'px-3 py-1.5 rounded-full text-sm font-medium transition-colors'
 const on = `${link} bg-cyan-400/15 text-cyan-200`
@@ -24,9 +25,10 @@ export default function Reef2Shell() {
       {/* Honest labelling comes first, on every page. */}
       <div role="status" className="relative z-20 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-1.5 text-xs"
            style={{ background: 'rgba(245,158,11,0.14)', borderBottom: '1px solid rgba(245,158,11,0.45)', color: '#e2e8f0' }}>
-        <span className="font-extrabold tracking-[0.12em] text-amber-400 whitespace-nowrap">{(snap?.mode.label ?? 'FIXTURE DEMONSTRATION').toUpperCase()}</span>
-        <span className="text-slate-300">{snap?.mode.disclosure ?? 'Synthetic prices through the real engine. Not live, not real money.'}</span>
+        <span className="font-extrabold tracking-[0.12em] text-amber-400 whitespace-nowrap">{(snap?.mode.label ?? (IS_LIVE ? 'LIVE-DATA PAPER TRADING' : 'FIXTURE DEMONSTRATION')).toUpperCase()}</span>
+        <span className="text-slate-300">{snap?.mode.disclosure ?? (IS_LIVE ? 'Real daily market data, paper money only. Not a broker, not real money.' : 'Synthetic prices through the real engine. Not live, not real money.')}</span>
       </div>
+      {snap && isLive(snap) && <LiveStatusBar live={snap.live} />}
 
       <header className="relative z-10 mx-auto max-w-6xl px-4 pt-4 flex flex-wrap items-center gap-3">
         <Link to="/" className="flex items-center gap-3 mr-auto">
@@ -39,6 +41,7 @@ export default function Reef2Shell() {
         <nav className="flex items-center gap-1" aria-label="Primary">
           <NavLink to="/" end className={({ isActive }) => (isActive ? on : off)}>Aquarium</NavLink>
           <NavLink to="/lab" className={({ isActive }) => (isActive ? on : off)}>Research Lab</NavLink>
+          <a href={IS_LIVE ? '/' : '/live/'} className={off}>{IS_LIVE ? 'Synthetic demo' : 'Live paper'}</a>
         </nav>
       </header>
 

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Pod, ProposalRow, Snapshot } from './types'
 import { POD_HEX } from './PodShark'
 import { reasonLabel, usd, tone } from './format'
+import { IS_LIVE } from './useSnapshot'
 
 export function Section({ title, hint, children, id }: { title: string; hint?: string; children: ReactNode; id?: string }) {
   return (
@@ -54,7 +55,9 @@ export function Loading({ error }: { error: string | null }) {
   return (
     <div className="glass mt-10 p-8 text-center text-slate-300">
       {error
-        ? <>Could not load the competition snapshot ({error}). Run <code className="font-mono text-cyan-300">uv run python tools/build_competition_snapshot.py</code> and reload.</>
+        ? IS_LIVE
+          ? <>No live-paper epoch is published here yet ({error}). It appears after <code className="font-mono text-cyan-300">uv run --group data python tools/live.py run</code> has processed a session. Activation is a separate, approved step.</>
+          : <>Could not load the competition snapshot ({error}). Run <code className="font-mono text-cyan-300">uv run python tools/build_competition_snapshot.py</code> and reload.</>
         : 'Loading the tank...'}
     </div>
   )

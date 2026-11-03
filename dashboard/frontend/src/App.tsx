@@ -4,11 +4,12 @@ import AquariumPage from './reef2/AquariumPage'
 import ProposalPage from './reef2/ProposalPage'
 import TeamPage from './reef2/TeamPage'
 import LabPage from './reef2/LabPage'
+import { IS_LIVE } from './reef2/useSnapshot'
 
 // The Reef 1.0 dashboard (live API, portfolio and trade pages) was retired; it remains in git history.
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={IS_LIVE ? '/live' : undefined}>
       <Routes>
         <Route element={<Reef2Shell />}>
           <Route path="/"                 element={<AquariumPage />} />

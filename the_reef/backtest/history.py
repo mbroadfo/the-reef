@@ -128,6 +128,10 @@ class HistoricalBarSource:
     def symbols(self) -> list[str]:
         return sorted(self._bars)
 
+    def days(self, symbol: str) -> list[date]:
+        """Every session this symbol has a bar for, oldest first."""
+        return list(self._days.get(symbol, ()))
+
     def _last_closed_day_index(self, as_of: datetime) -> int:
         return bisect_right(self._close_times, as_of)
 
