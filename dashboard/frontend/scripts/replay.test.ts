@@ -240,8 +240,10 @@ for (const t of [0, 1, 2, 9, 19, 33, 34, 49, 61, 68, 69]) {
   }
   {
     const at = (n: number) => viewAt(snap, n - 1).capital.at(-1)!
-    assert.ok(close(at(15).pods.momentum, 3685.16, 0.005) && close(at(15).pods.contrarian, 2470.36, 0.005), 'session 15 shows the balances after the $500 transfer')
-    for (const n of [15, 25, 35]) {
+    assert.ok(close(at(15).pods.momentum, 3685.16, 0.005) && close(at(15).pods.contrarian, 2470.17, 0.005), 'session 15 shows the balances after the $500 transfer')
+    // Review 35 holds (the leader's proposal evidence no longer counts the untradable DEAL), so only 15 and 25 move capital.
+    assert.equal(viewAt(snap, 34).reviewsToday[0].outcome, 'HELD')
+    for (const n of [15, 25]) {
       const r = viewAt(snap, n - 1).reviewsToday[0]
       const to = r.transfers.find(t => t.amount > 0)!
       const before = viewAt(snap, n - 2).capital.at(-1)!.pods[to.sleeve_id]

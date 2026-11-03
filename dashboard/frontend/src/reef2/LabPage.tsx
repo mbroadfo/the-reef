@@ -106,6 +106,7 @@ function Explorer({ snap }: { snap: Snapshot }) {
       case 'FILL': return `${p.sleeve_id} ${p.side} ${p.shares} ${p.symbol} @ ${p.price}`
       case 'PROPOSAL_SUBMITTED': return `${p.pod_id} pitches ${p.symbol}: ask ${usd(p.capital_request.dollars)}`
       case 'APEX_DECISION': return `${p.sleeve_id} ${p.symbol ?? String(p.proposal_id).split(':')[2]}: ${p.outcome}${p.reasons?.length ? ' (' + p.reasons.join(', ') + ')' : ''}`
+      case 'OPPORTUNITY_SUPPRESSED': return `${p.sleeve_id} ${p.symbol} signal withheld before ranking: ${p.reason} (score ${p.signal?.score})`
       case 'ORDER_QUEUED': return `${p.sleeve_id} ${p.intent} up to ${p.requested_shares} ${p.symbol}, fills ${p.fill_session}`
       case 'ORDER_REJECTED': return `${p.sleeve_id} ${p.symbol ?? ''} ${p.stage}: ${p.code}`
       case 'STOP_UPDATED': return `${p.sleeve_id} ${p.symbol} stop → ${p.stop_price}`

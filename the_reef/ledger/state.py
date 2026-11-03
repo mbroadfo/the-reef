@@ -318,7 +318,7 @@ def _apply_in_epoch(ep: EpochState, draft: EventDraft) -> EpochState:
             return replace(ep, orders={**ep.orders, key: rec})
         raise LedgerError(f"bad rejection stage {stage!r}")
 
-    if kind in (EventKind.PROPOSAL_SUBMITTED, EventKind.APEX_DECISION):
+    if kind in (EventKind.PROPOSAL_SUBMITTED, EventKind.APEX_DECISION, EventKind.OPPORTUNITY_SUPPRESSED):
         return ep  # audit records: they explain decisions and move no money
 
     if kind is EventKind.SLEEVE_FUNDED:
