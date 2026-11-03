@@ -8,7 +8,8 @@ import type { Timeline } from './Timeline'
 import CapitalDesk from './CapitalDesk'
 import { Loading, PodChip, Section, podById } from './ui'
 import { dayLabel, num, pct, reasonLabel, tone, usd } from './format'
-import { useSnapshot } from './useSnapshot'
+import { IS_LIVE, useSnapshot } from './useSnapshot'
+import LivePanel, { isLive } from './LivePanel'
 import type { PitchView, SessionView } from './replay'
 import type { Snapshot } from './types'
 
@@ -43,7 +44,7 @@ function Race({ snap, tl }: { snap: Snapshot; tl: Timeline }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <p className="mt-1 text-xs text-slate-500">Each team is measured on what it earned, with capital transfers removed (time-weighted), drawn only up to the session you are viewing. Dots are fills: click one for its pitch. The dashed line holds an equal-weight basket of the same synthetic universe.</p>
+      <p className="mt-1 text-xs text-slate-500">Each team is measured on what it earned, with capital transfers removed (time-weighted), drawn only up to the session you are viewing. Dots are fills: click one for its pitch. The dashed line holds an equal-weight basket of the same {IS_LIVE ? 'universe' : 'synthetic universe'}.</p>
     </div>
   )
 }
@@ -147,7 +148,7 @@ function Scoreboard({ snap, view }: { snap: Snapshot; view: SessionView }) {
           })}
         </tbody>
       </table>
-      <p className="px-3 py-2 text-xs text-slate-500">Ranked by return per unit of risk as of session {view.index + 1}. Sleeves are fixed, so a leader does not receive more capital. With {view.pods[0]?.sessions} synthetic sessions and a handful of trades this ordering demonstrates the accounting; it is not a skill estimate.</p>
+      <p className="px-3 py-2 text-xs text-slate-500">Ranked by return per unit of risk as of session {view.index + 1}. Sleeves are fixed, so a leader does not receive more capital. With {view.pods[0]?.sessions} {IS_LIVE ? '' : 'synthetic '}sessions and a handful of trades this ordering {IS_LIVE ? 'is far too early to be a skill estimate' : 'demonstrates the accounting; it is not a skill estimate'}.</p>
     </div>
   )
 }
@@ -172,6 +173,17 @@ function Sleeping({ snap }: { snap: Snapshot }) {
 export default function AquariumPage() {
   const { snap, error } = useSnapshot()
   if (!snap) return <Loading error={error} />
+  if (isLive(snap)) {
+    const sessions = snap.live.sessions.processed
+    return (
+      <>
+        <LivePanel snap={snap} />
+        {sessions >= 3
+          ? <Section title="Replay the epoch" hint="Every session so far, rebuilt in your browser from the ledger"><Aquarium snap={snap} /></Section>
+          : <p className="glass mt-8 p-4 text-sm text-slate-400">The replay and race charts appear after three processed sessions.</p>}
+      </>
+    )
+  }
   return <Aquarium snap={snap} />
 }
 
@@ -185,7 +197,7 @@ function Aquarium({ snap }: { snap: Snapshot }) {
   const pv = (id: string) => view.pods.find(p => p.pod_id === id)!
   return (
     <>
-      <div className="pt-1">
+      <div className="pt-1" hidden={IS_LIVE}>
         <h1 className="text-2xl font-bold leading-tight text-white sm:text-4xl">Two sharks hunt. <span className="text-amber-300">One CIO decides.</span></h1>
         <p className="mt-1 text-sm text-slate-300 sm:hidden">Press play to replay 70 synthetic sessions.</p>
         <p className="mt-2 hidden max-w-3xl text-slate-300 sm:block">

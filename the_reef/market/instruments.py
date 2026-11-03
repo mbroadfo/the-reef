@@ -209,7 +209,7 @@ def check_tradable(
             )
 
     if record.status is InstrumentStatus.HALTED:
-        return _blocked(TradabilityCode.HALTED, f"{sym} is halted")
+        return _blocked(TradabilityCode.HALTED, f"{sym} is halted", (record.source,))  # the source says why
 
     if intent.adds_exposure:
         for act in actions.actions_for(sym, as_of):
