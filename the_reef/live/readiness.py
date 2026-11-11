@@ -1,6 +1,14 @@
 """The one-command readiness check. Read-only: it never writes to the ledger, the cache or the network.
 
-Levels: OK (good), INFO (a fact worth knowing), WARN (works, but you should look), FAIL (not ready; exit code 1).
+Levels: OK (good), INFO (a fact worth knowing), WARN (works, but you should look), TODO (a mandatory prerequisite
+for activation that is not met yet), FAIL (broken; exit code 1).
+
+Verdicts, from weakest to strongest claim:
+  NOT READY                         something is broken (a FAIL)
+  CODE READY (...)                  the code, calendar and storage work, but at least one TODO stands between you and
+                                    activation (dependency, seeded warmup data, separated checkpoints...); exit code 2
+  READY TO ACTIVATE (not activated) every mandatory prerequisite is satisfied; activation is still a manual, approved step
+  ACTIVE                            an epoch already exists
 """
 from __future__ import annotations
 
@@ -60,14 +68,15 @@ def _task_installed() -> bool | None:
 
 
 def readiness(paths: LivePaths, spec: EpochSpec | None, now: datetime, *, calendar: MarketCalendar | None = None,
-              research_dir: Path | None = None, universe: tuple[str, ...] | None = None, check_scheduler: bool = True) -> tuple[list[Item], str]:
+              research_dir: Path | None = None, universe: tuple[str, ...] | None = None, check_scheduler: bool = True,
+              has_yfinance: bool | None = None, same_disk=_same_disk) -> tuple[list[Item], str]:
     items: list[Item] = []
     add = lambda name, level, detail: items.append(Item(name, level, detail))  # noqa: E731
 
     # 1. tooling
     add("exchange_calendars", "OK" if importlib.util.find_spec("exchange_calendars") else "FAIL", "NYSE sessions, holidays and early closes")
-    has_yf = importlib.util.find_spec("yfinance") is not None
-    add("yfinance (free data fetch)", "OK" if has_yf else "WARN", "installed" if has_yf else "not installed: run through `uv run --group data` to refresh data")
+    has_yf = importlib.util.find_spec("yfinance") is not None if has_yfinance is None else has_yfinance
+    add("yfinance (free data fetch)", "OK" if has_yf else "TODO", "installed" if has_yf else "not installed: run `uv sync --group data` and use `uv run --group data` (required to refresh data)")
 
     # 2. calendar
     try:
@@ -96,12 +105,19 @@ def readiness(paths: LivePaths, spec: EpochSpec | None, now: datetime, *, calend
         ign = _git_ignores(paths.ui_dir)
         add("UI snapshot folder is gitignored", "OK" if ign else ("WARN" if ign is None else "FAIL"),
             f"{paths.ui_dir}" + (" (git ignores it)" if ign else " (could not confirm)" if ign is None else " is NOT ignored: vendor prices could be committed"))
+    cp_anchor = paths.checkpoint_root
+    while not cp_anchor.exists() and cp_anchor != cp_anchor.parent:
+        cp_anchor = cp_anchor.parent
     if paths.checkpoint_root == paths.root:
-        add("Checkpoints independent of the ledger", "WARN", "stored beside the ledger: set REEF_CHECKPOINT_DIR to another drive or a synced folder so tail truncation is detectable")
-    elif _same_disk(paths.checkpoint_root, paths.root):
-        add("Checkpoints independent of the ledger", "WARN", f"{paths.checkpoint_root} is a different folder on the same disk")
+        add("Checkpoints independent of the ledger", "TODO", "stored beside the ledger: set REEF_CHECKPOINT_DIR to a folder on another disk so tail truncation is detectable")
+    elif same_disk(paths.checkpoint_root, paths.root):
+        add("Checkpoints independent of the ledger", "TODO", f"{paths.checkpoint_root} is on the same disk as the ledger: set REEF_CHECKPOINT_DIR to another disk")
+    elif REPO_ROOT in paths.checkpoint_root.resolve().parents:
+        add("Checkpoints independent of the ledger", "FAIL", f"{paths.checkpoint_root} is inside the repository")
+    elif not os.access(cp_anchor, os.W_OK):
+        add("Checkpoints independent of the ledger", "FAIL", f"{paths.checkpoint_root} is on a different disk but cannot be written ({cp_anchor} is not writable)")
     else:
-        add("Checkpoints independent of the ledger", "OK", f"{paths.checkpoint_root} is on a different disk")
+        add("Checkpoints independent of the ledger", "OK", f"{paths.checkpoint_root} is on a different disk and writable")
     free = shutil.disk_usage(paths.root if paths.root.exists() else paths.root.parent).free
     add("Disk space", "OK" if free > 1 << 30 else "WARN", f"{free / (1 << 30):.1f} GiB free")
 
@@ -111,7 +127,7 @@ def readiness(paths: LivePaths, spec: EpochSpec | None, now: datetime, *, calend
         rd = research_dir or cache.cache_dir()
         have = [s for s in [*spec.universe, BENCHMARK] if cache.path_for(s, rd).exists()]
         missing = len(spec.universe) + 1 - len(have)
-        add("Live market cache", "INFO", "not seeded yet; `live.py seed` copies warmup history from the research cache")
+        add("Live market cache", "TODO", "not seeded yet: `live.py seed` copies warmup history from the research cache")
         add("Research cache (seed source)", "OK" if not missing else "FAIL",
             f"{rd}: {len(have)} of {len(spec.universe) + 1} symbols" + (f"; missing {missing}" if missing else ""))
         if not missing:
@@ -142,7 +158,7 @@ def readiness(paths: LivePaths, spec: EpochSpec | None, now: datetime, *, calend
     lf = paths.ledger_file(spec.epoch_id)
     if not lf.exists() or lf.stat().st_size == 0:
         add(f"Epoch {spec.epoch_id}", "INFO", f"NOT ACTIVATED: no ledger. First session would be {spec.first_session}. Activation is a manual, approved step.")
-        verdict = "READY TO ACTIVATE (not activated)"
+        verdict = "READY TO ACTIVATE (not activated)"  # downgraded below while any TODO stands
     else:
         verdict = "ACTIVE"
         try:
@@ -168,6 +184,9 @@ def readiness(paths: LivePaths, spec: EpochSpec | None, now: datetime, *, calend
             add("Windows scheduled task", "WARN", f"{TASK_NAME} IS installed: confirm unattended running was approved")
         else:
             add("Windows scheduled task", "OK", f"{TASK_NAME} is not installed: nothing runs unattended")
+    todo = [i for i in items if i.level == "TODO"]
     if any(i.level == "FAIL" for i in items):
         verdict = "NOT READY"
+    elif todo and verdict != "ACTIVE":
+        verdict = f"CODE READY (not ready to activate: {len(todo)} prerequisite(s) open: " + "; ".join(i.name for i in todo) + ")"
     return items, verdict

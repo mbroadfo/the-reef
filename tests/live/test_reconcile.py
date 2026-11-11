@@ -139,7 +139,8 @@ def test_synthetic_demonstration_data_is_untouched_by_the_live_epoch(reference):
 
 def test_readiness_before_activation_says_not_activated(tmp_path):
     lv = Live.create(tmp_path)
-    items, verdict = readiness.readiness(lv.paths, lv.spec, after_close(DAYS[FIRST_INDEX - 1], 120), calendar=CAL, check_scheduler=False)
+    items, verdict = readiness.readiness(lv.paths, lv.spec, after_close(DAYS[FIRST_INDEX - 1], 120), calendar=CAL, check_scheduler=False,
+                                         has_yfinance=True, same_disk=lambda a, b: False)
     assert verdict == "READY TO ACTIVATE (not activated)", [i for i in items if i.level == "FAIL"]
     assert any("NOT ACTIVATED" in i.detail for i in items)
     assert not lv.paths.ledger_file(lv.spec.epoch_id).exists()  # a check creates nothing

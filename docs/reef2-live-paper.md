@@ -23,13 +23,13 @@ Files live outside the repository (`..\the_reef_private\live` by default, overri
 | `<checkpoints>/checkpoints/<id>.jsonl` | independent head records, each chained to the one before |
 | `<checkpoints>/backups/<id>/` | a copy of the ledger after every run that appended |
 | `snapshots/<id>/snapshot.json` | generated UI snapshot (vendor prices: private) |
-| `dashboard/frontend/public/reef2/live/` | gitignored copy served to the local UI |
+| `dashboard/frontend/.live-snapshot/` | gitignored copy served to the local UI by the Vite dev/preview server only. It is deliberately **not** under `public/` (Vite copies `public/` into every production build); a build that contains a live snapshot fails. |
 
 ## Commands
 
 ```bash
-uv run --group data python tools/live.py check                       # one-command readiness (read-only)
-uv run --group data python tools/live.py seed                        # copy warmup history into the live cache
+uv run --group data python tools/live.py check                       # one-command readiness (read-only); exit 0 ready/active, 2 CODE READY, 1 broken
+uv run --group data python tools/live.py seed                        # copy warmup history for symbols the live cache lacks (never overwrites; refused once any epoch exists)
 uv run --group data python tools/live.py activate --confirm <epoch>  # MANUAL, approved step: opens the epoch
 uv run --group data python tools/live.py run                         # manual startup / daily run (safe to repeat)
 uv run python tools/live.py status | reconcile | snapshot
@@ -42,10 +42,17 @@ nothing is backfilled. `run` exit codes: 0 up to date or advanced, 1 error, 2 SA
 Scheduling (not installed, needs approval): `tools\windows\Register-ReefLiveTask.ps1` is a dry run by default; `-Install` creates the task, `-Remove` deletes it. The runner needs no
 scheduler to be correct: run it by hand whenever you like.
 
+### Readiness verdicts
+
+* `NOT READY` - something is broken (exit 1).
+* `CODE READY (not ready to activate: ...)` - the code, calendar and storage work, but a mandatory prerequisite is open (exit 2): `yfinance` missing, live cache not seeded, or checkpoints not on a different disk from the ledger.
+* `READY TO ACTIVATE (not activated)` - every prerequisite is met: dependencies, a seeded cache with a verifying manifest and enough warmup for every symbol, writable storage outside the repository, checkpoints on another disk (writable). Activation is still your manual, approved step.
+* `ACTIVE` - an epoch exists.
+
 ## What the epoch is
 
 * `live-paper-<date>`, $10,000, sleeves funded 30 / 30 with 40% in Apex's reserve (`d0-initial`). The synthetic demonstration (`epoch-1`), Epoch 0 and every historical ledger are untouched.
-* Two active sharks only. A `CHARTER` attestation in the ledger records strategy hashes, limits, D0, C1 and data rules at activation. Every run compares the code to it; any difference is a SAFE_HOLD.
+* Two active sharks only. A `CHARTER` attestation in the ledger records strategy hashes, each sleeve's wrapper settings (request fraction, exit rules, research-desk agents and parameters), limits, D0, C1 and data rules at activation. Every run compares the code to it; any difference is a SAFE_HOLD.
 * Decisions are recorded from the close of the first session. Warmup bars (160 required) feed indicators only; no historical paper trade is invented.
 
 ## Execution semantics: reconstructed, not live
@@ -101,7 +108,7 @@ All data in tests is synthetic. The only network call ever made during developme
 ## Before activation (decisions and gaps)
 
 1. **Your approval to activate**, and a first session date. Activation is one command and cannot be undone except by closing the epoch.
-2. **Checkpoint location.** Until `REEF_CHECKPOINT_DIR` points elsewhere, tail truncation is undetectable by design (the readiness check warns).
+2. **Checkpoint location.** `REEF_CHECKPOINT_DIR` must be a folder on a different disk from the ledger; `check` will not say READY TO ACTIVATE until it is (tail truncation is otherwise undetectable by design).
 3. **Install `yfinance`** (`uv sync --group data`), run `seed`, then one `run` while the market is closed to pull the days since 2026-10-30 and verify against the vendor.
 4. **Held-name splits need a human, with no tooling yet.** A SAFE_HOLD stays until a decision; there is no split-adjust or hold-release event. Likelihood is low in this large-cap universe; the fix is a signed correcting event in a later PR.
 5. **No point-in-time corporate-action feed at $0.** Pending cash acquisitions are not known in advance (the SEM lesson). Mitigation here is the 3-silent-session halt rule only.

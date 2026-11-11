@@ -16,7 +16,7 @@ from the_reef.backtest.universe import UNIVERSE
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ROOT = REPO_ROOT.parent / "the_reef_private" / "live"
-DEFAULT_UI_DIR = REPO_ROOT / "dashboard" / "frontend" / "public" / "reef2" / "live"  # gitignored
+DEFAULT_UI_DIR = REPO_ROOT / "dashboard" / "frontend" / ".live-snapshot"  # gitignored; NOT under public/, which Vite copies into every production build
 
 EXECUTION_BASIS = "SIMULATED_FROM_DAILY_OHLC"
 PROVIDER = "Yahoo Finance public chart data via yfinance (free, personal use)"

@@ -57,15 +57,21 @@ def cmd_check(paths: LivePaths, args: argparse.Namespace) -> int:
     for i in items:
         print(f"[{i.level:4}] {i.name:<{width}}  {i.detail}")
     print(f"\nVERDICT: {verdict}")
-    return 1 if verdict == "NOT READY" else 0
+    return 1 if verdict == "NOT READY" else 2 if verdict.startswith("CODE READY") else 0
 
 
 def cmd_seed(paths: LivePaths, args: argparse.Namespace) -> int:
     now = now_utc()
     spec = spec_for(paths, args, now)
-    n = market.seed(paths.market_dir, cache.cache_dir(), [*UNIVERSE, BENCHMARK], spec.first_session)
-    print(f"seeded {len(n)} symbols ({sum(n.values())} warmup rows before {spec.first_session}) into {paths.market_dir}")
-    return 0 if len(n) == len(UNIVERSE) + 1 else 1
+    wanted = [*UNIVERSE, BENCHMARK]
+    try:
+        n = market.seed(paths.market_dir, cache.cache_dir(), wanted, spec.first_session, epochs_dir=paths.root / "epochs")
+    except market.SeedRefused as exc:
+        print(f"seed refused: {exc}")
+        return 1
+    kept = [s for s in wanted if s not in n and cache.path_for(s, paths.market_dir).exists()]
+    print(f"seeded {len(n)} symbols ({sum(n.values())} warmup rows before {spec.first_session}) into {paths.market_dir}; {len(kept)} already present, left untouched")
+    return 0 if len(n) + len(kept) == len(wanted) else 1
 
 
 def cmd_refresh(paths: LivePaths, args: argparse.Namespace) -> int:

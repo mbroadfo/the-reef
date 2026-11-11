@@ -75,6 +75,15 @@ def _plain(x: Any) -> Any:
     return x
 
 
+def _strategy_config(strategy: Any) -> dict[str, Any]:
+    """Every behaviour-changing setting of a sleeve's strategy wrapper, as plain data: the order size it asks for, its
+    exit rules and each research-desk agent with its parameters. (``spec_hash`` pins only the wrapped strategy.)"""
+    desk = getattr(strategy, "desk", None)
+    agents = [{"agent": type(a).__name__, "params": _plain(asdict(a))} for a in getattr(desk, "agents", ())]
+    return {"wrapper": type(strategy).__name__, "request_fraction": format(getattr(strategy, "request_fraction", Decimal("1")), "f"),
+            "exit_rules": list(getattr(strategy, "exit_rules", ())), "desk": agents}
+
+
 def charter(deps: EngineDeps, spec: EpochSpec) -> dict[str, Any]:
     """Everything the epoch's behaviour depends on, as plain data. Its digest pins the run."""
     return {
@@ -86,6 +95,7 @@ def charter(deps: EngineDeps, spec: EpochSpec) -> dict[str, Any]:
                  "finalize_delay_min": int(market.FINALIZE_DELAY.total_seconds() // 60), "min_coverage": format(market.MIN_COVERAGE, "f"),
                  "max_close_jump": format(market.MAX_CLOSE_JUMP, "f"), "halt_sessions": market.HALT_SESSIONS},
         "sleeves": {s.sleeve_id: f"{s.strategy.strategy_id}@{s.strategy.spec_hash}" for s in deps.sleeves},
+        "sleeve_config": {s.sleeve_id: _strategy_config(s.strategy) for s in deps.sleeves},
         "sleeve_weights": {k: format(v, "f") for k, v in sorted(deps.d0.sleeve_weights.items())},
         "max_new_per_session": deps.d0.max_new_per_session,
         "limits": _plain(asdict(deps.limits)), "costs": _plain(asdict(deps.costs)),

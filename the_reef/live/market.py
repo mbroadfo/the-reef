@@ -35,7 +35,7 @@ from the_reef.backtest import cache
 from the_reef.backtest.history import HistoricalBarSource
 from the_reef.backtest.universe import BENCHMARK, SECTOR_OF
 from the_reef.live.config import PROVIDER
-from the_reef.live.store import atomic_write
+from the_reef.live.store import WriterBusy, WriterLock, atomic_write
 from the_reef.market.bars import DailyBar
 from the_reef.market.calendar import CalendarRangeError, MarketCalendar, NEW_YORK, Session
 from the_reef.market.instruments import InstrumentRecord, InstrumentStatus
@@ -171,9 +171,29 @@ class RefreshReport:
         return sum(self.appended.values())
 
 
+MARKET_LOCK = "market.lock"
+
+
+def market_lock(market_dir: Path) -> WriterLock:
+    """One writer at a time for the live cache: ``seed`` and ``refresh`` both take it, so they can never interleave."""
+    return WriterLock(market_dir / MARKET_LOCK)
+
+
 def refresh(market_dir: Path, symbols: Sequence[str], fetcher: DailyFetcher, calendar: MarketCalendar, now: datetime,
             *, held: frozenset[str] = frozenset(), overlap_days: int = 10) -> RefreshReport:
-    """Append every newly final, valid daily bar. Idempotent: running it twice appends nothing the second time."""
+    """Append every newly final, valid daily bar. Idempotent: running it twice appends nothing the second time.
+    Refuses (an error in the report, nothing written) while another process is seeding or refreshing the cache."""
+    try:
+        with market_lock(market_dir):
+            return _refresh_locked(market_dir, symbols, fetcher, calendar, now, held=held, overlap_days=overlap_days)
+    except WriterBusy as exc:
+        rep = RefreshReport(started=_now_iso(now), symbols=len(symbols))
+        rep.errors.append(f"market cache is busy: {exc}")
+        return rep
+
+
+def _refresh_locked(market_dir: Path, symbols: Sequence[str], fetcher: DailyFetcher, calendar: MarketCalendar, now: datetime,
+                    *, held: frozenset[str], overlap_days: int) -> RefreshReport:
     rep = RefreshReport(started=_now_iso(now), symbols=len(symbols))
     horizon = latest_finalized_session(calendar, now)
     if horizon is None:
@@ -273,20 +293,44 @@ def refresh(market_dir: Path, symbols: Sequence[str], fetcher: DailyFetcher, cal
     return rep
 
 
-def seed(market_dir: Path, source_dir: Path, symbols: Sequence[str], before: date) -> dict[str, int]:
-    """Copy warmup history (rows strictly before ``before``) from the research cache. Never copies a row the live
-    epoch could decide on, so nothing enters without passing ``refresh``."""
+class SeedRefused(RuntimeError):
+    """Seeding would replace or contradict data that is already in use; a human must decide."""
+
+
+def seed(market_dir: Path, source_dir: Path, symbols: Sequence[str], before: date, *, epochs_dir: Path | None = None) -> dict[str, int]:
+    """Copy warmup history (rows strictly before ``before``) from the research cache for symbols the live cache does not
+    have yet. Never copies a row the live epoch could decide on, so nothing enters without passing ``refresh``.
+
+    Non-destructive: an existing per-symbol file is never replaced (collected live rows survive any number of seeds), and
+    nothing is seeded once any epoch has a ledger under ``epochs_dir`` or when the live manifest no longer verifies. It
+    holds the cache's writer lock, so it cannot interleave with ``refresh``. Returns only the symbols it wrote."""
     out: dict[str, int] = {}
-    for sym in symbols:
-        rows = [r for r in cache.read(sym, source_dir) if r.day < before]
-        if rows:
-            atomic_write(cache.path_for(sym, market_dir), _csv_text(rows))
-            out[sym] = len(rows)
-    if out:
-        src = cache.verify_manifest(source_dir)
-        cache.write_manifest(cache.build_manifest(list(symbols), {
-            "provider": PROVIDER, "seeded_from_manifest_digest": src.digest, "seeded_rows_before": before.isoformat(),
-            "note": "warmup history copied from the research cache; no live row is in the seed"}, market_dir), market_dir)
+    try:
+        lock = market_lock(market_dir)
+        lock.__enter__()
+    except WriterBusy as exc:
+        raise SeedRefused(f"market cache is busy: {exc}") from exc
+    try:
+        if epochs_dir is not None and epochs_dir.exists() and any(p.stat().st_size for p in epochs_dir.glob("*/ledger.jsonl")):
+            raise SeedRefused("an epoch has been activated; the live cache is in use and is never re-seeded")
+        existing = cache.verify_manifest(market_dir)
+        if existing.present and (existing.altered or existing.unlisted or not existing.digest):
+            raise SeedRefused("the live cache manifest does not verify (altered or unlisted files); refusing to seed over it")
+        for sym in symbols:
+            if cache.path_for(sym, market_dir).exists():
+                continue
+            rows = [r for r in cache.read(sym, source_dir) if r.day < before]
+            if rows:
+                atomic_write(cache.path_for(sym, market_dir), _csv_text(rows))
+                out[sym] = len(rows)
+        if out:
+            src = cache.verify_manifest(source_dir)
+            note = {"provider": PROVIDER, "seeded_from_manifest_digest": src.digest, "seeded_rows_before": before.isoformat(),
+                    "note": "warmup history copied from the research cache; no live row is in the seed"}
+            prior = json.loads((market_dir / cache.MANIFEST).read_text(encoding="utf-8")).get("source") if existing.present else None
+            cache.write_manifest(cache.build_manifest(list(symbols), prior or note, market_dir), market_dir)
+    finally:
+        lock.__exit__(None, None, None)
     return out
 
 
