@@ -278,6 +278,10 @@ def _apply_in_epoch(ep: EpochState, draft: EventDraft) -> EpochState:
             raise LedgerError(f"session {day} is already closed")
         return replace(ep, last_completed=day)
 
+    if kind is EventKind.ATTESTATION:
+        _str(p, "subtype")
+        return ep  # provenance of a live-paper epoch; moves no money
+
     if kind is EventKind.APEX_CAPITAL_DECISION:
         _str(p, "review_id")
         return ep  # an audit record of a capital review; the transfers it orders are SLEEVE_FUNDED events

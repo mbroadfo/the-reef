@@ -6,6 +6,7 @@ import { capitalMarkers, decisionMarkers, sessionsOf, viewAt } from './replay'
 import { nextParams, sessionParam, visibleMarkers } from './timelineLogic'
 import type { CapitalMarker, Marker, SessionView } from './replay'
 import type { Snapshot } from './types'
+import { IS_LIVE } from './useSnapshot'
 
 export interface Timeline {
   view: SessionView
@@ -89,7 +90,7 @@ export function TimelineBar({ tl }: { tl: Timeline }) {
         <div className="mr-auto min-w-0">
           <span className="font-mono text-sm font-bold text-white">Session {view.index + 1}<span className="text-slate-500"> / {view.total}</span></span>
           <span className="ml-2 text-sm text-slate-300">{dayLabel(view.day)}</span>
-          <span className="chip chip-warn ml-2 align-middle">SYNTHETIC REPLAY</span>
+          <span className="chip chip-warn ml-2 align-middle">{IS_LIVE ? 'PAPER EPOCH REPLAY' : 'SYNTHETIC REPLAY'}</span>
         </div>
         <label className="hidden items-center gap-1.5 text-xs text-slate-400 sm:flex">
           <input type="checkbox" checked={tl.pauseAtFunded} onChange={e => tl.setPauseAtFunded(e.target.checked)} /> pause at funded pitches

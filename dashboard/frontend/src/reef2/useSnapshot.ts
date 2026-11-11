@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react'
 import type { Snapshot } from './types'
 
 // The page renders only what the engine wrote to this file; there is no other data source.
-const SNAPSHOT_URL = `${((import.meta.env.VITE_SNAPSHOT_BASE as string | undefined) ?? '').replace(/\/$/, '')}/reef2/snapshot.json`
+// Two separate epochs share the page: the synthetic demonstration at "/" and the real-market-data paper epoch at "/live".
+// The live snapshot is private (vendor prices): it is produced locally by tools/live.py and never committed.
+export const IS_LIVE = typeof window !== 'undefined' && /^\/live(\/|$)/.test(window.location.pathname)
+const BASE = ((import.meta.env.VITE_SNAPSHOT_BASE as string | undefined) ?? '').replace(/\/$/, '')
+const SNAPSHOT_URL = `${BASE}/reef2/${IS_LIVE ? 'live/' : ''}snapshot.json`
 
 let cache: Promise<Snapshot> | null = null
 export const loadSnapshot = (): Promise<Snapshot> =>

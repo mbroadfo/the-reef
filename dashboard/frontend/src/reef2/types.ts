@@ -119,6 +119,23 @@ export interface Pod {
   rank?: number
 }
 
+export interface LiveBlock {
+  epoch_id: string
+  paper_only: boolean
+  first_session: string
+  activated_at: string | null
+  execution: { basis: string; note: string; meaning: string }
+  data: { provider: string; last_bar_session: string | null; expected_session: string | null; sessions_behind: number; freshness: 'CURRENT' | 'AWAITING_VENDOR' | 'STALE'; final_after_minutes: number; checked_at: string }
+  sessions: { processed: number; last_processed: string | null; next: { day: string; open: string; close: string; early_close: boolean } | null; market_now: string }
+  run: { status: string; reasons: string[]; processed: string[]; at: string } | null
+  holds: Record<string, string[]>
+  pending_orders: { sleeve_id: string; symbol: string; intent: string; shares: number | null; fill_session: string; ref_price: string | null; stop: string | null }[]
+  attested_sessions: number
+  catch_up_sessions: string[]
+  uncredited_dividends: Record<string, Record<string, string>>
+  charter_hash: string | null
+}
+
 export interface Snapshot {
   schema_version: number
   mode: { kind: string; label: string; disclosure: string }
@@ -135,4 +152,5 @@ export interface Snapshot {
   prices: Record<string, [string, string][]>
   checks: { name: string; ok: boolean; detail: string }[]
   events: LedgerEventJson[]
+  live?: LiveBlock
 }
